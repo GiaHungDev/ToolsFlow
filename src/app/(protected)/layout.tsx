@@ -14,7 +14,7 @@ export default function ProtectedLayout({
   return (
     <div className="min-h-screen bg-white text-black">
       <Header />
-      <main className="p-4">{children}</main>
+      <main className="p-2">{children}</main>
     </div>
   );
 }
