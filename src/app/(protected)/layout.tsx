@@ -1,4 +1,3 @@
-import Header from "@/components/layout/Header";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -13,7 +12,6 @@ export default function ProtectedLayout({
 }) {
   return (
     <div className="min-h-screen bg-white text-black">
-      <Header />
       <main className="p-2">{children}</main>
     </div>
   );

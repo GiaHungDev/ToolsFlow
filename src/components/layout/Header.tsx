@@ -7,22 +7,31 @@ import { SheetClose } from "../ui/sheet";
 
 export default function Header() {
   return (
-    <header className="bg-white border-b border-gray-200 shadow-md">
-      <div className="max-w-full mx-auto px-4 sm:px-6 lg:px-8">
+    <header className="fixed top-0 left-0 z-50 w-full bg-white border-b border-gray-200 shadow-sm">
+      <div className="max-w-full mx-auto px-4 sm:px-4 lg:px-6">
         <div className="flex justify-between items-center h-16">
           {/* Left side - Logo and Navigation */}
-          <div className="flex items-center space-x-4">
+          <div className="flex items-center space-x-1">
             {/* Logo */}
-            <div className="flex items-center space-x-2">
+            <div className="flex items-center space-x-2 pr-4">
               <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
                 <span className="text-white font-bold text-sm">H</span>
               </div>
-              <span className="text-xl font-semibold text-gray-900 hidden sm:block">
+              <span className="text-base font-semibold text-gray-900 hidden sm:block">
                 HARUMI-AI
               </span>
             </div>
-          </div>
 
+            <div className="flex items-center space-x-2">
+              <Button variant="ghost">Hailou AI</Button>
+            </div>
+            <div className="flex items-center space-x-2">
+              <Button variant="ghost">Runway AI</Button>
+            </div>
+            {/* <div className="flex items-center space-x-2">
+              <Button variant="ghost">Ghost</Button>
+            </div> */}
+          </div>
           <div className="flex items-center space-x-4">
             {/* User Menu */}
             <div className="relative">
