@@ -69,7 +69,7 @@ const CreateVideoSection = () => {
                   <FileUploadComponent
                     maxFiles={5}
                     maxFileSize={20}
-                    title="Kéo thả ảnh vào đây hoặc click để chọn ảnh"
+                    title="Kéo thả ảnh hoặc click để chọn ảnh"
                     acceptedTypes={[".jpg", ".jpeg", ".png", ".gif", ".webp"]}
                     onFilesChange={field.onChange}
                   />
@@ -83,7 +83,7 @@ const CreateVideoSection = () => {
             )}
           />
           <Button variant="secondary" className="w-full" type="submit">
-            Submit
+            Tạo video
           </Button>
         </form>
       </Form>
