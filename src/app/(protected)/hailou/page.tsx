@@ -1,5 +1,5 @@
+import DataTableDemo from "@/components/customized/table/table-09";
 import HailouAI from "@/components/sections/HailouAI";
-import TableHailouAi from "@/components/sections/HailouAI/TableSection";
 
 const HailouPage = () => {
   return (
@@ -15,7 +15,7 @@ const HailouPage = () => {
       <div className="flex-1 bg-white">
         <div className="p-4 h-full">
           {/* Nội dung chính sẽ được thêm vào đây */}
-          <TableHailouAi />
+          <DataTableDemo />
         </div>
       </div>
     </div>
