@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
+import { ReduxProvider } from "@/lib/redux/provider";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -23,7 +24,9 @@ export default function RootLayout({
   return (
     <html lang="en" className={`${inter.variable} mdl-js`}>
       <body className="antialiased">
-        <main>{children}</main>
+        <ReduxProvider>
+          <main>{children}</main>
+        </ReduxProvider>
         <Toaster />
       </body>
     </html>

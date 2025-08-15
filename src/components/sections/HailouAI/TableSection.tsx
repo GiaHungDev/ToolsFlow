@@ -1,726 +1,257 @@
 "use client";
 
-import { Column, FlexibleTable } from "@/components/shared/CTable";
-import { Badge } from "@/components/ui/badge";
-import React from "react";
+import CustomTable from "@/components/shared/CTable";
+import { TableColumn } from "@/components/shared/CTable/interface";
+import { Button } from "@/components/ui/button";
+import { test } from "@/lib/redux/slices/authSlice";
+import { useAppDispatch, useAppSelector } from "@/lib/redux/store";
+import React, { useState } from "react";
 
-interface User {
-  [key: string]: unknown;
+// Kiểu dữ liệu cho mỗi hàng
+interface Employee {
   id: number;
   name: string;
   email: string;
-  phone: string;
-  address: string;
+  role: "Admin" | "User" | "Manager";
   department: string;
-  position: string;
-  status: string;
-  birthDate: string;
   salary: string;
-  experience: string;
-  education: string;
-  skills: string;
-  manager: string;
-  startDate: string;
-  workType: string;
-  level: string;
-  location: string;
-  project: string;
-  performance: string;
+  status: "Active" | "Inactive";
+  joinDate: string;
+  phone: string;
+  [key: string]: string | number;
 }
 
-const users: User[] = [
-  {
-    id: 1,
-    name: "Nguyễn Văn A",
-    email: "a@example.com",
-    phone: "0123456789",
-    address: "123 Đường ABC, Quận 1, TP.HCM",
-    department: "IT",
-    position: "Developer",
-    status: "active",
-    birthDate: "1990-01-15",
-    salary: "15,000,000",
-    experience: "5 năm",
-    education: "Đại học Bách Khoa",
-    skills: "React, NodeJS, Python",
-    manager: "Trần Văn B",
-    startDate: "2020-03-01",
-    workType: "Full-time",
-    level: "Senior",
-    location: "TP.HCM",
-    project: "E-commerce Platform",
-    performance: "Excellent",
-  },
-  {
-    id: 2,
-    name: "Trần Thị B",
-    email: "b@example.com",
-    phone: "0987654321",
-    address: "456 Đường DEF, Quận 2, TP.HCM",
-    department: "Marketing",
-    position: "Manager",
-    status: "active",
-    birthDate: "1985-05-20",
-    salary: "25,000,000",
-    experience: "8 năm",
-    education: "Đại học Kinh Tế",
-    skills: "Marketing, SEO, Content",
-    manager: "Lê Văn C",
-    startDate: "2018-07-15",
-    workType: "Full-time",
-    level: "Manager",
-    location: "TP.HCM",
-    project: "Brand Development",
-    performance: "Good",
-  },
-  {
-    id: 3,
-    name: "Lê Văn C",
-    email: "c@example.com",
-    phone: "0369258147",
-    address: "789 Đường GHI, Quận 3, TP.HCM",
-    department: "Sales",
-    position: "Executive",
-    status: "inactive",
-    birthDate: "1992-12-10",
-    salary: "12,000,000",
-    experience: "3 năm",
-    education: "Đại học Ngoại Thương",
-    skills: "Sales, CRM, Communication",
-    manager: "Phạm Thị D",
-    startDate: "2021-01-10",
-    workType: "Part-time",
-    level: "Junior",
-    location: "Hà Nội",
-    project: "Customer Acquisition",
-    performance: "Average",
-  },
-  {
-    id: 1,
-    name: "Nguyễn Văn A",
-    email: "a@example.com",
-    phone: "0123456789",
-    address: "123 Đường ABC, Quận 1, TP.HCM",
-    department: "IT",
-    position: "Developer",
-    status: "active",
-    birthDate: "1990-01-15",
-    salary: "15,000,000",
-    experience: "5 năm",
-    education: "Đại học Bách Khoa",
-    skills: "React, NodeJS, Python",
-    manager: "Trần Văn B",
-    startDate: "2020-03-01",
-    workType: "Full-time",
-    level: "Senior",
-    location: "TP.HCM",
-    project: "E-commerce Platform",
-    performance: "Excellent",
-  },
-  {
-    id: 2,
-    name: "Trần Thị B",
-    email: "b@example.com",
-    phone: "0987654321",
-    address: "456 Đường DEF, Quận 2, TP.HCM",
-    department: "Marketing",
-    position: "Manager",
-    status: "active",
-    birthDate: "1985-05-20",
-    salary: "25,000,000",
-    experience: "8 năm",
-    education: "Đại học Kinh Tế",
-    skills: "Marketing, SEO, Content",
-    manager: "Lê Văn C",
-    startDate: "2018-07-15",
-    workType: "Full-time",
-    level: "Manager",
-    location: "TP.HCM",
-    project: "Brand Development",
-    performance: "Good",
-  },
-  {
-    id: 3,
-    name: "Lê Văn C",
-    email: "c@example.com",
-    phone: "0369258147",
-    address: "789 Đường GHI, Quận 3, TP.HCM",
-    department: "Sales",
-    position: "Executive",
-    status: "inactive",
-    birthDate: "1992-12-10",
-    salary: "12,000,000",
-    experience: "3 năm",
-    education: "Đại học Ngoại Thương",
-    skills: "Sales, CRM, Communication",
-    manager: "Phạm Thị D",
-    startDate: "2021-01-10",
-    workType: "Part-time",
-    level: "Junior",
-    location: "Hà Nội",
-    project: "Customer Acquisition",
-    performance: "Average",
-  },
-  {
-    id: 1,
-    name: "Nguyễn Văn A",
-    email: "a@example.com",
-    phone: "0123456789",
-    address: "123 Đường ABC, Quận 1, TP.HCM",
-    department: "IT",
-    position: "Developer",
-    status: "active",
-    birthDate: "1990-01-15",
-    salary: "15,000,000",
-    experience: "5 năm",
-    education: "Đại học Bách Khoa",
-    skills: "React, NodeJS, Python",
-    manager: "Trần Văn B",
-    startDate: "2020-03-01",
-    workType: "Full-time",
-    level: "Senior",
-    location: "TP.HCM",
-    project: "E-commerce Platform",
-    performance: "Excellent",
-  },
-  {
-    id: 2,
-    name: "Trần Thị B",
-    email: "b@example.com",
-    phone: "0987654321",
-    address: "456 Đường DEF, Quận 2, TP.HCM",
-    department: "Marketing",
-    position: "Manager",
-    status: "active",
-    birthDate: "1985-05-20",
-    salary: "25,000,000",
-    experience: "8 năm",
-    education: "Đại học Kinh Tế",
-    skills: "Marketing, SEO, Content",
-    manager: "Lê Văn C",
-    startDate: "2018-07-15",
-    workType: "Full-time",
-    level: "Manager",
-    location: "TP.HCM",
-    project: "Brand Development",
-    performance: "Good",
-  },
-  {
-    id: 3,
-    name: "Lê Văn C",
-    email: "c@example.com",
-    phone: "0369258147",
-    address: "789 Đường GHI, Quận 3, TP.HCM",
-    department: "Sales",
-    position: "Executive",
-    status: "inactive",
-    birthDate: "1992-12-10",
-    salary: "12,000,000",
-    experience: "3 năm",
-    education: "Đại học Ngoại Thương",
-    skills: "Sales, CRM, Communication",
-    manager: "Phạm Thị D",
-    startDate: "2021-01-10",
-    workType: "Part-time",
-    level: "Junior",
-    location: "Hà Nội",
-    project: "Customer Acquisition",
-    performance: "Average",
-  },
-  {
-    id: 1,
-    name: "Nguyễn Văn A",
-    email: "a@example.com",
-    phone: "0123456789",
-    address: "123 Đường ABC, Quận 1, TP.HCM",
-    department: "IT",
-    position: "Developer",
-    status: "active",
-    birthDate: "1990-01-15",
-    salary: "15,000,000",
-    experience: "5 năm",
-    education: "Đại học Bách Khoa",
-    skills: "React, NodeJS, Python",
-    manager: "Trần Văn B",
-    startDate: "2020-03-01",
-    workType: "Full-time",
-    level: "Senior",
-    location: "TP.HCM",
-    project: "E-commerce Platform",
-    performance: "Excellent",
-  },
-  {
-    id: 2,
-    name: "Trần Thị B",
-    email: "b@example.com",
-    phone: "0987654321",
-    address: "456 Đường DEF, Quận 2, TP.HCM",
-    department: "Marketing",
-    position: "Manager",
-    status: "active",
-    birthDate: "1985-05-20",
-    salary: "25,000,000",
-    experience: "8 năm",
-    education: "Đại học Kinh Tế",
-    skills: "Marketing, SEO, Content",
-    manager: "Lê Văn C",
-    startDate: "2018-07-15",
-    workType: "Full-time",
-    level: "Manager",
-    location: "TP.HCM",
-    project: "Brand Development",
-    performance: "Good",
-  },
-  {
-    id: 3,
-    name: "Lê Văn C",
-    email: "c@example.com",
-    phone: "0369258147",
-    address: "789 Đường GHI, Quận 3, TP.HCM",
-    department: "Sales",
-    position: "Executive",
-    status: "inactive",
-    birthDate: "1992-12-10",
-    salary: "12,000,000",
-    experience: "3 năm",
-    education: "Đại học Ngoại Thương",
-    skills: "Sales, CRM, Communication",
-    manager: "Phạm Thị D",
-    startDate: "2021-01-10",
-    workType: "Part-time",
-    level: "Junior",
-    location: "Hà Nội",
-    project: "Customer Acquisition",
-    performance: "Average",
-  },
-  {
-    id: 1,
-    name: "Nguyễn Văn A",
-    email: "a@example.com",
-    phone: "0123456789",
-    address: "123 Đường ABC, Quận 1, TP.HCM",
-    department: "IT",
-    position: "Developer",
-    status: "active",
-    birthDate: "1990-01-15",
-    salary: "15,000,000",
-    experience: "5 năm",
-    education: "Đại học Bách Khoa",
-    skills: "React, NodeJS, Python",
-    manager: "Trần Văn B",
-    startDate: "2020-03-01",
-    workType: "Full-time",
-    level: "Senior",
-    location: "TP.HCM",
-    project: "E-commerce Platform",
-    performance: "Excellent",
-  },
-  {
-    id: 2,
-    name: "Trần Thị B",
-    email: "b@example.com",
-    phone: "0987654321",
-    address: "456 Đường DEF, Quận 2, TP.HCM",
-    department: "Marketing",
-    position: "Manager",
-    status: "active",
-    birthDate: "1985-05-20",
-    salary: "25,000,000",
-    experience: "8 năm",
-    education: "Đại học Kinh Tế",
-    skills: "Marketing, SEO, Content",
-    manager: "Lê Văn C",
-    startDate: "2018-07-15",
-    workType: "Full-time",
-    level: "Manager",
-    location: "TP.HCM",
-    project: "Brand Development",
-    performance: "Good",
-  },
-  {
-    id: 3,
-    name: "Lê Văn C",
-    email: "c@example.com",
-    phone: "0369258147",
-    address: "789 Đường GHI, Quận 3, TP.HCM",
-    department: "Sales",
-    position: "Executive",
-    status: "inactive",
-    birthDate: "1992-12-10",
-    salary: "12,000,000",
-    experience: "3 năm",
-    education: "Đại học Ngoại Thương",
-    skills: "Sales, CRM, Communication",
-    manager: "Phạm Thị D",
-    startDate: "2021-01-10",
-    workType: "Part-time",
-    level: "Junior",
-    location: "Hà Nội",
-    project: "Customer Acquisition",
-    performance: "Average",
-  },
-  {
-    id: 1,
-    name: "Nguyễn Văn A",
-    email: "a@example.com",
-    phone: "0123456789",
-    address: "123 Đường ABC, Quận 1, TP.HCM",
-    department: "IT",
-    position: "Developer",
-    status: "active",
-    birthDate: "1990-01-15",
-    salary: "15,000,000",
-    experience: "5 năm",
-    education: "Đại học Bách Khoa",
-    skills: "React, NodeJS, Python",
-    manager: "Trần Văn B",
-    startDate: "2020-03-01",
-    workType: "Full-time",
-    level: "Senior",
-    location: "TP.HCM",
-    project: "E-commerce Platform",
-    performance: "Excellent",
-  },
-  {
-    id: 2,
-    name: "Trần Thị B",
-    email: "b@example.com",
-    phone: "0987654321",
-    address: "456 Đường DEF, Quận 2, TP.HCM",
-    department: "Marketing",
-    position: "Manager",
-    status: "active",
-    birthDate: "1985-05-20",
-    salary: "25,000,000",
-    experience: "8 năm",
-    education: "Đại học Kinh Tế",
-    skills: "Marketing, SEO, Content",
-    manager: "Lê Văn C",
-    startDate: "2018-07-15",
-    workType: "Full-time",
-    level: "Manager",
-    location: "TP.HCM",
-    project: "Brand Development",
-    performance: "Good",
-  },
-  {
-    id: 3,
-    name: "Lê Văn C",
-    email: "c@example.com",
-    phone: "0369258147",
-    address: "789 Đường GHI, Quận 3, TP.HCM",
-    department: "Sales",
-    position: "Executive",
-    status: "inactive",
-    birthDate: "1992-12-10",
-    salary: "12,000,000",
-    experience: "3 năm",
-    education: "Đại học Ngoại Thương",
-    skills: "Sales, CRM, Communication",
-    manager: "Phạm Thị D",
-    startDate: "2021-01-10",
-    workType: "Part-time",
-    level: "Junior",
-    location: "Hà Nội",
-    project: "Customer Acquisition",
-    performance: "Average",
-  },
-  {
-    id: 1,
-    name: "Nguyễn Văn A",
-    email: "a@example.com",
-    phone: "0123456789",
-    address: "123 Đường ABC, Quận 1, TP.HCM",
-    department: "IT",
-    position: "Developer",
-    status: "active",
-    birthDate: "1990-01-15",
-    salary: "15,000,000",
-    experience: "5 năm",
-    education: "Đại học Bách Khoa",
-    skills: "React, NodeJS, Python",
-    manager: "Trần Văn B",
-    startDate: "2020-03-01",
-    workType: "Full-time",
-    level: "Senior",
-    location: "TP.HCM",
-    project: "E-commerce Platform",
-    performance: "Excellent",
-  },
-  {
-    id: 2,
-    name: "Trần Thị B",
-    email: "b@example.com",
-    phone: "0987654321",
-    address: "456 Đường DEF, Quận 2, TP.HCM",
-    department: "Marketing",
-    position: "Manager",
-    status: "active",
-    birthDate: "1985-05-20",
-    salary: "25,000,000",
-    experience: "8 năm",
-    education: "Đại học Kinh Tế",
-    skills: "Marketing, SEO, Content",
-    manager: "Lê Văn C",
-    startDate: "2018-07-15",
-    workType: "Full-time",
-    level: "Manager",
-    location: "TP.HCM",
-    project: "Brand Development",
-    performance: "Good",
-  },
-  {
-    id: 3,
-    name: "Lê Văn C",
-    email: "c@example.com",
-    phone: "0369258147",
-    address: "789 Đường GHI, Quận 3, TP.HCM",
-    department: "Sales",
-    position: "Executive",
-    status: "inactive",
-    birthDate: "1992-12-10",
-    salary: "12,000,000",
-    experience: "3 năm",
-    education: "Đại học Ngoại Thương",
-    skills: "Sales, CRM, Communication",
-    manager: "Phạm Thị D",
-    startDate: "2021-01-10",
-    workType: "Part-time",
-    level: "Junior",
-    location: "Hà Nội",
-    project: "Customer Acquisition",
-    performance: "Average",
-  },
-  {
-    id: 1,
-    name: "Nguyễn Văn A",
-    email: "a@example.com",
-    phone: "0123456789",
-    address: "123 Đường ABC, Quận 1, TP.HCM",
-    department: "IT",
-    position: "Developer",
-    status: "active",
-    birthDate: "1990-01-15",
-    salary: "15,000,000",
-    experience: "5 năm",
-    education: "Đại học Bách Khoa",
-    skills: "React, NodeJS, Python",
-    manager: "Trần Văn B",
-    startDate: "2020-03-01",
-    workType: "Full-time",
-    level: "Senior",
-    location: "TP.HCM",
-    project: "E-commerce Platform",
-    performance: "Excellent",
-  },
-  {
-    id: 2,
-    name: "Trần Thị B",
-    email: "b@example.com",
-    phone: "0987654321",
-    address: "456 Đường DEF, Quận 2, TP.HCM",
-    department: "Marketing",
-    position: "Manager",
-    status: "active",
-    birthDate: "1985-05-20",
-    salary: "25,000,000",
-    experience: "8 năm",
-    education: "Đại học Kinh Tế",
-    skills: "Marketing, SEO, Content",
-    manager: "Lê Văn C",
-    startDate: "2018-07-15",
-    workType: "Full-time",
-    level: "Manager",
-    location: "TP.HCM",
-    project: "Brand Development",
-    performance: "Good",
-  },
-  {
-    id: 3,
-    name: "Lê Văn C",
-    email: "c@example.com",
-    phone: "0369258147",
-    address: "789 Đường GHI, Quận 3, TP.HCM",
-    department: "Sales",
-    position: "Executive",
-    status: "inactive",
-    birthDate: "1992-12-10",
-    salary: "12,000,000",
-    experience: "3 năm",
-    education: "Đại học Ngoại Thương",
-    skills: "Sales, CRM, Communication",
-    manager: "Phạm Thị D",
-    startDate: "2021-01-10",
-    workType: "Part-time",
-    level: "Junior",
-    location: "Hà Nội",
-    project: "Customer Acquisition",
-    performance: "Average",
-  },
-  {
-    id: 1,
-    name: "Nguyễn Văn A",
-    email: "a@example.com",
-    phone: "0123456789",
-    address: "123 Đường ABC, Quận 1, TP.HCM",
-    department: "IT",
-    position: "Developer",
-    status: "active",
-    birthDate: "1990-01-15",
-    salary: "15,000,000",
-    experience: "5 năm",
-    education: "Đại học Bách Khoa",
-    skills: "React, NodeJS, Python",
-    manager: "Trần Văn B",
-    startDate: "2020-03-01",
-    workType: "Full-time",
-    level: "Senior",
-    location: "TP.HCM",
-    project: "E-commerce Platform",
-    performance: "Excellent",
-  },
-  {
-    id: 2,
-    name: "Trần Thị B",
-    email: "b@example.com",
-    phone: "0987654321",
-    address: "456 Đường DEF, Quận 2, TP.HCM",
-    department: "Marketing",
-    position: "Manager",
-    status: "active",
-    birthDate: "1985-05-20",
-    salary: "25,000,000",
-    experience: "8 năm",
-    education: "Đại học Kinh Tế",
-    skills: "Marketing, SEO, Content",
-    manager: "Lê Văn C",
-    startDate: "2018-07-15",
-    workType: "Full-time",
-    level: "Manager",
-    location: "TP.HCM",
-    project: "Brand Development",
-    performance: "Good",
-  },
-  {
-    id: 3,
-    name: "Lê Văn C",
-    email: "c@example.com",
-    phone: "0369258147",
-    address: "789 Đường GHI, Quận 3, TP.HCM",
-    department: "Sales",
-    position: "Executive",
-    status: "inactive",
-    birthDate: "1992-12-10",
-    salary: "12,000,000",
-    experience: "3 năm",
-    education: "Đại học Ngoại Thương",
-    skills: "Sales, CRM, Communication",
-    manager: "Phạm Thị D",
-    startDate: "2021-01-10",
-    workType: "Part-time",
-    level: "Junior",
-    location: "Hà Nội",
-    project: "Customer Acquisition",
-    performance: "Average",
-  },
-];
+const AppTable: React.FC = () => {
+  const dispatch = useAppDispatch();
+  const { users } = useAppSelector((state) => state.auth);
+  console.log("🚀 ~ AppTable ~ users:", users);
 
-const columns: Column<User>[] = [
-  { key: "id", label: "#", width: "60px", sortable: true },
-  { key: "name", label: "Họ và Tên", width: "150px", sortable: true },
-  { key: "email", label: "Email", width: "200px", sortable: true },
-  { key: "phone", label: "Số điện thoại", width: "120px" },
-  { key: "address", label: "Địa chỉ", width: "250px" },
-  { key: "department", label: "Phòng ban", width: "120px", sortable: true },
-  { key: "position", label: "Chức vụ", width: "120px", sortable: true },
-  {
-    key: "status",
-    label: "Trạng thái",
-    width: "100px",
-    sortable: true,
-    render: (value) => (
-      <Badge variant={value === "active" ? "default" : "secondary"}>
-        {value === "active" ? "Hoạt động" : "Nghỉ việc"}
-      </Badge>
-    ),
-  },
-  { key: "birthDate", label: "Ngày sinh", width: "120px", sortable: true },
-  {
-    key: "salary",
-    label: "Lương",
-    width: "120px",
-    align: "right",
-    sortable: true,
-  },
-  { key: "experience", label: "Kinh nghiệm", width: "100px" },
-  { key: "education", label: "Học vấn", width: "180px" },
-  { key: "skills", label: "Kỹ năng", width: "200px" },
-  { key: "manager", label: "Quản lý", width: "150px" },
-  { key: "startDate", label: "Ngày vào", width: "120px", sortable: true },
-  { key: "workType", label: "Loại công việc", width: "120px" },
-  {
-    key: "level",
-    label: "Cấp bậc",
-    width: "100px",
-    render: (value) => (
-      <Badge
-        variant="outline"
-        className={
-          value === "Senior"
-            ? "border-green-500 text-green-600"
-            : value === "Manager"
-            ? "border-blue-500 text-blue-600"
-            : "border-gray-500 text-gray-600"
-        }
-      >
-        {value}
-      </Badge>
-    ),
-  },
-  { key: "location", label: "Địa điểm", width: "100px" },
-  { key: "project", label: "Dự án hiện tại", width: "180px" },
-  {
-    key: "performance",
-    label: "Hiệu suất",
-    width: "120px",
-    render: (value) => (
-      <Badge
-        className={
-          value === "Excellent"
-            ? "bg-green-100 text-green-800"
-            : value === "Good"
-            ? "bg-blue-100 text-blue-800"
-            : "bg-yellow-100 text-yellow-800"
-        }
-      >
-        {value === "Excellent"
-          ? "Xuất sắc"
-          : value === "Good"
-          ? "Tốt"
-          : "Trung bình"}
-      </Badge>
-    ),
-  },
-];
+  const generateSampleData = (count: number): Employee[] => {
+    const roles: Employee["role"][] = ["Admin", "User", "Manager"];
+    const departments = [
+      "IT",
+      "Marketing",
+      "Sales",
+      "HR",
+      "Finance",
+      "Operations",
+    ];
+    const statuses: Employee["status"][] = ["Active", "Inactive"];
 
-const TableHailouAi = () => {
-  const [pageSize, setPageSize] = React.useState(10);
+    const firstNames = [
+      "John",
+      "Jane",
+      "Michael",
+      "Emily",
+      "David",
+      "Sarah",
+      "Robert",
+      "Laura",
+      "Daniel",
+      "Olivia",
+      "James",
+      "Sophia",
+    ];
+    const lastNames = [
+      "Smith",
+      "Johnson",
+      "Brown",
+      "Williams",
+      "Jones",
+      "Miller",
+      "Davis",
+      "Garcia",
+      "Rodriguez",
+      "Martinez",
+      "Hernandez",
+      "Lopez",
+    ];
+
+    const getRandomItem = <T,>(arr: T[]): T =>
+      arr[Math.floor(Math.random() * arr.length)];
+
+    const getRandomDate = (start: Date, end: Date) =>
+      new Date(
+        start.getTime() + Math.random() * (end.getTime() - start.getTime())
+      )
+        .toISOString()
+        .split("T")[0];
+
+    return Array.from({ length: count }, (_, i): Employee => {
+      const firstName = getRandomItem(firstNames);
+      const lastName = getRandomItem(lastNames);
+      const fullName = `${firstName} ${lastName}`;
+      const email = `${firstName}.${lastName}${Math.floor(
+        Math.random() * 1000
+      )}@example.com`.toLowerCase();
+
+      return {
+        id: i + 1,
+        name: fullName,
+        email,
+        role: getRandomItem(roles),
+        department: getRandomItem(departments),
+        salary: `$${(
+          50000 + Math.floor(Math.random() * 50000)
+        ).toLocaleString()}`,
+        status: getRandomItem(statuses),
+        joinDate: getRandomDate(new Date(2020, 0, 1), new Date()),
+        phone: `+1-234-567-${Math.floor(Math.random() * 10000)
+          .toString()
+          .padStart(4, "0")}`,
+      };
+    });
+  };
+
+  const sampleData = generateSampleData(10);
+
+  const [tableData, setTableData] = useState<Employee[]>(sampleData);
+  const [pagination, setPagination] = useState({
+    total: 50,
+    page: 1,
+    limit: 10,
+    totalPages: 5,
+  });
+  const [loading, setLoading] = useState(false);
+
+  const handlePaginationChange = async (page: number, limit: number) => {
+    console.log("🚀 ~ handlePaginationChange ~ limit:", limit);
+    console.log("🚀 ~ handlePaginationChange ~ page:", page);
+    setLoading(true);
+    try {
+      const sampleData = generateSampleData(10);
+
+      setPagination({
+        total: 50,
+        page: page,
+        limit: limit,
+        totalPages: 5,
+      });
+      setTableData(sampleData);
+    } catch (error) {
+      console.error("Error fetching data:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const columns: TableColumn<Employee>[] = [
+    { key: "id", title: "ID", width: 60, className: "font-medium" },
+    { key: "name", title: "Name", width: 150, className: "font-medium" },
+    { key: "email", title: "Email", width: 200 },
+    { key: "department", title: "Department", width: 120 },
+    {
+      key: "salary",
+      title: "Salary",
+      width: 100,
+      className: "font-medium",
+    },
+    { key: "joinDate", title: "Join Date", width: 120 },
+    { key: "phone", title: "Phone", width: 150 },
+  ];
+
+  const fixedRightColumns: TableColumn<Employee>[] = [
+    {
+      key: "role",
+      title: "Role",
+      width: 100,
+      render: (value) => {
+        // Type assertion vì value là unknown
+        const role = value as Employee["role"];
+        return (
+          <span
+            className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+              role === "Admin"
+                ? "bg-purple-100 text-purple-800"
+                : role === "Manager"
+                ? "bg-blue-100 text-blue-800"
+                : "bg-gray-100 text-gray-800"
+            }`}
+          >
+            {role}
+          </span>
+        );
+      },
+    },
+    {
+      key: "status",
+      title: "Status",
+      width: 100,
+      render: (value) => {
+        const status = value as Employee["status"];
+        return (
+          <span
+            className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
+              status === "Active"
+                ? "bg-green-100 text-green-800"
+                : "bg-red-100 text-red-800"
+            }`}
+          >
+            {status}
+          </span>
+        );
+      },
+    },
+    {
+      key: "actions",
+      title: "Actions",
+      width: 120,
+      actions: [
+        {
+          key: "edit",
+          label: "Edit",
+          className: "text-blue-600 hover:text-blue-800",
+        },
+        {
+          key: "delete",
+          label: "Delete",
+          className: "text-red-600 hover:text-red-800",
+        },
+      ],
+    },
+  ];
+
+  const handleSelectionChange = (selectedIds: (string | number)[]): void => {
+    console.log("Selected rows:", selectedIds);
+  };
+
+  const handleRowAction = (action: string, row: Employee): void => {
+    console.log(`Action: ${action}`, row);
+  };
+
   return (
-    <FlexibleTable<User>
-      data={users}
-      columns={columns}
-      rowKey="id"
-      selectable
-      pagination
-      pageSize={pageSize}
-      currentPage={1}
-      onPageChange={(page) => console.log("Trang:", page)}
-      onPageSizeChange={setPageSize}
-      onRowClick={(row) => console.log("Click row:", row)}
-      size="md"
-      tableHeight={100}
-    />
+    <>
+      <div className="flex justify-end space-x-2 rounded-lg p-2 bg-gray-50 mb-2">
+        <Button variant="outline" className="">
+          Tải tất cả
+        </Button>
+        <Button
+          className="bg-blue-500 hover:bg-blue-400"
+          onClick={() => dispatch(test())}
+        >
+          Tìm kiếm
+        </Button>
+      </div>
+      <div className="rounded-lg p-2 bg-gray-50">
+        <CustomTable<Employee>
+          data={tableData}
+          columns={columns}
+          fixedRightColumns={fixedRightColumns}
+          title="Danh sách video Hailou AI"
+          maxHeight="max-h-[calc(100vh-250px)] sm:max-h-[calc(100vh-300px)] lg:max-h-[calc(100vh-350px)]"
+          enableSelection={true}
+          enablePagination={true}
+          pageSizeOptions={[10, 20, 30, 50]}
+          onSelectionChange={handleSelectionChange}
+          onRowAction={handleRowAction}
+          pagination={pagination}
+          loading={loading}
+          onPaginationChange={handlePaginationChange}
+          zebra={true}
+        />
+      </div>
+    </>
   );
 };
 
-export default TableHailouAi;
+export default AppTable;

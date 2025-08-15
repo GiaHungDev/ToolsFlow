@@ -1,21 +1,22 @@
-import DataTableDemo from "@/components/customized/table/table-09";
 import HailouAI from "@/components/sections/HailouAI";
+import AppTable from "@/components/sections/HailouAI/TableSection";
 
 const HailouPage = () => {
   return (
     <div className="flex">
       {/* Left Sidebar - 30% */}
-      <div className="w-[30%] bg-white border-r border-gray-200">
-        <div className="p-4 h-full">
+      <div className="w-[30%] bg-white border-r border-gray-200 flex-shrink-0">
+        <div className="p-4 h-full overflow-auto">
           <HailouAI />
         </div>
       </div>
 
       {/* Main Content - 70% */}
-      <div className="flex-1 bg-white">
-        <div className="p-4 h-full">
-          {/* Nội dung chính sẽ được thêm vào đây */}
-          <DataTableDemo />
+      <div className="w-[70%] bg-white flex-shrink-0">
+        <div className="p-4 h-full overflow-auto">
+          <div className="w-full max-w-none">
+            <AppTable />
+          </div>
         </div>
       </div>
     </div>
