@@ -1,4 +1,5 @@
 import Header from "@/components/layout/Header";
+import AuthWrapper from "@/components/sections/auth-wrapper";
 import type { Metadata } from "next";
 
 export const metadata: Metadata = {
@@ -12,9 +13,11 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }) {
   return (
-    <div className="min-h-screen bg-white text-black">
-      <Header />
-      <main className="pt-20 px-2">{children}</main>
-    </div>
+    // <AuthWrapper requireAuth={true}>
+      <div className="min-h-screen bg-white text-black">
+        <Header />
+        <div className="pt-20 px-2">{children}</div>
+      </div>
+    // </AuthWrapper> 
   );
 }

@@ -1,5 +1,5 @@
-import HailouAI from "@/components/sections/HailouAI";
-import AppTable from "@/components/sections/HailouAI/TableSection";
+import HailouAI from "@/components/sections/hailou-ai";
+import AppTable from "@/components/sections/hailou-ai/TableSection";
 
 const HailouPage = () => {
   return (

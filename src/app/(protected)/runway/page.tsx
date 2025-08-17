@@ -1,4 +1,4 @@
-import HailouAI from "@/components/sections/HailouAI";
+import HailouAI from "@/components/sections/hailou-ai";
 
 const RunwayPage = () => {
   return (

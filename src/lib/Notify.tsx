@@ -11,7 +11,7 @@ interface NotifyOptions {
   onAction?: () => void;
 }
 
-export function notify({
+export function Notify({
   title,
   description,
   status = "info",
@@ -25,14 +25,20 @@ export function notify({
     info: "ℹ️",
   };
 
-  toast(`${statusIcon[status]} ${title}`, {
-    description,
-    action:
-      actionLabel && onAction
-        ? {
-            label: actionLabel,
-            onClick: onAction,
-          }
-        : undefined,
-  });
+  toast(
+    <div className="flex items-center gap-2">
+      <span>{statusIcon[status]}</span>
+      <span>{title}</span>
+    </div>,
+    {
+      description,
+      action:
+        actionLabel && onAction
+          ? {
+              label: actionLabel,
+              onClick: onAction,
+            }
+          : undefined,
+    }
+  );
 }

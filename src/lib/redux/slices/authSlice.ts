@@ -1,79 +1,35 @@
 import { createAsyncThunk, createSlice, PayloadAction } from "@reduxjs/toolkit";
-import jwtDecode from "jwt-decode";
+
+import { Notify } from "@/lib/Notify";
 import {
   checkMeService,
   loginService,
   logoutService,
-  refreshToken,
-} from "../../service/api/loginService";
-
-// ==== Interfaces ====
-interface User {
-  id: string;
-  username: string;
-  email?: string;
-  role?: { name: string }[];
-}
-
-interface LoginPayload {
-  code: string;
-  redirectUri: string;
-}
-
-interface TokenResponse {
-  access_token: string;
-  refresh_token: string;
-  expires_in?: number;
-}
-
-interface JwtPayload {
-  sub: string;
-  exp?: number;
-}
+} from "@/service/api/authService";
+import { ITokenData } from "@/types/auth";
+import { IUser } from "@/types/user";
+import {
+  removeAllToken,
+  removeStoreLocal,
+  saveToken,
+} from "@/utils/localStore";
 
 // ==== Async Thunks ====
-export const checkMe = createAsyncThunk<
-  User,
-  { redirectUri: string },
-  { rejectValue: string }
->("checkMe", async (data, thunkAPI) => {
-  const access_token = getStoreLocal("access_token");
-  const time_access = getStoreLocal("time_access");
-  const refresh_token = getStoreLocal("refresh_token");
-  const time_refresh = getStoreLocal("time_refresh");
-
-  if (!access_token || !time_access || !refresh_token || !time_refresh) {
-    return thunkAPI.rejectWithValue("Không thấy access token");
-  }
-
-  let decoded: JwtPayload;
-
-  decoded = jwtDecode<JwtPayload>(access_token);
-
-  if (parseInt(time_access) < Date.now()) {
-    if (parseInt(time_refresh) < Date.now()) {
-      return thunkAPI.rejectWithValue("Refresh Token hết hạn");
+export const checkMe = createAsyncThunk<IUser, void, { rejectValue: string }>(
+  "checkMe",
+  async (_, thunkAPI) => {
+    try {
+      const userData = await checkMeService();
+      return userData;
+    } catch (error: unknown) {
+      console.error("CheckMe error:", error);
+      return thunkAPI.rejectWithValue("Lỗi kiểm tra định danh không xác định");
     }
-    const resNewToken: TokenResponse = await refreshToken(
-      refresh_token,
-      data.redirectUri
-    );
-    decoded = jwtDecode<JwtPayload>(resNewToken?.access_token);
   }
-
-  try {
-    const resData = await checkMeService(decoded.sub);
-    return resData;
-  } catch (error: unknown) {
-    if (error instanceof Error) {
-      return thunkAPI.rejectWithValue(error.message);
-    }
-    return thunkAPI.rejectWithValue("Lỗi kiểm tra định danh!");
-  }
-});
+);
 
 export const login = createAsyncThunk<
-  TokenResponse,
+  ITokenData,
   { code: string; redirectUri: string }
 >("login", async (data) => {
   const resData = await loginService({
@@ -93,9 +49,10 @@ export const logout = createAsyncThunk<unknown, { refreshToken: string }>(
 
 interface LoginState {
   isLogin: boolean;
-  user: User | null;
+  user: IUser | null;
   loading: boolean;
-  role: string[];
+  role: number | null;
+  authError?: string;
 }
 
 // ==== Initial State ====
@@ -103,7 +60,8 @@ const initialState: LoginState = {
   isLogin: false,
   user: null,
   loading: false,
-  role: [],
+  role: 0,
+  authError: undefined,
 };
 
 // ==== Slice ====
@@ -112,13 +70,15 @@ export const LoginSlice = createSlice({
   initialState,
   reducers: {
     logOut: (state) => {
-      removeStoreLocal("access_token");
-      removeStoreLocal("refresh_token");
-      removeStoreLocal("time_refresh");
-      removeStoreLocal("time_access");
-      removeStoreLocal("keycloakId");
+      removeAllToken();
+      removeStoreLocal("account_web");
       state.isLogin = false;
       state.user = null;
+      state.authError = undefined;
+      state.role = null;
+    },
+    clearAuthError: (state) => {
+      state.authError = undefined;
     },
   },
   extraReducers: (builder) => {
@@ -126,33 +86,101 @@ export const LoginSlice = createSlice({
       // checkMe
       .addCase(checkMe.pending, (state) => {
         state.loading = true;
+        state.authError = undefined;
       })
-      .addCase(checkMe.fulfilled, (state, action: PayloadAction<User>) => {
+      .addCase(checkMe.fulfilled, (state, action: PayloadAction<IUser>) => {
         state.loading = false;
         state.user = action.payload;
-        localStorage.setItem("account_web", JSON.stringify(action.payload));
         state.isLogin = true;
+        state.authError = undefined;
+
+        // Lưu thông tin user vào localStorage
+        localStorage.setItem("account_web", JSON.stringify(action.payload));
+
+        // Extract roles nếu có
+        if (action.payload.role) {
+          state.role = action.payload.role;
+        }
       })
       .addCase(checkMe.rejected, (state, action) => {
         state.loading = false;
-        console.log("Reject", action.payload);
+        state.isLogin = false;
+        state.user = null;
+        state.role = null;
+        state.authError = action.payload;
       })
       // login
-      .addCase(
-        login.fulfilled,
-        (state, action: PayloadAction<TokenResponse>) => {
-          saveToken(action.payload);
-        }
-      )
-      .addCase(login.rejected, () => {
-        message.error(`Hệ thống đang có lỗi, vui lòng thử lại sau`);
+      .addCase(login.pending, (state) => {
+        state.loading = true;
+        state.authError = undefined;
+      })
+      .addCase(login.fulfilled, (state, action: PayloadAction<ITokenData>) => {
+        state.loading = false;
+        saveToken(action.payload);
+        state.authError = undefined;
+
+        // Thông báo đăng nhập thành công
+        Notify({
+          title: "Đăng nhập thành công",
+          description: "Chào mừng bạn quay trở lại!",
+          status: "success",
+        });
+      })
+      .addCase(login.rejected, (state, action) => {
+        state.loading = false;
+        state.authError = "Đăng nhập thất bại";
+
+        // Thông báo lỗi đăng nhập
+        Notify({
+          title: "Đăng nhập thất bại",
+          description: "Hệ thống đang có lỗi, vui lòng thử lại sau",
+          status: "error",
+          actionLabel: "Thử lại",
+          onAction: () => {
+            window.location.reload();
+          },
+        });
+
+        console.error("Login failed:", action.error);
       })
       // logout
-      .addCase(logout.fulfilled, () => {
-        // Có thể xử lý thêm khi logout thành công
+      .addCase(logout.pending, (state) => {
+        state.loading = true;
+      })
+      .addCase(logout.fulfilled, (state) => {
+        state.loading = false;
+        state.isLogin = false;
+        state.user = null;
+        state.authError = undefined;
+        state.role = null;
+
+        // Thông báo đăng xuất thành công
+        Notify({
+          title: "Đăng xuất thành công",
+          description: "Cảm ơn bạn đã sử dụng dịch vụ",
+          status: "success",
+        });
+      })
+      .addCase(logout.rejected, (state, action) => {
+        state.loading = false;
+        // Vẫn clear state local dù API logout failed
+        state.isLogin = false;
+        state.user = null;
+        state.authError = undefined;
+        state.role = null;
+
+        // Thông báo lỗi nhưng vẫn đăng xuất local
+        Notify({
+          title: "Có lỗi khi đăng xuất",
+          description:
+            "Đã đăng xuất khỏi thiết bị này, nhưng có thể cần đăng xuất thủ công ở các thiết bị khác",
+          status: "warning",
+        });
+
+        console.error("Logout failed:", action.error);
       });
   },
 });
 
-export const { logOut } = LoginSlice.actions;
+export const { logOut, clearAuthError } = LoginSlice.actions;
 export default LoginSlice.reducer;
