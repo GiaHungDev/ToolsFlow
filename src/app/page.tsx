@@ -1,31 +1,50 @@
 "use client";
 
-import AIPlatformsSection from "@/components/sections/home/AIPlatformsSection";
-import CTASection from "@/components/sections/home/CTASection";
-import HeroSection from "@/components/sections/home/HeroSection";
-import { UseAIPlatformsReturn } from "@/components/sections/home/interface";
+import LoadingWrapper from "@/components/layout/LoadingWrapper";
+import {
+  AIPlatform,
+  UseAIPlatformsReturn,
+} from "@/components/sections/home/interface";
 import Navigation from "@/components/sections/home/Navigation";
+import PlatformCard from "@/components/sections/home/PlatformCard";
 import { useAIPlatforms } from "@/hooks/home/useAIPlatforms";
-import { useLogin } from "@/hooks/home/useLogin";
+import { useCheck } from "@/hooks/home/useCheck";
 
 const Home: React.FC = () => {
   const { aiPlatforms }: UseAIPlatformsReturn = useAIPlatforms();
-  const { handleLoginClick, handleGetStarted } = useLogin();
+
+  const { user, loading, handleRedirectClick } = useCheck();
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
-      {/* Navigation */}
-      <Navigation onLoginClick={handleLoginClick} />
+    <LoadingWrapper loading={loading}>
+      <div className="min-h-screen bg-gradient-to-br from-slate-900 via-slate-800 to-slate-900 text-white">
+        {/* Navigation */}
+        <Navigation user={user} />
 
-      {/* Hero Section */}
-      <HeroSection onGetStarted={handleGetStarted} />
+        {/* AI Platforms Section */}
+        <section className="flex items-center justify-center min-h-screen px-6">
+          <div className="max-w-6xl mx-auto text-center">
+            <div className="mb-16">
+              <h2 className="text-4xl font-bold mb-4">Chọn nền tảng AI</h2>
+              <p className="text-xl text-slate-400">
+                Chọn nền tảng AI để thực hiện tạo video
+              </p>
+            </div>
 
-      {/* AI Platforms Section */}
-      <AIPlatformsSection platforms={aiPlatforms} />
-
-      {/* CTA Section */}
-      <CTASection onGetStarted={handleGetStarted} />
-    </div>
+            <div className="grid md:grid-cols-2 gap-8">
+              {aiPlatforms.map((platform: AIPlatform, index: number) => (
+                <PlatformCard
+                  key={platform.key}
+                  platform={platform}
+                  index={index}
+                  handleClick={() => handleRedirectClick(platform)}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      </div>
+    </LoadingWrapper>
   );
 };
 

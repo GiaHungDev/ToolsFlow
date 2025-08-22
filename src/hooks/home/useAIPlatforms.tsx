@@ -1,10 +1,13 @@
-import { AIPlatform, UseAIPlatformsReturn } from "@/components/sections/home/interface";
-import { Sparkles, Video, Zap } from 'lucide-react';
-
+import {
+  AIPlatform,
+  UseAIPlatformsReturn,
+} from "@/components/sections/home/interface";
+import { Sparkles, Video } from "lucide-react";
 
 export const useAIPlatforms = (): UseAIPlatformsReturn => {
   const aiPlatforms: AIPlatform[] = [
     {
+      key: "hailuo",
       name: "Hailuo AI",
       icon: <Sparkles className="w-8 h-8" />,
       description:
@@ -13,6 +16,7 @@ export const useAIPlatforms = (): UseAIPlatformsReturn => {
       gradient: "from-purple-500 to-pink-500",
     },
     {
+      key: "runway",
       name: "Runway ML",
       icon: <Video className="w-8 h-8" />,
       description:
@@ -20,14 +24,14 @@ export const useAIPlatforms = (): UseAIPlatformsReturn => {
       features: ["Video Editing", "Motion Graphics", "AI Effects"],
       gradient: "from-blue-500 to-cyan-500",
     },
-    {
-      name: "MyDijone",
-      icon: <Zap className="w-8 h-8" />,
-      description:
-        "Platform AI tạo video thông minh với giao diện thân thiện và kết quả ấn tượng",
-      features: ["User Friendly", "Smart Templates", "Quick Export"],
-      gradient: "from-orange-500 to-red-500",
-    },
+    // {
+    //   name: "MyDijone",
+    //   icon: <Zap className="w-8 h-8" />,
+    //   description:
+    //     "Platform AI tạo video thông minh với giao diện thân thiện và kết quả ấn tượng",
+    //   features: ["User Friendly", "Smart Templates", "Quick Export"],
+    //   gradient: "from-orange-500 to-red-500",
+    // },
   ];
 
   return { aiPlatforms };

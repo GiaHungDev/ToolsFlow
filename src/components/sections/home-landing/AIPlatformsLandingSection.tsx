@@ -1,7 +1,7 @@
-import { AIPlatform, AIPlatformsSectionProps } from "./interface";
-import PlatformCard from "./PlatformCard";
+import { AIPlatformLanding, AIPlatformsLDSectionProps } from "./interface";
+import PlatformCardLanding from "./PlatformCardLanding";
 
-const AIPlatformsSection: React.FC<AIPlatformsSectionProps> = ({
+const AIPlatformsLandingSection: React.FC<AIPlatformsLDSectionProps> = ({
   platforms,
 }) => (
   <section className="py-20 px-6">
@@ -13,10 +13,10 @@ const AIPlatformsSection: React.FC<AIPlatformsSectionProps> = ({
         </p>
       </div>
 
-      <div className="grid md:grid-cols-3 gap-8">
-        {platforms.map((platform: AIPlatform, index: number) => (
-          <PlatformCard
-            key={`${platform.name}-${index}`}
+      <div className="grid md:grid-cols-2 gap-8">
+        {platforms.map((platform: AIPlatformLanding, index: number) => (
+          <PlatformCardLanding
+            key={platform.key}
             platform={platform}
             index={index}
           />
@@ -26,4 +26,4 @@ const AIPlatformsSection: React.FC<AIPlatformsSectionProps> = ({
   </section>
 );
 
-export default AIPlatformsSection;
+export default AIPlatformsLandingSection;

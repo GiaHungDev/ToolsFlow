@@ -3,8 +3,6 @@
 import CustomTable from "@/components/shared/CTable";
 import { TableColumn } from "@/components/shared/CTable/interface";
 import { Button } from "@/components/ui/button";
-import { test } from "@/lib/redux/slices/authSlice";
-import { useAppDispatch, useAppSelector } from "@/lib/redux/store";
 import React, { useState } from "react";
 
 // Kiểu dữ liệu cho mỗi hàng
@@ -22,10 +20,6 @@ interface Employee {
 }
 
 const AppTable: React.FC = () => {
-  const dispatch = useAppDispatch();
-  const { users } = useAppSelector((state) => state.auth);
-  console.log("🚀 ~ AppTable ~ users:", users);
-
   const generateSampleData = (count: number): Employee[] => {
     const roles: Employee["role"][] = ["Admin", "User", "Manager"];
     const departments = [
@@ -225,12 +219,7 @@ const AppTable: React.FC = () => {
         <Button variant="outline" className="">
           Tải tất cả
         </Button>
-        <Button
-          className="bg-blue-500 hover:bg-blue-400"
-          onClick={() => dispatch(test())}
-        >
-          Tìm kiếm
-        </Button>
+        <Button className="bg-blue-500 hover:bg-blue-400">Tìm kiếm</Button>
       </div>
       <div className="rounded-lg p-2 bg-gray-50">
         <CustomTable<Employee>

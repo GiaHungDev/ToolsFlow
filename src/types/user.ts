@@ -1,10 +1,6 @@
-// Interface
-export interface IBase {
-  id: number;
-  createdAt: Date;
-  updatedAt: Date;
-}
+import { IBase } from "./baseInterface";
 
+// Interface
 export interface IUser extends IBase {
   username: string;
   password: string;

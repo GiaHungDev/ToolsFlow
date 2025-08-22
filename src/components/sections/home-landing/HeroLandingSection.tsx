@@ -33,12 +33,12 @@ const HeroSection: React.FC<HeroSectionProps> = ({ onGetStarted }) => (
           <span>Bắt đầu ngay</span>
           <ArrowRight className="w-5 h-5" />
         </button>
-        <button
+        {/* <button
           type="button"
           className="px-8 py-4 rounded-xl border border-slate-600 hover:border-slate-500 hover:bg-slate-800/50 transition-all duration-200 font-semibold text-lg"
         >
           Xem demo
-        </button>
+        </button> */}
       </div>
     </div>
   </section>

@@ -13,11 +13,11 @@ export default function ProtectedLayout({
   children: React.ReactNode;
 }) {
   return (
-    // <AuthWrapper requireAuth={true}>
+    <AuthWrapper requireAuth>
       <div className="min-h-screen bg-white text-black">
         <Header />
         <div className="pt-20 px-2">{children}</div>
       </div>
-    // </AuthWrapper> 
+    </AuthWrapper>
   );
 }

@@ -1,19 +1,23 @@
 "use client";
 
 import { Label } from "@/components/ui/label";
+import React from "react";
 import { Button } from "../../ui/button";
 import { Separator } from "../../ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
-import SelectTopicSection from "./SelectTopicSection";
 import CreateVideoSection from "./CreateVideoSection";
-import React from "react";
-import FlexibleDialog from "@/components/shared/CDialog";
+import SelectTopicSection from "./SelectTopicSection";
+import CreateTopicModal from "./modals/CreatePromptModal";
 
 const HailouAi = () => {
   const [open, setOpen] = React.useState(false);
 
   const handleOpent = () => {
     setOpen(true);
+  };
+
+  const handleCancel = () => {
+    setOpen(false);
   };
 
   return (
@@ -71,19 +75,11 @@ const HailouAi = () => {
           </div>
         </TabsContent>
       </Tabs>
-      <FlexibleDialog
-        open={open}
-        onOpenChange={setOpen}
-        title="Controlled dialog"
-        onCancel={() => setOpen(false)}
-        onConfirm={() => {
-          console.log("Confirm");
-          setOpen(false);
-        }}
-        closeMode="button-only"
-      >
-        <p>Dialog controlled từ bên ngoài</p>
-      </FlexibleDialog>
+      <CreateTopicModal
+        isOpen={open}
+        onCancel={handleCancel}
+        setOpen={setOpen}
+      />
     </>
   );
 };

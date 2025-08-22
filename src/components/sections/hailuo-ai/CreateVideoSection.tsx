@@ -10,34 +10,15 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { useForm } from "react-hook-form";
-import { z } from "zod";
-
-const formSchema = z.object({
-  videoDescription: z.string().min(1, {
-    message: "Hãy nhập mô tả video!",
-  }),
-  images: z.array(z.any()).min(1, { message: "Hãy upload ảnh!" }),
-});
+import { useCreateVideoForm } from "@/hooks/hailou-ai/useCreateVideoForm";
 
 const CreateVideoSection = () => {
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      videoDescription: "",
-      images: [],
-    },
-  });
-
-  function onSubmit(values: z.infer<typeof formSchema>) {
-    console.log(values);
-  }
+  const { form, handleSubmit } = useCreateVideoForm();
 
   return (
     <>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-8">
+        <form onSubmit={handleSubmit} className="space-y-8">
           <FormField
             control={form.control}
             name="videoDescription"

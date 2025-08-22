@@ -1,4 +1,3 @@
-import HailouAI from "@/components/sections/hailou-ai";
 
 const RunwayPage = () => {
   return (
@@ -6,7 +5,6 @@ const RunwayPage = () => {
       {/* Left Sidebar - 25% */}
       <div className="w-1/4 bg-white border-r border-gray-200">
         <div className="p-4 h-full">
-          <HailouAI />
         </div>
       </div>
 

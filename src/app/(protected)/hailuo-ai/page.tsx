@@ -1,5 +1,4 @@
-import HailouAI from "@/components/sections/hailou-ai";
-import AppTable from "@/components/sections/hailou-ai/TableSection";
+import HailouAI from "@/components/sections/hailuo-ai";
 
 const HailouPage = () => {
   return (
@@ -15,7 +14,7 @@ const HailouPage = () => {
       <div className="w-[70%] bg-white flex-shrink-0">
         <div className="p-4 h-full overflow-auto">
           <div className="w-full max-w-none">
-            <AppTable />
+            {/* <AppTable /> */}
           </div>
         </div>
       </div>

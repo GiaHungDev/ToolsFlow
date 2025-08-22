@@ -8,7 +8,9 @@ import {
 } from "@/service/api/authService";
 import { ITokenData } from "@/types/auth";
 import { IUser } from "@/types/user";
+import { AuthResult, AuthStatus } from "@/utils/interface/LocalStore.interface";
 import {
+  checkAuth,
   removeAllToken,
   removeStoreLocal,
   saveToken,
@@ -19,10 +21,32 @@ export const checkMe = createAsyncThunk<IUser, void, { rejectValue: string }>(
   "checkMe",
   async (_, thunkAPI) => {
     try {
+      const authResult: AuthResult = await checkAuth(
+        process.env.NEXT_PUBLIC_HOST_NAME_REDIRECT ?? window.location.origin
+      );
+
+      if (
+        !authResult.access_token &&
+        authResult.status !== AuthStatus.SUCCESS
+      ) {
+        Notify({
+          title: "Hết phiên đăng nhập",
+          description: "Hãy đăng nhập lại để xử dụng hệ thống",
+          status: "warning",
+        });
+        throw new Error(`CheckMe error: ${AuthStatus.SESSION_EXPIRED}`);
+      }
+
       const userData = await checkMeService();
       return userData;
     } catch (error: unknown) {
       console.error("CheckMe error:", error);
+
+      // Kiểm tra loại lỗi cụ thể
+      if (error instanceof Error) {
+        return thunkAPI.rejectWithValue(error.message);
+      }
+
       return thunkAPI.rejectWithValue("Lỗi kiểm tra định danh không xác định");
     }
   }

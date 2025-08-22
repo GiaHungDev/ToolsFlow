@@ -18,27 +18,31 @@ export function Notify({
   actionLabel,
   onAction,
 }: NotifyOptions) {
-  const statusIcon = {
-    success: "✅",
-    error: "❌",
-    warning: "⚠️",
-    info: "ℹ️",
+  // Cách 1: Sử dụng built-in toast types của Sonner
+  const toastOptions = {
+    description,
+    action:
+      actionLabel && onAction
+        ? {
+            label: actionLabel,
+            onClick: onAction,
+          }
+        : undefined,
   };
 
-  toast(
-    <div className="flex items-center gap-2">
-      <span>{statusIcon[status]}</span>
-      <span>{title}</span>
-    </div>,
-    {
-      description,
-      action:
-        actionLabel && onAction
-          ? {
-              label: actionLabel,
-              onClick: onAction,
-            }
-          : undefined,
-    }
-  );
+  switch (status) {
+    case "success":
+      toast.success(title, toastOptions);
+      break;
+    case "error":
+      toast.error(title, toastOptions);
+      break;
+    case "warning":
+      toast.warning(title, toastOptions);
+      break;
+    case "info":
+    default:
+      toast.info(title, toastOptions);
+      break;
+  }
 }

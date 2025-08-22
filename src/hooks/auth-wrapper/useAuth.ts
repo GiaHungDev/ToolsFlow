@@ -1,41 +1,35 @@
 import { checkMe } from "@/lib/redux/slices/authSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/store";
-import { useEffect, useState } from "react";
+import { usePathname, useRouter } from "next/navigation";
+import { useEffect } from "react";
 
 export const useAuth = (requireAuth: boolean) => {
   const dispatch = useAppDispatch();
+  const router = useRouter();
+  const pathname = usePathname();
+
   const { isLogin, loading, user } = useAppSelector((state) => state.auth);
 
-  const [isInitialized, setIsInitialized] = useState(false);
-  const [isChecking, setIsChecking] = useState(true);
-
   useEffect(() => {
-    const initializeAuth = async () => {
-      try {
-        setIsChecking(true);
+    if (pathname === "/") return;
 
-        if (requireAuth) {
-          await dispatch(checkMe()).unwrap();
-        }
-      } catch (error) {
-        console.error("Auth check failed:", error);
-      } finally {
-        setIsChecking(false);
-        setIsInitialized(true);
+    if (!isLogin && !user) {
+      if (requireAuth) {
+        dispatch(checkMe())
+          .unwrap()
+          .catch(() => {
+            if (typeof window !== "undefined") {
+              router.push("/home-landing");
+            }
+          });
       }
-    };
-
-    initializeAuth();
-  }, [dispatch, requireAuth]);
+    }
+  }, [dispatch, requireAuth, router, isLogin, user, pathname]);
 
   return {
     // redux
     isLogin,
     loading,
     user,
-
-    // state
-    isInitialized,
-    isChecking,
   };
 };

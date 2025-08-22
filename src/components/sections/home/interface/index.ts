@@ -1,7 +1,9 @@
+import { IUser } from "@/types/user";
 import { ReactElement } from "react";
 
 // Types
 export interface AIPlatform {
+  key: string;
   name: string;
   icon: ReactElement;
   description: string;
@@ -14,22 +16,11 @@ export interface UseAIPlatformsReturn {
 }
 
 export interface NavigationProps {
-  onLoginClick: () => void;
-}
-
-export interface HeroSectionProps {
-  onGetStarted: () => void;
+  user: IUser | null;
 }
 
 export interface PlatformCardProps {
+  handleClick: () => void;
   platform: AIPlatform;
   index: number;
-}
-
-export interface AIPlatformsSectionProps {
-  platforms: AIPlatform[];
-}
-
-export interface CTASectionProps {
-  onGetStarted: () => void;
 }

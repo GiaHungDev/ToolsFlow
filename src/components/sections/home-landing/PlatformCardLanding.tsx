@@ -1,13 +1,9 @@
-import { PlatformCardProps } from "./interface";
+import { PlatformCardLandingProps } from "./interface";
 
-const PlatformCard: React.FC<PlatformCardProps> = ({
+const PlatformCardLanding: React.FC<PlatformCardLandingProps> = ({
   platform,
-  handleClick,
 }) => (
-  <div
-    onClick={handleClick}
-    className="group relative bg-slate-800/40 backdrop-blur-sm rounded-2xl p-8 border border-slate-700 hover:border-slate-600 transition-all duration-500 hover:transform hover:scale-105 hover:shadow-2xl cursor-pointer"
-  >
+  <div className="group relative bg-slate-800/40 backdrop-blur-sm rounded-2xl p-8 border border-slate-700 hover:border-slate-600 transition-all duration-500 hover:transform hover:scale-105 hover:shadow-2xl">
     <div className="absolute inset-0 bg-gradient-to-r opacity-0 group-hover:opacity-10 transition-opacity duration-500 rounded-2xl from-purple-500 to-pink-500"></div>
 
     <div
@@ -37,4 +33,4 @@ const PlatformCard: React.FC<PlatformCardProps> = ({
   </div>
 );
 
-export default PlatformCard;
+export default PlatformCardLanding;

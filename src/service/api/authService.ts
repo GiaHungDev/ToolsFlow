@@ -3,6 +3,7 @@ import { saveToken } from "../../utils/localStore";
 import { ILoginLink, ITokenData } from "@/types/auth";
 import { IUser } from "@/types/user";
 import axiosBase from "@/lib/axiosBase";
+import axiosAuth from "@/lib/axiosAuth";
 
 /**
  * Lấy đường dẫn đăng nhập từ server
@@ -60,7 +61,7 @@ export const refreshTokenService = async (
  */
 export const checkMeService = async (): Promise<IUser> => {
   try {
-    const res = await axiosClient.get<IUser>("/user/checkme");
+    const res = await axiosAuth.get<IUser>("/user/checkme");
     return res;
   } catch (error) {
     if (error instanceof Error) {

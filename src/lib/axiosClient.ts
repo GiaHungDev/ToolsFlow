@@ -45,11 +45,19 @@ const axiosClient = axios.create({
   baseURL: process.env.NEXT_PUBLIC_API_URL,
   headers: {
     accept: "application/json",
-    "User-Agent": `Harumi-AI ${
-      process.env.NEXT_PUBLIC_HOST_NAME_USER ?? "oke"
-    }`,
+    "Content-Type": "application/json",
   },
 });
+
+/**
+ * Custom Error class cho auth redirect
+ */
+class AuthRedirectError extends Error {
+  constructor(message: string, public code: string) {
+    super(message);
+    this.name = "AuthRedirectError";
+  }
+}
 
 /**
  * Interceptor xử lý trước khi request được gửi đi
@@ -75,11 +83,12 @@ const onRequest = async (
         return config;
 
       case AuthStatus.NO_TOKEN:
+        // Xử lý redirect và cancel request
         await handleLoginRedirect(
           "Hãy đăng nhập",
           "Hãy đăng nhập vào hệ thống để sử dụng dịch vụ"
         );
-        return Promise.reject(new Error("Không có token, cần đăng nhập"));
+        throw new AuthRedirectError("User needs to login", "NO_TOKEN");
 
       case AuthStatus.SESSION_EXPIRED:
         await handleLoginRedirect(
@@ -87,7 +96,7 @@ const onRequest = async (
           "Hết phiên đăng nhập, vui lòng đăng nhập lại hệ thống",
           true
         );
-        throw new Error("Hết phiên đăng nhập, vui lòng đăng nhập lại hệ thống");
+        throw new AuthRedirectError("Session expired", "SESSION_EXPIRED");
 
       case AuthStatus.REFRESH_ERROR:
         await handleLoginRedirect(
@@ -95,14 +104,17 @@ const onRequest = async (
           "Có lỗi xảy ra khi làm mới token, vui lòng đăng nhập lại",
           true
         );
-        throw new Error(
-          "Có lỗi xảy ra khi làm mới token, vui lòng đăng nhập lại"
-        );
+        throw new AuthRedirectError("Refresh token failed", "REFRESH_ERROR");
 
       default:
         throw new Error("Lỗi xác thực không xác định");
     }
   } catch (error) {
+    // Nếu là AuthRedirectError thì pass through
+    if (error instanceof AuthRedirectError) {
+      throw error;
+    }
+
     console.error("Auth check failed:", error);
 
     if (
@@ -111,7 +123,8 @@ const onRequest = async (
     ) {
       throw error;
     }
-    return Promise.reject(new Error("Lỗi kiểm tra xác thực"));
+
+    throw new Error("Lỗi kiểm tra xác thực");
   }
 };
 
@@ -119,6 +132,11 @@ const onRequest = async (
  * Xử lý lỗi trong request interceptor
  */
 const onRequestError = (error: unknown) => {
+  // Không log AuthRedirectError vì đây là flow bình thường
+  if (!(error instanceof AuthRedirectError)) {
+    console.error("Request interceptor error:", error);
+  }
+
   if (error instanceof Error) {
     return Promise.reject(error);
   }
