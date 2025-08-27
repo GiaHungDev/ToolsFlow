@@ -19,7 +19,7 @@ import { Check, ChevronsUpDown } from "lucide-react";
 import React from "react";
 
 interface ComboboxOption {
-  value: string;
+  value: string | number;
   label: string;
   disabled?: boolean;
 }
@@ -27,8 +27,8 @@ interface ComboboxOption {
 interface FlexibleComboboxProps {
   // Required props
   options: ComboboxOption[];
-  value?: string;
-  onValueChange?: (value: string) => void;
+  value?: string | number | null;
+  onValueChange?: (value: string | number | null) => void;
 
   // Display props
   placeholder?: string;
@@ -90,14 +90,34 @@ const FlexibleCombobox: React.FC<FlexibleComboboxProps> = ({
   renderValue,
 }) => {
   const [open, setOpen] = React.useState(false);
-  const [internalValue, setInternalValue] = React.useState(value || "");
+  const [internalValue, setInternalValue] = React.useState<
+    string | number | null
+  >(value ?? null);
 
   const currentValue = value !== undefined ? value : internalValue;
   const sizeStyles = sizeClasses[size];
 
-  const handleValueChange = (newValue: string) => {
+  // Helper function to convert value to string for Command component
+  const valueToString = (val: string | number | null): string => {
+    if (val === null || val === undefined) return "";
+    return String(val);
+  };
+
+  // Helper function to convert back to original type
+  const convertValue = (stringValue: string): string | number | null => {
+    if (stringValue === "") return null;
+
+    // Try to find the original option to maintain the original type
+    const originalOption = options.find(
+      (option) => String(option.value) === stringValue
+    );
+    return originalOption ? originalOption.value : stringValue;
+  };
+
+  const handleValueChange = (stringValue: string) => {
+    const newValue = convertValue(stringValue);
     const finalValue =
-      newValue === currentValue ? (clearable ? "" : newValue) : newValue;
+      newValue === currentValue ? (clearable ? null : newValue) : newValue;
 
     if (value === undefined) {
       setInternalValue(finalValue);
@@ -167,27 +187,31 @@ const FlexibleCombobox: React.FC<FlexibleComboboxProps> = ({
                 {emptyMessage}
               </CommandEmpty>
               <CommandGroup>
-                {clearable && currentValue && (
-                  <CommandItem
-                    value=""
-                    onSelect={() => handleValueChange("")}
-                    className={cn(
-                      "text-muted-foreground italic",
-                      sizeStyles.content
-                    )}
-                  >
-                    Clear selection
-                    <Check
-                      className={cn("ml-auto opacity-0", sizeStyles.icon)}
-                    />
-                  </CommandItem>
-                )}
+                {clearable &&
+                  currentValue !== null &&
+                  currentValue !== undefined && (
+                    <CommandItem
+                      value=""
+                      onSelect={() => handleValueChange("")}
+                      className={cn(
+                        "text-muted-foreground italic",
+                        sizeStyles.content
+                      )}
+                    >
+                      Clear selection
+                      <Check
+                        className={cn("ml-auto opacity-0", sizeStyles.icon)}
+                      />
+                    </CommandItem>
+                  )}
                 {options.map((option) => (
                   <CommandItem
-                    key={option.value}
-                    value={option.value}
+                    key={String(option.value)}
+                    value={valueToString(option.value)}
                     disabled={option.disabled}
-                    onSelect={() => handleValueChange(option.value)}
+                    onSelect={() =>
+                      handleValueChange(valueToString(option.value))
+                    }
                     className={cn(
                       sizeStyles.content,
                       option.disabled && "opacity-50 cursor-not-allowed"
@@ -213,4 +237,5 @@ const FlexibleCombobox: React.FC<FlexibleComboboxProps> = ({
     </div>
   );
 };
+
 export default FlexibleCombobox;

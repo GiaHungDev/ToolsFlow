@@ -10,18 +10,27 @@ import {
   FormLabel,
 } from "@/components/ui/form";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreateVideoForm } from "@/hooks/hailou-ai/useCreateVideoForm";
+import {
+  CreateVideoFormValues
+} from "@/hooks/hailou-ai/useCreateVideoForm";
+import { UseFormReturn } from "react-hook-form";
 
-const CreateVideoSection = () => {
-  const { form, handleSubmit } = useCreateVideoForm();
+interface CreateVideoSectionProps {
+  formVideo: UseFormReturn<CreateVideoFormValues>;
+  handleSubmit?: (e?: React.BaseSyntheticEvent) => Promise<void>;
+}
 
+const CreateVideoSection: React.FC<CreateVideoSectionProps> = ({
+  formVideo,
+  handleSubmit,
+}) => {
   return (
     <>
-      <Form {...form}>
+      <Form {...formVideo}>
         <form onSubmit={handleSubmit} className="space-y-8">
           <FormField
-            control={form.control}
-            name="videoDescription"
+            control={formVideo.control}
+            name="description"
             render={({ field, fieldState }) => (
               <FormItem>
                 <FormLabel>Mô tả video</FormLabel>
@@ -41,7 +50,7 @@ const CreateVideoSection = () => {
             )}
           />
           <FormField
-            control={form.control}
+            control={formVideo.control}
             name="images"
             render={({ field, fieldState }) => (
               <FormItem>

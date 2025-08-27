@@ -1,5 +1,9 @@
+import { IUseCreatePrompt } from "@/components/sections/hailuo-ai/interface";
+import { Notify } from "@/lib/Notify";
+import { createPrompt } from "@/lib/redux/slices/hailuoSlice";
+import { useAppDispatch, useAppSelector } from "@/lib/redux/store";
+import { clearAllFields, setFormValues } from "@/utils/formHelpers";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { useState } from "react";
 import { FieldErrors, useForm } from "react-hook-form";
 import z from "zod";
 
@@ -13,10 +17,8 @@ export const formSchema = z.object({
 
 export type CreatePromptFormValues = z.infer<typeof formSchema>;
 
-export const useCreatePrompt = () => {
-  const [isOpenTopicModal, setIsOpenTopicModal] = useState<boolean>(false);
-
-  const formPrompt = useForm<CreatePromptFormValues>({
+export const useFormPrompt = () => {
+  return useForm<CreatePromptFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       title: "",
@@ -24,12 +26,42 @@ export const useCreatePrompt = () => {
       keywords: "",
     },
   });
+};
 
-  function handleSubmitSuccess(values: CreatePromptFormValues) {
-    console.log("✅ Form submitted successfully:", values);
-  }
+export const useCreatePrompt = (
+  { onCancel, formVideo }: IUseCreatePrompt,
+  formPrompt: ReturnType<typeof useFormPrompt>
+) => {
+  const dispatch = useAppDispatch();
 
-  function handleSubmitError(errors: FieldErrors<CreatePromptFormValues>) {
+  const { loadHailuo } = useAppSelector((state) => state.hailuo);
+
+  const handleSubmitSuccess = async (values: CreatePromptFormValues) => {
+    try {
+      if (!values || !values.title || !values.description || !values.keywords) {
+        Notify({
+          title: "Thiếu dữ liệu",
+          description: "Thiếu dữ liệu để tạo prompt",
+          status: "warning",
+        });
+        throw new Error("Thiếu dữ liệu tạo Prompt");
+      }
+
+      const res = await dispatch(createPrompt({ ...values })).unwrap();
+
+      if (res && formVideo) {
+        setFormValues(formVideo, {
+          description: res.prompt,
+        });
+        if (formPrompt) clearAllFields(formPrompt);
+        onCancel?.();
+      }
+    } catch (error: unknown) {
+      console.error("Lỗi tạo prompt useCreatePrompt:", error);
+    }
+  };
+
+  const handleSubmitError = (errors: FieldErrors<CreatePromptFormValues>) => {
     console.error("❌ Form validation failed:");
     console.error("Errors:", errors);
 
@@ -40,18 +72,14 @@ export const useCreatePrompt = () => {
         console.error(`- ${key}: ${error.message}`);
       }
     });
-  }
-
-  const cancelTopicModal = () => {
-    setIsOpenTopicModal(false);
   };
 
   return {
-    formPrompt,
-    handleSubmit: formPrompt.handleSubmit(handleSubmitSuccess, handleSubmitError),
-    cancelTopicModal,
-    // state
-    setIsOpenTopicModal,
-    isOpenTopicModal,
+    handleSubmit: formPrompt.handleSubmit(
+      handleSubmitSuccess,
+      handleSubmitError
+    ),
+
+    loadHailuo,
   };
 };

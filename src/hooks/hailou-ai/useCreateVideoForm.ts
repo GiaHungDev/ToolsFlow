@@ -1,11 +1,11 @@
 "use client";
 
 import { z } from "zod";
-import { useForm } from "react-hook-form";
+import { FieldErrors, useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 
 export const formSchema = z.object({
-  videoDescription: z.string().min(1, {
+  description: z.string().min(1, {
     message: "Hãy nhập mô tả video!",
   }),
   images: z.array(z.any()).min(1, { message: "Hãy upload ảnh!" }),
@@ -13,21 +13,44 @@ export const formSchema = z.object({
 
 export type CreateVideoFormValues = z.infer<typeof formSchema>;
 
-export function useCreateVideoForm() {
-  const form = useForm<CreateVideoFormValues>({
+export const useFormVideo = () => {
+  return useForm<CreateVideoFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      videoDescription: "",
+      description: "",
       images: [],
     },
   });
+};
 
-  function handleSubmit(values: CreateVideoFormValues) {
-    console.log("values", values);
-  }
+export function useCreateVideoForm(
+  formVideo?: ReturnType<typeof useFormVideo>
+) {
+  const handleSubmitSuccess = async (values: CreateVideoFormValues) => {
+    console.log("🚀 ~ handleSubmitSuccess ~ values:", values);
+    try {
+    } catch (error: unknown) {
+      console.error("Lỗi tạo prompt useCreatePrompt:", error);
+    }
+  };
+
+  const handleSubmitError = (errors: FieldErrors<CreateVideoFormValues>) => {
+    console.error("❌ Form validation failed:");
+    console.error("Errors:", errors);
+
+    // Log từng field error
+    Object.keys(errors).forEach((key) => {
+      const error = errors[key as keyof CreateVideoFormValues];
+      if (error) {
+        console.error(`- ${key}: ${error.message}`);
+      }
+    });
+  };
 
   return {
-    form,
-    handleSubmit: form.handleSubmit(handleSubmit),
+    handleSubmit: formVideo?.handleSubmit(
+      handleSubmitSuccess,
+      handleSubmitError
+    ),
   };
 }

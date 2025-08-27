@@ -17,10 +17,14 @@ const CreateTopicModal: React.FC<ICreateTopic> = ({
   onCancel,
   setOpen,
   formPrompt,
+  handleOpenPromptModal,
+  handleSetTopic,
 }) => {
   const { formTopic, handleSubmit, loadHailuo } = useCreateTopic({
     formPrompt,
     onCancel,
+    handleOpenPromptModal,
+    handleSetTopic,
   });
 
   return (
@@ -44,7 +48,7 @@ const CreateTopicModal: React.FC<ICreateTopic> = ({
           </Button>
         </>
       }
-      onlyCloseByButton={loadHailuo}
+      onlyCloseByButton
       className="max-w-[700px]"
     >
       <Form {...formTopic}>

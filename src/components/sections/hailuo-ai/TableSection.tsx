@@ -109,8 +109,6 @@ const AppTable: React.FC = () => {
   const [loading, setLoading] = useState(false);
 
   const handlePaginationChange = async (page: number, limit: number) => {
-    console.log("🚀 ~ handlePaginationChange ~ limit:", limit);
-    console.log("🚀 ~ handlePaginationChange ~ page:", page);
     setLoading(true);
     try {
       const sampleData = generateSampleData(10);

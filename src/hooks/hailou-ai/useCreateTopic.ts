@@ -13,7 +13,12 @@ export const formSchema = z.object({
 
 export type CreateTopicFormValues = z.infer<typeof formSchema>;
 
-export const useCreateTopic = ({ formPrompt, onCancel }: IUseCreateTopic) => {
+export const useCreateTopic = ({
+  formPrompt,
+  onCancel,
+  handleOpenPromptModal,
+  handleSetTopic,
+}: IUseCreateTopic) => {
   const dispatch = useAppDispatch();
 
   const { loadHailuo } = useAppSelector((state) => state.hailuo);
@@ -35,8 +40,10 @@ export const useCreateTopic = ({ formPrompt, onCancel }: IUseCreateTopic) => {
           description: res.description,
           keywords: res.keywords,
         });
-        onCancel?.();
         clearAllFields(formTopic);
+        onCancel?.();
+        handleOpenPromptModal();
+        handleSetTopic(res);
       }
     } catch (error) {
       if (error instanceof Error) {

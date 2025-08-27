@@ -8,3 +8,7 @@ export interface ITopic extends IBase {
   accountId: number;
   prompt: string;
 }
+
+export interface IPrompt {
+  prompt: string;
+}

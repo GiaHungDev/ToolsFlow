@@ -1,24 +1,36 @@
 "use client";
 
 import { Label } from "@/components/ui/label";
-import React from "react";
+import { useCreateVideo } from "@/hooks/hailou-ai/useCreateVideo";
+import {
+  useCreateVideoForm,
+  useFormVideo,
+} from "@/hooks/hailou-ai/useCreateVideoForm";
 import { Button } from "../../ui/button";
 import { Separator } from "../../ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import CreateVideoSection from "./CreateVideoSection";
 import SelectTopicSection from "./SelectTopicSection";
-import CreateTopicModal from "./modals/CreatePromptModal";
+import CreatePromptModal from "./modals/CreatePromptModal";
+import CreateTopicModal from "./modals/CreateTopicModal";
+import { useFormPrompt } from "@/hooks/hailou-ai/useCreatePrompt";
+import { useSelectTopic } from "@/hooks/hailou-ai/useSelectTopic";
 
 const HailouAi = () => {
-  const [open, setOpen] = React.useState(false);
-
-  const handleOpent = () => {
-    setOpen(true);
-  };
-
-  const handleCancel = () => {
-    setOpen(false);
-  };
+  const { handleSubmit } = useCreateVideoForm();
+  const formPrompt = useFormPrompt();
+  const formVideo = useFormVideo();
+  const {
+    openTopicModal,
+    setOpenTopicModal,
+    handleOpenTopicModal,
+    handleCancelTopicModal,
+    openPromptModal,
+    setOpenPromptModal,
+    handleOpenPromptModal,
+    handleCancelPromptModal,
+  } = useCreateVideo();
+  const { handleSetTopic } = useSelectTopic();
 
   return (
     <>
@@ -61,12 +73,15 @@ const HailouAi = () => {
             <Button
               variant="secondary"
               className="w-full text-[6px] xs:text-[10px] sm:text-xs lg:text-sm"
-              onClick={handleOpent}
+              onClick={handleOpenTopicModal}
             >
               Tạo chủ đề mới
             </Button>
           </div>
-          <CreateVideoSection />
+          <CreateVideoSection
+            formVideo={formVideo}
+            handleSubmit={handleSubmit}
+          />
         </TabsContent>
         <TabsContent value="t2v" className="mt-3 sm:mt-4">
           <Separator className="my-2 sm:my-3" />
@@ -75,10 +90,20 @@ const HailouAi = () => {
           </div>
         </TabsContent>
       </Tabs>
+      <CreatePromptModal
+        isOpen={openPromptModal}
+        onCancel={handleCancelPromptModal}
+        setOpen={setOpenPromptModal}
+        formVideo={formVideo}
+        formPrompt={formPrompt}
+      />
       <CreateTopicModal
-        isOpen={open}
-        onCancel={handleCancel}
-        setOpen={setOpen}
+        isOpen={openTopicModal}
+        setOpen={setOpenTopicModal}
+        onCancel={handleCancelTopicModal}
+        formPrompt={formPrompt}
+        handleOpenPromptModal={handleOpenPromptModal}
+        handleSetTopic={handleSetTopic}
       />
     </>
   );
