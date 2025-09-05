@@ -1,5 +1,11 @@
 import axiosClient from "@/lib/axiosClient";
-import { IPrompt, ITopic } from "@/types/hailuo";
+import {
+  CreateHailuoVideo,
+  IFilesUpload,
+  IHailuoVideo,
+  IPrompt,
+  ITopic,
+} from "@/types/hailuo";
 
 export const createTopicService = async (
   title: string,
@@ -43,6 +49,48 @@ export const createPromptService = async (data: {
 export const getTopicService = async (): Promise<ITopic[]> => {
   try {
     const res: ITopic[] = await axiosClient.get("prompts/topics");
+    return res;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error("Create new topic error in service:", error);
+    } else {
+      throw new Error("Create new topic error in service!");
+    }
+  }
+};
+
+export const createHailuoVideoService = async (
+  data: CreateHailuoVideo
+): Promise<IHailuoVideo> => {
+  try {
+    const res: IHailuoVideo = await axiosClient.post("hailuo/create/videos", {
+      ...data,
+    });
+    return res;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error("Create new topic error in service:", error);
+    } else {
+      throw new Error("Create new topic error in service!");
+    }
+  }
+};
+
+export const uploadImgToHailuoService = async (
+  formData: FormData
+): Promise<IFilesUpload> => {
+  console.log("🚀 ~ uploadImgToHailuoService ~ formData:", formData);
+  try {
+    const res: IFilesUpload = await axiosClient.post(
+      "hailuo/upload/images",
+      formData,
+      {
+        headers: {
+          "Content-Type": "multipart/form-data",
+        },
+      }
+    );
+
     return res;
   } catch (error) {
     if (error instanceof Error) {

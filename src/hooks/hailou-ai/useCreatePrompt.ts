@@ -79,7 +79,6 @@ export const useCreatePrompt = (
       handleSubmitSuccess,
       handleSubmitError
     ),
-
     loadHailuo,
   };
 };

@@ -292,6 +292,11 @@ const FileUploadComponent: React.FC<FileUploadProps> = ({
 
                 <div className="flex flex-col sm:flex-row items-center space-y-1 sm:space-y-0 sm:space-x-2 flex-shrink-0">
                   <button
+                    type="button"
+                    onClick={() => {
+                      const fileURL = URL.createObjectURL(fileItem.file);
+                      window.open(fileURL, "_blank");
+                    }}
                     className="p-1.5 text-gray-400 hover:text-blue-500 rounded transition-colors"
                     title="Xem trước"
                     disabled={disabled}
@@ -299,6 +304,7 @@ const FileUploadComponent: React.FC<FileUploadProps> = ({
                     <Eye className="w-4 h-4" />
                   </button>
                   <button
+                    type="button"
                     onClick={() => removeFile(fileItem.id)}
                     className="p-1.5 text-gray-400 hover:text-red-500 rounded transition-colors"
                     title="Xóa file"

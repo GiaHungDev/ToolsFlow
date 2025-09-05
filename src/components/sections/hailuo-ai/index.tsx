@@ -1,11 +1,13 @@
 "use client";
 
 import { Label } from "@/components/ui/label";
+import { useFormPrompt } from "@/hooks/hailou-ai/useCreatePrompt";
 import { useCreateVideo } from "@/hooks/hailou-ai/useCreateVideo";
 import {
   useCreateVideoForm,
   useFormVideo,
 } from "@/hooks/hailou-ai/useCreateVideoForm";
+import { useSelectTopic } from "@/hooks/hailou-ai/useSelectTopic";
 import { Button } from "../../ui/button";
 import { Separator } from "../../ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
@@ -13,13 +15,11 @@ import CreateVideoSection from "./CreateVideoSection";
 import SelectTopicSection from "./SelectTopicSection";
 import CreatePromptModal from "./modals/CreatePromptModal";
 import CreateTopicModal from "./modals/CreateTopicModal";
-import { useFormPrompt } from "@/hooks/hailou-ai/useCreatePrompt";
-import { useSelectTopic } from "@/hooks/hailou-ai/useSelectTopic";
 
 const HailouAi = () => {
-  const { handleSubmit } = useCreateVideoForm();
   const formPrompt = useFormPrompt();
   const formVideo = useFormVideo();
+
   const {
     openTopicModal,
     setOpenTopicModal,
@@ -30,7 +30,14 @@ const HailouAi = () => {
     handleOpenPromptModal,
     handleCancelPromptModal,
   } = useCreateVideo();
-  const { handleSetTopic } = useSelectTopic();
+
+  const selectTopicHook = useSelectTopic({ handleOpenPromptModal, formPrompt });
+  const { handleSetTopic } = selectTopicHook;
+
+  const { handleSubmit, loadHailuo } = useCreateVideoForm({
+    formVideo,
+    handleSetTopic,
+  });
 
   return (
     <>
@@ -57,15 +64,15 @@ const HailouAi = () => {
           <h2 className="mb-3 sm:mb-4 text-xs sm:text-sm lg:text-base xl:text-lg font-semibold">
             Tạo video
           </h2>
-          <div className="grid w-full gap-3 sm:gap-4 mb-6 sm:mb-8">
-            <div className="grid w-full gap-2 sm:gap-3">
+          <div className="grid w-full gap-3 sm:gap-4 mb-6 sm:mb-6">
+            <div className="grid w-full gap-2 sm:gap-2.5">
               <Label
                 htmlFor="select-topic"
                 className="text-[6px] xs:text-[10px] sm:text-xs lg:text-sm"
               >
                 Chọn chủ đề đã có
               </Label>
-              <SelectTopicSection />
+              <SelectTopicSection selectTopicHook={selectTopicHook} />
             </div>
             <p className="text-center text-muted-foreground text-[6px] xs:text-[10px] sm:text-xs lg:text-sm px-2">
               Hoặc tạo mới chủ đề
@@ -81,6 +88,7 @@ const HailouAi = () => {
           <CreateVideoSection
             formVideo={formVideo}
             handleSubmit={handleSubmit}
+            loading={loadHailuo}
           />
         </TabsContent>
         <TabsContent value="t2v" className="mt-3 sm:mt-4">

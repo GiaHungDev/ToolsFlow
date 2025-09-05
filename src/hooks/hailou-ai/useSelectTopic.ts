@@ -2,20 +2,50 @@ import { getTopic } from "@/lib/redux/slices/hailuoSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/store";
 import { ITopic } from "@/types/hailuo";
 import React, { useEffect } from "react";
+import { UseFormReturn } from "react-hook-form";
+import { CreatePromptFormValues } from "./useCreatePrompt";
+import { clearAllFields, setFormValues } from "@/utils/formHelpers";
+import { Notify } from "@/lib/Notify";
 
-export const useSelectTopic = () => {
+interface UseSelectTopicProp {
+  handleOpenPromptModal: () => void;
+  formPrompt: UseFormReturn<CreatePromptFormValues>;
+}
+
+export const useSelectTopic = ({
+  handleOpenPromptModal,
+  formPrompt,
+}: UseSelectTopicProp) => {
   const dispatch = useAppDispatch();
 
   const { listTopic, mapTopic } = useAppSelector((state) => state.hailuo);
 
   const [open, setOpen] = React.useState(false);
   const [topic, setTopic] = React.useState<ITopic | null>(null);
-  console.log("🚀 ~ useSelectTopic ~ topic:", topic);
 
   const selected = topic ? mapTopic[topic.id] : null;
 
   const handleSelect = (topic: ITopic) => {
-    console.log(topic);
+    try {
+      const selected = topic ? mapTopic[topic.id] : null;
+      if (!selected) {
+        Notify({
+          title: "Chọn chủ đề không thành công",
+          description: "Chủ đề bạn chọn không tồn tại trong hệ thống!",
+          status: "error",
+        });
+        throw new Error("Chủ đề select không có!");
+      }
+      clearAllFields(formPrompt);
+      setFormValues(formPrompt, {
+        title: selected.title,
+        description: selected.description,
+        keywords: selected.keywords,
+      });
+      handleOpenPromptModal();
+    } catch (error) {
+      console.error(error);
+    }
   };
 
   const handleSetTopic = (topic: ITopic | null) => {

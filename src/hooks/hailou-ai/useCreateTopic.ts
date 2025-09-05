@@ -1,5 +1,5 @@
 import { IUseCreateTopic } from "@/components/sections/hailuo-ai/interface";
-import { createTopic } from "@/lib/redux/slices/hailuoSlice";
+import { createTopic, getTopic } from "@/lib/redux/slices/hailuoSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/store";
 import { clearAllFields, setFormValues } from "@/utils/formHelpers";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -43,6 +43,7 @@ export const useCreateTopic = ({
         clearAllFields(formTopic);
         onCancel?.();
         handleOpenPromptModal();
+        dispatch(getTopic()).unwrap();
         handleSetTopic(res);
       }
     } catch (error) {

@@ -14,11 +14,28 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useSelectTopic } from "@/hooks/hailou-ai/useSelectTopic";
 import { cn } from "@/lib/utils";
+import { ITopic } from "@/types/hailuo";
 import { Check, ChevronsUpDown } from "lucide-react";
+import React from "react";
 
-const SelectTopicSection = () => {
+interface ITopicSection {
+  listTopic: ITopic[];
+  setOpen: (open: boolean) => void;
+  open: boolean;
+  handleSetTopic: (topic: ITopic | null) => void;
+  selected: ITopic | null;
+  topic: ITopic | null;
+  handleSelect: (topic: ITopic) => void;
+}
+
+interface SelectTopicSectionProps {
+  selectTopicHook: ITopicSection;
+}
+
+const SelectTopicSection: React.FC<SelectTopicSectionProps> = ({
+  selectTopicHook,
+}) => {
   const {
     listTopic,
     setOpen,
@@ -27,7 +44,7 @@ const SelectTopicSection = () => {
     selected,
     topic,
     handleSelect,
-  } = useSelectTopic();
+  } = selectTopicHook;
 
   return (
     <>
