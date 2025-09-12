@@ -1,11 +1,15 @@
-import { getTopic } from "@/lib/redux/slices/hailuoSlice";
+import {
+  clearChooseVideoTopic,
+  getTopic,
+  setChooseVideoTopic,
+} from "@/lib/redux/slices/hailuoSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/store";
 import { ITopic } from "@/types/hailuo";
 import React, { useEffect } from "react";
 import { UseFormReturn } from "react-hook-form";
-import { CreatePromptFormValues } from "./useCreatePrompt";
 import { clearAllFields, setFormValues } from "@/utils/formHelpers";
 import { Notify } from "@/lib/Notify";
+import { CreatePromptFormValues } from "./useFormPrompt";
 
 interface UseSelectTopicProp {
   handleOpenPromptModal: () => void;
@@ -42,6 +46,7 @@ export const useSelectTopic = ({
         description: selected.description,
         keywords: selected.keywords,
       });
+      dispatch(setChooseVideoTopic(selected));
       handleOpenPromptModal();
     } catch (error) {
       console.error(error);
@@ -50,6 +55,7 @@ export const useSelectTopic = ({
 
   const handleSetTopic = (topic: ITopic | null) => {
     setTopic(topic);
+    dispatch(clearChooseVideoTopic());
   };
 
   useEffect(() => {

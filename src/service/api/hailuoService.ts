@@ -1,7 +1,9 @@
 import axiosClient from "@/lib/axiosClient";
 import {
   CreateHailuoVideo,
+  GetHailuoVideo,
   IFilesUpload,
+  IHailuoData,
   IHailuoVideo,
   IPrompt,
   ITopic,
@@ -79,7 +81,6 @@ export const createHailuoVideoService = async (
 export const uploadImgToHailuoService = async (
   formData: FormData
 ): Promise<IFilesUpload> => {
-  console.log("🚀 ~ uploadImgToHailuoService ~ formData:", formData);
   try {
     const res: IFilesUpload = await axiosClient.post(
       "hailuo/upload/images",
@@ -97,6 +98,41 @@ export const uploadImgToHailuoService = async (
       throw new Error("Create new topic error in service:", error);
     } else {
       throw new Error("Create new topic error in service!");
+    }
+  }
+};
+
+export const getHailuoVideoService = async (
+  data: GetHailuoVideo
+): Promise<IHailuoData> => {
+  console.log("🚀 ~ getHailuoVideoService ~ data:", data);
+  try {
+    const res: IHailuoData = await axiosClient.get("hailuo/get/videos", {
+      params: data,
+    });
+    return res;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error("Create new topic error in service:", error);
+    } else {
+      throw new Error("Create new topic error in service!");
+    }
+  }
+};
+
+export const deleteHailuoService = async (
+  id: number
+): Promise<IHailuoVideo> => {
+  try {
+    const res: IHailuoVideo = await axiosClient.delete(
+      `hailuo/delete/videos/${id}`
+    );
+    return res;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error("Delete hailuo error in service:", error);
+    } else {
+      throw new Error("Delete hailuo error in service!");
     }
   }
 };

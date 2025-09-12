@@ -11,38 +11,23 @@ import {
 } from "@/components/ui/form";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { useCamMotion } from "@/hooks/hailou-ai/useCamMotion";
-import { CreateVideoFormValues } from "@/hooks/hailou-ai/useCreateVideoForm";
+import { CreateVideoFormValues } from "@/hooks/hailou-ai/useFormVideo";
 import { Clapperboard, Video } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
-import CamMotionModal from "./modals/CamMotionModal";
 
 interface CreateVideoSectionProps {
   formVideo: UseFormReturn<CreateVideoFormValues>;
   handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
   loading: boolean;
+  handleOpenCamMotion: () => void;
 }
 
 const CreateVideoSection: React.FC<CreateVideoSectionProps> = ({
   formVideo,
   handleSubmit,
   loading,
+  handleOpenCamMotion,
 }) => {
-  const {
-    selectedPreset,
-    setHoveredPreset,
-    hoveredPreset,
-    setOpenCamMotion,
-    openCamMotion,
-    handleOpenCamMotion,
-    handleCancelCamMotion,
-    handlePresetSelect,
-    handleSubmitCamMotion,
-    videoRefs,
-    handleMouseEnter,
-    handleMouseLeave,
-  } = useCamMotion(formVideo);
-
   return (
     <>
       <Form {...formVideo}>
@@ -55,7 +40,7 @@ const CreateVideoSection: React.FC<CreateVideoSectionProps> = ({
                 <FormLabel>Mô tả video</FormLabel>
                 <FormControl>
                   <Textarea
-                    className="h-32"
+                    className="min-h-24"
                     placeholder="Nhập mô tả video."
                     {...field}
                   />
@@ -91,6 +76,7 @@ const CreateVideoSection: React.FC<CreateVideoSectionProps> = ({
                 <FormLabel>Upload ảnh</FormLabel>
                 <FormControl>
                   <FileUploadComponent
+                    value={field.value || []}
                     maxFiles={1}
                     maxFileSize={20}
                     title="Kéo thả ảnh hoặc click để chọn ảnh"
@@ -117,19 +103,6 @@ const CreateVideoSection: React.FC<CreateVideoSectionProps> = ({
           </Button>
         </form>
       </Form>
-      <CamMotionModal
-        handleCancelCamMotion={handleCancelCamMotion}
-        handlePresetSelect={handlePresetSelect}
-        handleSubmit={handleSubmitCamMotion}
-        hoveredPreset={hoveredPreset}
-        openCamMotion={openCamMotion}
-        selectedPreset={selectedPreset}
-        setHoveredPreset={setHoveredPreset}
-        setOpenCamMotion={setOpenCamMotion}
-        videoRefs={videoRefs}
-        handleMouseEnter={handleMouseEnter}
-        handleMouseLeave={handleMouseLeave}
-      />
     </>
   );
 };

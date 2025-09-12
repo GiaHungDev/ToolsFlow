@@ -1,227 +1,298 @@
 "use client";
 
-import CustomTable from "@/components/shared/CTable";
+import DataTable from "@/components/shared/CTable/DataTable";
 import { TableColumn } from "@/components/shared/CTable/interface";
+import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
-import React, { useState } from "react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useFilter } from "@/hooks/hailou-ai/useFilter";
+import { useFormFilter } from "@/hooks/hailou-ai/useFormFilter";
+import { useFormVideo } from "@/hooks/hailou-ai/useFormVideo";
+import { usePlayVideo } from "@/hooks/hailou-ai/usePlayVideo";
+import { useTableActions } from "@/hooks/hailou-ai/useTableActions";
+import { useTableData } from "@/hooks/hailou-ai/useTableData";
+import { useAppSelector } from "@/lib/redux/store";
+import { IHailuoVideo } from "@/types/hailuo";
+import { videoStatusTable } from "@/types/listConstant";
+import dayjs from "dayjs";
+import {
+  Copy,
+  Download,
+  Ellipsis,
+  Play,
+  RefreshCcw,
+  Search,
+  Trash2,
+} from "lucide-react";
+import Image from "next/image";
+import React, { useMemo } from "react";
+import FilterModal from "./modals/FilterModal";
+import ShowVideoModal from "./modals/showVideoModal";
 
-// Kiểu dữ liệu cho mỗi hàng
-interface Employee {
-  id: number;
-  name: string;
-  email: string;
-  role: "Admin" | "User" | "Manager";
-  department: string;
-  salary: string;
-  status: "Active" | "Inactive";
-  joinDate: string;
-  phone: string;
-  [key: string]: string | number;
+interface TableSectionProp {
+  formVideo: ReturnType<typeof useFormVideo>;
+  formFilter: ReturnType<typeof useFormFilter>;
 }
 
-const AppTable: React.FC = () => {
-  const generateSampleData = (count: number): Employee[] => {
-    const roles: Employee["role"][] = ["Admin", "User", "Manager"];
-    const departments = [
-      "IT",
-      "Marketing",
-      "Sales",
-      "HR",
-      "Finance",
-      "Operations",
-    ];
-    const statuses: Employee["status"][] = ["Active", "Inactive"];
+const TableSection: React.FC<TableSectionProp> = ({
+  formVideo,
+  formFilter,
+}) => {
+  const { listHailuoVideo, loadHailuo, paginationHailuo } = useAppSelector(
+    (state) => state.hailuo
+  );
+  const { handlePaginationChange, pagination } = useTableData();
+  const {
+    handleSelectionChange,
+    selectedCount,
+    handleDownloadVideo,
+    handleDownloadVideos,
+    handleRecreate,
+    handleDelete,
+    handleReload,
+  } = useTableActions({ formVideo });
 
-    const firstNames = [
-      "John",
-      "Jane",
-      "Michael",
-      "Emily",
-      "David",
-      "Sarah",
-      "Robert",
-      "Laura",
-      "Daniel",
-      "Olivia",
-      "James",
-      "Sophia",
-    ];
-    const lastNames = [
-      "Smith",
-      "Johnson",
-      "Brown",
-      "Williams",
-      "Jones",
-      "Miller",
-      "Davis",
-      "Garcia",
-      "Rodriguez",
-      "Martinez",
-      "Hernandez",
-      "Lopez",
-    ];
-
-    const getRandomItem = <T,>(arr: T[]): T =>
-      arr[Math.floor(Math.random() * arr.length)];
-
-    const getRandomDate = (start: Date, end: Date) =>
-      new Date(
-        start.getTime() + Math.random() * (end.getTime() - start.getTime())
-      )
-        .toISOString()
-        .split("T")[0];
-
-    return Array.from({ length: count }, (_, i): Employee => {
-      const firstName = getRandomItem(firstNames);
-      const lastName = getRandomItem(lastNames);
-      const fullName = `${firstName} ${lastName}`;
-      const email = `${firstName}.${lastName}${Math.floor(
-        Math.random() * 1000
-      )}@example.com`.toLowerCase();
-
-      return {
-        id: i + 1,
-        name: fullName,
-        email,
-        role: getRandomItem(roles),
-        department: getRandomItem(departments),
-        salary: `$${(
-          50000 + Math.floor(Math.random() * 50000)
-        ).toLocaleString()}`,
-        status: getRandomItem(statuses),
-        joinDate: getRandomDate(new Date(2020, 0, 1), new Date()),
-        phone: `+1-234-567-${Math.floor(Math.random() * 10000)
-          .toString()
-          .padStart(4, "0")}`,
-      };
-    });
+  const paginationInfo = {
+    page: pagination.page,
+    limit: pagination.limit,
+    total: paginationHailuo.total,
+    totalPages: paginationHailuo.totalPages,
   };
 
-  const sampleData = generateSampleData(10);
+  const { setIsOpenVideoModal, isOpenVideoModal, handleShowVideo, videoUrl } =
+    usePlayVideo();
 
-  const [tableData, setTableData] = useState<Employee[]>(sampleData);
-  const [pagination, setPagination] = useState({
-    total: 50,
-    page: 1,
-    limit: 10,
-    totalPages: 5,
-  });
-  const [loading, setLoading] = useState(false);
+  const {
+    isOpenSelectTopic,
+    setIsOpenSelectTopic,
+    listTopic,
+    selected,
+    setTopic,
+    topic,
+    handleOpenFilterModal,
+    handleCloseFilterModal,
+    isOpenFilterModal,
+    setIsOpenFilterModal,
+    handleSubmit,
+  } = useFilter({ formFilter: formFilter, paginationInfo: paginationInfo });
 
-  const handlePaginationChange = async (page: number, limit: number) => {
-    setLoading(true);
-    try {
-      const sampleData = generateSampleData(10);
-
-      setPagination({
-        total: 50,
-        page: page,
-        limit: limit,
-        totalPages: 5,
-      });
-      setTableData(sampleData);
-    } catch (error) {
-      console.error("Error fetching data:", error);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const columns: TableColumn<Employee>[] = [
-    { key: "id", title: "ID", width: 60, className: "font-medium" },
-    { key: "name", title: "Name", width: 150, className: "font-medium" },
-    { key: "email", title: "Email", width: 200 },
-    { key: "department", title: "Department", width: 120 },
-    {
-      key: "salary",
-      title: "Salary",
-      width: 100,
-      className: "font-medium",
-    },
-    { key: "joinDate", title: "Join Date", width: 120 },
-    { key: "phone", title: "Phone", width: 150 },
-  ];
-
-  const fixedRightColumns: TableColumn<Employee>[] = [
-    {
-      key: "role",
-      title: "Role",
-      width: 100,
-      render: (value) => {
-        // Type assertion vì value là unknown
-        const role = value as Employee["role"];
-        return (
-          <span
-            className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-              role === "Admin"
-                ? "bg-purple-100 text-purple-800"
-                : role === "Manager"
-                ? "bg-blue-100 text-blue-800"
-                : "bg-gray-100 text-gray-800"
-            }`}
-          >
-            {role}
-          </span>
-        );
-      },
-    },
-    {
-      key: "status",
-      title: "Status",
-      width: 100,
-      render: (value) => {
-        const status = value as Employee["status"];
-        return (
-          <span
-            className={`inline-flex px-2 py-1 text-xs font-medium rounded-full ${
-              status === "Active"
-                ? "bg-green-100 text-green-800"
-                : "bg-red-100 text-red-800"
-            }`}
-          >
-            {status}
-          </span>
-        );
-      },
-    },
-    {
-      key: "actions",
-      title: "Actions",
-      width: 120,
-      actions: [
-        {
-          key: "edit",
-          label: "Edit",
-          className: "text-blue-600 hover:text-blue-800",
+  const columns = useMemo<TableColumn<IHailuoVideo>[]>(
+    () => [
+      {
+        key: "#",
+        title: "#",
+        width: 60,
+        render: (_value, _record, index) => {
+          return <div>{index++}</div>;
         },
-        {
-          key: "delete",
-          label: "Delete",
-          className: "text-red-600 hover:text-red-800",
+      },
+      {
+        key: "createdAt",
+        title: "Ngày tạo",
+        width: 150,
+        className: "font-medium text-left",
+        render: (value) => {
+          if (!value) return <span className="text-gray-400">—</span>;
+          return dayjs(value as string).format("DD/MM/YYYY");
         },
-      ],
-    },
-  ];
+      },
+      {
+        key: "updatedAt",
+        title: "Ngày cập nhật",
+        width: 200,
+        className: "font-medium text-left",
+        render: (value) => {
+          if (!value) return <span className="text-gray-400">—</span>;
+          return dayjs(value as string).format("DD/MM/YYYY HH:mm");
+        },
+      },
+      {
+        key: "thumbnail",
+        title: "Ảnh",
+        width: 120,
+        className: "font-medium text-center",
+        render: (value) => {
+          const thumbnailUrl = value as string;
+          if (!thumbnailUrl)
+            return <div className="text-gray-400">No image</div>;
 
-  const handleSelectionChange = (selectedIds: (string | number)[]): void => {
-    console.log("Selected rows:", selectedIds);
-  };
+          return (
+            <div className="flex items-center justify-center">
+              <div className="w-[60px] h-[40px] relative">
+                <Image
+                  src={thumbnailUrl}
+                  alt="Thumbnail"
+                  fill
+                  className="rounded object-cover"
+                  unoptimized
+                />
+              </div>
+            </div>
+          );
+        },
+      },
+      {
+        key: "status",
+        title: "Trạng thái",
+        width: 120,
+        className: "font-medium text-center",
+        render: (value) => {
+          const status = videoStatusTable.find((s) => s.status === value);
 
-  const handleRowAction = (action: string, row: Employee): void => {
-    console.log(`Action: ${action}`, row);
-  };
+          if (!status) {
+            return (
+              <Badge
+                variant="secondary"
+                className="px-2 py-1 rounded-full w-32"
+              >
+                Unknown
+              </Badge>
+            );
+          }
+
+          // Map màu từ status.color sang class Tailwind
+          const colorMap: Record<string, string> = {
+            blue: "bg-blue-100 text-blue-700",
+            cyan: "bg-cyan-100 text-cyan-700",
+            green: "bg-green-100 text-green-700",
+            red: "bg-red-100 text-red-700",
+            purple: "bg-purple-100 text-purple-700",
+            orange: "bg-orange-100 text-orange-700",
+          };
+
+          return (
+            <Badge
+              className={`${
+                colorMap[status.color] || ""
+              } px-2 py-1 rounded-full w-32 flex justify-center`}
+              variant={"outline"}
+            >
+              {status.label}
+            </Badge>
+          );
+        },
+      },
+      {
+        key: "prompt",
+        title: "Mô tả",
+        width: 200,
+        render: (value) => {
+          const text = value as string;
+          if (!text)
+            return <span className="text-gray-400">No description</span>;
+
+          return (
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <div className="line-clamp-2 text-ellipsis overflow-hidden break-words cursor-pointer max-w-[180px]">
+                  {text}
+                </div>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p className="max-w-xs break-words">{text}</p>
+              </TooltipContent>
+            </Tooltip>
+          );
+        },
+      },
+    ],
+    []
+  );
+
+  const fixedRightColumns = useMemo<TableColumn<IHailuoVideo>[]>(
+    () => [
+      {
+        key: "actions",
+        title: "Actions",
+        width: 120,
+        className: "text-center",
+        render: (_value, record) => (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="h-8 w-8 p-0">
+                <Ellipsis className="h-4 w-6" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end" className="w-[160px]">
+              {record.videoURL && (
+                <>
+                  <DropdownMenuItem
+                    onClick={() => handleShowVideo(record.id)}
+                    className="cursor-pointer"
+                  >
+                    <Play className="mr-2 h-4 w-4" />
+                    Xem video
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => handleDownloadVideo(record.id)}
+                    className="cursor-pointer"
+                  >
+                    <Download className="mr-2 h-4 w-4" />
+                    Tải xuống
+                  </DropdownMenuItem>
+                  <DropdownMenuSeparator />
+                </>
+              )}
+
+              <DropdownMenuItem
+                onClick={() => handleRecreate(record.id)}
+                className="cursor-pointer"
+              >
+                <Copy className="mr-2 h-4 w-4" />
+                Tạo lại
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleDelete(record.id)}
+                className="cursor-pointer text-red-600 focus:text-red-600"
+              >
+                <Trash2 className="mr-2 h-4 w-4" />
+                Delete
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ),
+      },
+    ],
+    [handleDownloadVideo, handleRecreate, handleDelete, handleShowVideo]
+  );
 
   return (
     <>
       <div className="flex justify-end space-x-2 rounded-lg p-2 bg-gray-50 mb-2">
-        <Button variant="outline" className="">
-          Tải tất cả
+        {selectedCount > 0 && (
+          <Button variant="default" onClick={handleDownloadVideos}>
+            <Download />
+            {`Tải xuống ${selectedCount} video`}
+          </Button>
+        )}
+        <Button
+          className="bg-blue-500 hover:bg-blue-400"
+          onClick={handleOpenFilterModal}
+        >
+          <Search />
+          Tìm kiếm
         </Button>
-        <Button className="bg-blue-500 hover:bg-blue-400">Tìm kiếm</Button>
+        <Button variant="outline" onClick={handleReload}>
+          <RefreshCcw />
+          Tải lại dữ liệu
+        </Button>
       </div>
       <div className="rounded-lg p-2 bg-gray-50">
-        <CustomTable<Employee>
-          data={tableData}
+        <DataTable<IHailuoVideo>
+          data={listHailuoVideo}
           columns={columns}
           fixedRightColumns={fixedRightColumns}
           title="Danh sách video Hailou AI"
@@ -230,15 +301,37 @@ const AppTable: React.FC = () => {
           enablePagination={true}
           pageSizeOptions={[10, 20, 30, 50]}
           onSelectionChange={handleSelectionChange}
-          onRowAction={handleRowAction}
-          pagination={pagination}
-          loading={loading}
+          pagination={paginationInfo}
+          loading={loadHailuo.loadGetHailuo}
           onPaginationChange={handlePaginationChange}
           zebra={true}
         />
       </div>
+      <ShowVideoModal
+        openVideoModal={isOpenVideoModal}
+        setOpenVideoModal={setIsOpenVideoModal}
+        videoUrl={
+          videoUrl ? videoUrl : "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
+        }
+        title="Xem video"
+        description="Video được tạo bởi Hailuo AI."
+      />
+      <FilterModal
+        formFilter={formFilter}
+        isOpenModal={isOpenFilterModal}
+        setOpenModal={setIsOpenFilterModal}
+        onCancelModal={handleCloseFilterModal}
+        listTopic={listTopic}
+        selected={selected}
+        isOpenSelectTopic={isOpenSelectTopic}
+        setIsOpenSelectTopic={setIsOpenSelectTopic}
+        setTopic={setTopic}
+        topic={topic}
+        handleSubmit={handleSubmit}
+        loading={loadHailuo.loadGetHailuo}
+      />
     </>
   );
 };
 
-export default AppTable;
+export default TableSection;

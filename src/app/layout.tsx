@@ -3,6 +3,7 @@ import type { Metadata } from "next";
 import { Inter } from "next/font/google";
 import { Toaster } from "sonner";
 import "./globals.css";
+import { TooltipProvider } from "@/components/ui/tooltip";
 
 const inter = Inter({
   subsets: ["latin"],
@@ -25,7 +26,9 @@ export default function RootLayout({
     <html lang="en" className={`${inter.variable} mdl-js`}>
       <body className="antialiased">
         <ReduxProvider>
-          <main>{children}</main>
+          <TooltipProvider>
+            <main>{children}</main>
+          </TooltipProvider>
         </ReduxProvider>
         <Toaster position="top-right" richColors />
       </body>

@@ -1,12 +1,8 @@
 "use client";
 
 import { Label } from "@/components/ui/label";
-import { useFormPrompt } from "@/hooks/hailou-ai/useCreatePrompt";
 import { useCreateVideo } from "@/hooks/hailou-ai/useCreateVideo";
-import {
-  useCreateVideoForm,
-  useFormVideo,
-} from "@/hooks/hailou-ai/useCreateVideoForm";
+import { useCreateVideoForm } from "@/hooks/hailou-ai/useCreateVideoForm";
 import { useSelectTopic } from "@/hooks/hailou-ai/useSelectTopic";
 import { Button } from "../../ui/button";
 import { Separator } from "../../ui/separator";
@@ -15,10 +11,18 @@ import CreateVideoSection from "./CreateVideoSection";
 import SelectTopicSection from "./SelectTopicSection";
 import CreatePromptModal from "./modals/CreatePromptModal";
 import CreateTopicModal from "./modals/CreateTopicModal";
+import { useClear } from "@/hooks/hailou-ai/useClear";
+import { useCamMotion } from "@/hooks/hailou-ai/useCamMotion";
+import CamMotionModal from "./modals/CamMotionModal";
+import { useFormVideo } from "@/hooks/hailou-ai/useFormVideo";
+import { useFormPrompt } from "@/hooks/hailou-ai/useFormPrompt";
 
-const HailouAi = () => {
+interface HailouAIProp {
+  formVideo: ReturnType<typeof useFormVideo>;
+}
+
+const HailouAi: React.FC<HailouAIProp> = ({ formVideo }) => {
   const formPrompt = useFormPrompt();
-  const formVideo = useFormVideo();
 
   const {
     openTopicModal,
@@ -31,12 +35,37 @@ const HailouAi = () => {
     handleCancelPromptModal,
   } = useCreateVideo();
 
+  // hàm select topic đã có
   const selectTopicHook = useSelectTopic({ handleOpenPromptModal, formPrompt });
   const { handleSetTopic } = selectTopicHook;
 
+  // hàm tạo video
   const { handleSubmit, loadHailuo } = useCreateVideoForm({
     formVideo,
+  });
+
+  // hàm chọn góc quay
+  const {
+    selectedPreset,
+    setHoveredPreset,
+    hoveredPreset,
+    setOpenCamMotion,
+    openCamMotion,
+    handleOpenCamMotion,
+    handleCancelCamMotion,
+    handlePresetSelect,
+    handleSubmitCamMotion,
+    videoRefs,
+    handleMouseEnter,
+    handleMouseLeave,
+    setSelectedPreset,
+  } = useCamMotion(formVideo);
+
+  // Hàm clear
+  const { handleClearCreateVideo } = useClear({
     handleSetTopic,
+    formVideo,
+    setSelectedPreset,
   });
 
   return (
@@ -61,9 +90,14 @@ const HailouAi = () => {
         </TabsList>
         <TabsContent value="i2v" className="mt-3 sm:mt-4">
           <Separator className="my-2 sm:my-3" />
-          <h2 className="mb-3 sm:mb-4 text-xs sm:text-sm lg:text-base xl:text-lg font-semibold">
-            Tạo video
-          </h2>
+          <div className="flex justify-between">
+            <h2 className="mb-3 sm:mb-4 text-xs sm:text-sm lg:text-base xl:text-lg font-semibold">
+              Tạo video
+            </h2>
+            <Button variant="ghost" onClick={handleClearCreateVideo}>
+              Clear
+            </Button>
+          </div>
           <div className="grid w-full gap-3 sm:gap-4 mb-6 sm:mb-6">
             <div className="grid w-full gap-2 sm:gap-2.5">
               <Label
@@ -88,7 +122,8 @@ const HailouAi = () => {
           <CreateVideoSection
             formVideo={formVideo}
             handleSubmit={handleSubmit}
-            loading={loadHailuo}
+            loading={loadHailuo.loadCreateVideo}
+            handleOpenCamMotion={handleOpenCamMotion}
           />
         </TabsContent>
         <TabsContent value="t2v" className="mt-3 sm:mt-4">
@@ -112,6 +147,19 @@ const HailouAi = () => {
         formPrompt={formPrompt}
         handleOpenPromptModal={handleOpenPromptModal}
         handleSetTopic={handleSetTopic}
+      />
+      <CamMotionModal
+        handleCancelCamMotion={handleCancelCamMotion}
+        handlePresetSelect={handlePresetSelect}
+        handleSubmit={handleSubmitCamMotion}
+        hoveredPreset={hoveredPreset}
+        openCamMotion={openCamMotion}
+        selectedPreset={selectedPreset}
+        setHoveredPreset={setHoveredPreset}
+        setOpenCamMotion={setOpenCamMotion}
+        videoRefs={videoRefs}
+        handleMouseEnter={handleMouseEnter}
+        handleMouseLeave={handleMouseLeave}
       />
     </>
   );

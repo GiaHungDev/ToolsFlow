@@ -1,5 +1,9 @@
 import { IUseCreateTopic } from "@/components/sections/hailuo-ai/interface";
-import { createTopic, getTopic } from "@/lib/redux/slices/hailuoSlice";
+import {
+  createTopic,
+  getTopic,
+  setChooseVideoTopic,
+} from "@/lib/redux/slices/hailuoSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/store";
 import { clearAllFields, setFormValues } from "@/utils/formHelpers";
 import { zodResolver } from "@hookform/resolvers/zod";
@@ -45,6 +49,7 @@ export const useCreateTopic = ({
         handleOpenPromptModal();
         dispatch(getTopic()).unwrap();
         handleSetTopic(res);
+        dispatch(setChooseVideoTopic(res));
       }
     } catch (error) {
       if (error instanceof Error) {

@@ -7,27 +7,23 @@ export interface TableAction {
   className?: string;
 }
 
-export interface TableColumn<
-  T extends Record<string, unknown> = Record<string, unknown>
-> {
-  key: keyof T | "actions";
+export interface TableColumn<T> {
+  key: keyof T | string;
   title: string;
   width?: number;
   className?: string;
-  render?: (value: unknown, row: T, index: number) => ReactNode;
+  render?: (value: any, row: T, index: number) => ReactNode;
   actions?: TableAction[];
 }
 
-interface PaginationInfo {
-  total: number;
+export interface PaginationInfo {
+  total?: number;
   page: number;
   limit: number;
-  totalPages: number;
+  totalPages?: number;
 }
 
-export interface CustomTableProps<
-  T extends Record<string, unknown> = Record<string, unknown>
-> {
+export interface CustomTableProps<T extends object> {
   data: T[];
   columns?: TableColumn<T>[];
   title?: string;
@@ -37,7 +33,6 @@ export interface CustomTableProps<
   fixedLeftColumns?: TableColumn<T>[];
   fixedRightColumns?: TableColumn<T>[];
   onSelectionChange?: (selectedIds: (string | number)[]) => void;
-  onRowAction?: (action: string, row: T, index: number) => void;
   className?: string;
   rowClassName?: (row: T, index: number, isSelected: boolean) => string;
   zebra?: boolean;
@@ -45,6 +40,6 @@ export interface CustomTableProps<
   enablePagination?: boolean;
   pagination?: PaginationInfo; // Thông tin pagination từ server
   pageSizeOptions?: number[];
-  onPaginationChange?: (page: number, limit: number) => void; // Callback khi thay đổi page/limit
+  onPaginationChange?: (page: number, limit: number) => void;
   loading?: boolean;
 }

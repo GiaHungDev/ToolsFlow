@@ -11,11 +11,12 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Video,
 } from "lucide-react";
 import { ReactNode, useEffect, useState } from "react";
 import { CustomTableProps, TableColumn } from "./interface";
 
-const CustomTable = <T extends Record<string, unknown>>({
+const CustomTable = <T extends object>({
   data = [],
   columns = [],
   title = "Data Table",
@@ -25,7 +26,6 @@ const CustomTable = <T extends Record<string, unknown>>({
   fixedLeftColumns = [],
   fixedRightColumns = [],
   onSelectionChange = () => {},
-  onRowAction = () => {},
   className = "",
   rowClassName = () => "",
   zebra = true,
@@ -43,8 +43,8 @@ const CustomTable = <T extends Record<string, unknown>>({
   // Sử dụng pagination info từ server
   const currentPage = pagination?.page || 1;
   const pageSize = pagination?.limit || 10;
-  const totalPages = pagination?.totalPages || 1;
   const totalItems = pagination?.total || data.length;
+  const totalPages = pagination?.totalPages || 1;
 
   // Tính toán thông tin hiển thị
   const startItem =
@@ -64,10 +64,10 @@ const CustomTable = <T extends Record<string, unknown>>({
   }, [data]);
 
   const toggleSelectAll = (): void => {
-    const currentPageIds = data.map(
-      (row, index) =>
-        (row as Record<string, unknown> & { id?: string | number }).id || index
-    );
+    const currentPageIds = data.map((row, index) => {
+      const rowWithId = row as T & { id?: string | number };
+      return rowWithId.id ?? index;
+    });
 
     // Chỉ select/deselect items trong trang hiện tại
     const allCurrentSelected = currentPageIds.every((id) =>
@@ -176,32 +176,15 @@ const CustomTable = <T extends Record<string, unknown>>({
     rowIndex: number
   ): ReactNode => {
     if (column.render) {
-      return column.render(row[column.key as keyof T], row, rowIndex);
+      const value = column.key in row ? row[column.key as keyof T] : undefined;
+      return column.render(value, row, rowIndex);
     }
-    return row[column.key as keyof T] as ReactNode;
-  };
 
-  // Render action buttons
-  const renderActions = (row: T, rowIndex: number): ReactNode => {
-    const actions = fixedRightColumns.find((col) => col.key === "actions");
-    if (actions && actions.actions) {
-      return (
-        <div className="flex space-x-2">
-          {actions.actions.map((action, index) => (
-            <button
-              key={index}
-              onClick={() => onRowAction(action.key, row, rowIndex)}
-              className={`text-xs font-medium ${
-                action.className || "text-blue-600 hover:text-blue-800"
-              }`}
-              disabled={loading}
-            >
-              {action.label}
-            </button>
-          ))}
-        </div>
-      );
+    if (column.key in row) {
+      const value = row[column.key as keyof T];
+      return value as ReactNode;
     }
+
     return null;
   };
 
@@ -235,8 +218,18 @@ const CustomTable = <T extends Record<string, unknown>>({
           {loading && (
             <div className="absolute inset-0 bg-white bg-opacity-50 flex items-center justify-center z-50">
               <div className="flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                <span className="text-gray-600">Loading...</span>
+                <div className="relative">
+                  {/* Outer spinning ring */}
+                  <div className="animate-spin rounded-full h-16 w-16 border-2 border-gray-800 border-t-white mx-auto">
+                    {/* Inner icon */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Video className="w-7 h-7 text-gray-950 animate-pulse" />
+                    </div>
+                  </div>
+
+                  {/* Subtle pulse ring */}
+                  <div className="absolute inset-0 rounded-full border border-gray-600 opacity-20 animate-ping"></div>
+                </div>
               </div>
             </div>
           )}
@@ -269,6 +262,8 @@ const CustomTable = <T extends Record<string, unknown>>({
                       <th
                         key={String(column.key)}
                         className={`sticky z-30 bg-gray-50 px-4 py-3 text-left font-medium text-gray-900 ${
+                          column.className || "text-left"
+                        } ${
                           isLastFixedLeft
                             ? "shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]"
                             : ""
@@ -287,7 +282,9 @@ const CustomTable = <T extends Record<string, unknown>>({
                   {regularColumns.map((column) => (
                     <th
                       key={String(column.key)}
-                      className="px-4 py-3 text-left font-medium text-gray-900"
+                      className={`px-4 py-3 font-medium text-gray-900 ${
+                        column.className || "text-left"
+                      }`}
                       style={{ minWidth: column.width || 96 }}
                     >
                       {column.title}
@@ -300,7 +297,7 @@ const CustomTable = <T extends Record<string, unknown>>({
                     return (
                       <th
                         key={String(column.key)}
-                        className={`sticky z-30 bg-gray-50 px-4 py-3 text-left font-medium text-gray-900 ${
+                        className={`sticky z-30 bg-gray-50 px-4 py-3 text-left font-medium text-gray-900 ${column.className || "text-left"} ${
                           isFirstFixedRight
                             ? "shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]"
                             : ""
@@ -358,12 +355,8 @@ const CustomTable = <T extends Record<string, unknown>>({
                       enablePagination && pagination
                         ? (currentPage - 1) * pageSize + rowIndex
                         : rowIndex;
-                    const rowId =
-                      (
-                        row as Record<string, unknown> & {
-                          id?: string | number;
-                        }
-                      ).id || rowIndex; // Sử dụng rowIndex thay vì actualIndex để tránh conflict
+                    const rowWithId = row as T & { id?: string | number };
+                    const rowId = rowWithId.id ?? rowIndex;
                     const isSelected = selectedRows.has(rowId);
                     const customRowClass = rowClassName(
                       row,
@@ -445,9 +438,7 @@ const CustomTable = <T extends Record<string, unknown>>({
                               <div
                                 className={column.className || "text-gray-600"}
                               >
-                                {column.key === "actions"
-                                  ? renderActions(row, actualIndex)
-                                  : renderCell(column, row, actualIndex)}
+                                {renderCell(column, row, actualIndex)}
                               </div>
                             </td>
                           );

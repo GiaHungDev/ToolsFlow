@@ -3,30 +3,8 @@ import { Notify } from "@/lib/Notify";
 import { createPrompt } from "@/lib/redux/slices/hailuoSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/store";
 import { clearAllFields, setFormValues } from "@/utils/formHelpers";
-import { zodResolver } from "@hookform/resolvers/zod";
-import { FieldErrors, useForm } from "react-hook-form";
-import z from "zod";
-
-export const formSchema = z.object({
-  title: z.string().min(1, { message: "Hãy nhập chủ đề" }),
-  description: z.string().min(1, {
-    message: "Hãy nhập mô tả video!",
-  }),
-  keywords: z.string().min(1, { message: "Hãy nhập từ khóa" }),
-});
-
-export type CreatePromptFormValues = z.infer<typeof formSchema>;
-
-export const useFormPrompt = () => {
-  return useForm<CreatePromptFormValues>({
-    resolver: zodResolver(formSchema),
-    defaultValues: {
-      title: "",
-      description: "",
-      keywords: "",
-    },
-  });
-};
+import { FieldErrors } from "react-hook-form";
+import { CreatePromptFormValues, useFormPrompt } from "./useFormPrompt";
 
 export const useCreatePrompt = (
   { onCancel, formVideo }: IUseCreatePrompt,

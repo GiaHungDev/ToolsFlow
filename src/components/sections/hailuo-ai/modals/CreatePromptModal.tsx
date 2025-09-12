@@ -36,14 +36,14 @@ const CreatePromptModal: React.FC<ICreatePrompt> = ({
             <Button
               variant="secondary"
               onClick={onCancel}
-              disabled={loadHailuo}
+              disabled={loadHailuo.loadCreatePrompt}
             >
               Cancel
             </Button>
             <Button
               onClick={handleSubmit}
-              loading={loadHailuo}
-              disabled={loadHailuo}
+              loading={loadHailuo.loadCreatePrompt}
+              disabled={loadHailuo.loadCreatePrompt}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               Tạo prompt

@@ -1,9 +1,9 @@
 import { CinematicPreset, cinematicPresets } from "@/types/cinematicPresets";
 import { useEffect, useRef, useState } from "react";
 import { UseFormReturn } from "react-hook-form";
-import { CreateVideoFormValues } from "./useCreateVideoForm";
 import { setFormValues } from "@/utils/formHelpers";
 import { Notify } from "@/lib/Notify";
+import { CreateVideoFormValues } from "./useFormVideo";
 
 export const useCamMotion = (
   formVideo: UseFormReturn<CreateVideoFormValues>
@@ -74,8 +74,8 @@ export const useCamMotion = (
       setFormValues(formVideo, { description: newDescription });
 
       Notify({
-        title: "Đã chọn góc quay",
-        description: `Đã chọn góc quay ${selectedPreset.label}`,
+        title: "Góc quay đã được chọn",
+        description: `Góc quay "${selectedPreset.label}" đã được thêm vào mô tả video.`,
         status: "success",
       });
     }

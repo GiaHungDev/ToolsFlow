@@ -11,14 +11,47 @@ import {
   ChevronRight,
   ChevronsLeft,
   ChevronsRight,
+  Video,
 } from "lucide-react";
-import { useTableSelection } from "./hooks/useTableSelection";
-import { useTablePagination } from "./hooks/useTablePagination";
-import { useTableColumns } from "./hooks/useTableColumns";
-import { useTableUtils } from "./hooks/useTableUtils";
-import { CustomTableProps } from "../CTable/interface";
+import {
+  ReactNode,
+  useEffect,
+  useState,
+  useMemo,
+  useCallback,
+  memo,
+} from "react";
+import { CustomTableProps, TableColumn } from "./interface";
 
-const CustomTable1 = <T extends Record<string, unknown>>({
+// Memoized Cell Component
+const TableCell = memo<{
+  column: TableColumn<any>;
+  row: any;
+  rowIndex: number;
+}>(({ column, row, rowIndex }) => {
+  const cellContent = useMemo(() => {
+    if (column.render) {
+      const value =
+        column.key in row ? row[column.key as keyof typeof row] : undefined;
+      return column.render(value, row, rowIndex);
+    }
+
+    if (column.key in row) {
+      const value = row[column.key as keyof typeof row];
+      return value as ReactNode;
+    }
+
+    return null;
+  }, [column, row, rowIndex]);
+
+  return (
+    <div className={column.className || "text-gray-600"}>{cellContent}</div>
+  );
+});
+
+TableCell.displayName = "TableCell";
+
+const DataTable = <T extends object>({
   data = [],
   columns = [],
   title = "Data Table",
@@ -28,81 +61,212 @@ const CustomTable1 = <T extends Record<string, unknown>>({
   fixedLeftColumns = [],
   fixedRightColumns = [],
   onSelectionChange = () => {},
-  onRowAction = () => {},
   className = "",
   rowClassName = () => "",
   zebra = true,
+  // Server-side pagination props
   enablePagination = true,
   pagination,
   pageSizeOptions = [10, 20, 30, 50, 100],
   onPaginationChange = () => {},
   loading = false,
 }: CustomTableProps<T>) => {
-  // Use selection hook
+  const [selectedRows, setSelectedRows] = useState<Set<string | number>>(
+    new Set()
+  );
+
+  // Memoized pagination values
+  const paginationInfo = useMemo(() => {
+    const currentPage = pagination?.page || 1;
+    const pageSize = pagination?.limit || 10;
+    const totalItems = pagination?.total || data.length;
+    const totalPages = pagination?.totalPages || 1;
+
+    const startItem =
+      enablePagination && pagination ? (currentPage - 1) * pageSize + 1 : 1;
+    const endItem =
+      enablePagination && pagination
+        ? Math.min(currentPage * pageSize, totalItems)
+        : data.length;
+
+    return {
+      currentPage,
+      pageSize,
+      totalItems,
+      totalPages,
+      startItem,
+      endItem,
+    };
+  }, [pagination, data.length, enablePagination]);
+
+  // Memoized row IDs and selection state
+  const selectionInfo = useMemo(() => {
+    const currentPageIds = data.map((row, index) => {
+      const rowWithId = row as T & { id?: string | number };
+      return rowWithId.id ?? index;
+    });
+
+    const isAllCurrentPageSelected =
+      currentPageIds.length > 0 &&
+      currentPageIds.every((id) => selectedRows.has(id));
+
+    const isSomeCurrentPageSelected =
+      currentPageIds.some((id) => selectedRows.has(id)) &&
+      !isAllCurrentPageSelected;
+
+    return {
+      currentPageIds,
+      isAllCurrentPageSelected,
+      isSomeCurrentPageSelected,
+    };
+  }, [data, selectedRows]);
+
+  // Memoized column organization
+  const columnInfo = useMemo(() => {
+    const fixedLeftKeys = new Set(fixedLeftColumns.map((col) => col.key));
+    const fixedRightKeys = new Set(fixedRightColumns.map((col) => col.key));
+
+    const regularColumns = columns.filter(
+      (col) => !fixedLeftKeys.has(col.key) && !fixedRightKeys.has(col.key)
+    );
+
+    const totalColspan =
+      (enableSelection ? 1 : 0) +
+      fixedLeftColumns.length +
+      regularColumns.length +
+      fixedRightColumns.length;
+
+    return { regularColumns, totalColspan };
+  }, [columns, fixedLeftColumns, fixedRightColumns, enableSelection]);
+
+  // Memoized position calculations
+  const positions = useMemo(() => {
+    const baseWidth = enableSelection ? 48 : 0;
+
+    const leftPositions = fixedLeftColumns.map((_, index) => {
+      const widths = fixedLeftColumns
+        .slice(0, index)
+        .map((col) => col.width || 96);
+      return baseWidth + widths.reduce((sum, width) => sum + width, 0);
+    });
+
+    const rightPositions = fixedRightColumns.map((_, index) => {
+      const widths = fixedRightColumns
+        .slice(index + 1)
+        .map((col) => col.width || 96);
+      return widths.reduce((sum, width) => sum + width, 0);
+    });
+
+    return { leftPositions, rightPositions };
+  }, [fixedLeftColumns, fixedRightColumns, enableSelection]);
+
+  // Memoized page numbers
+  const pageNumbers = useMemo(() => {
+    const pages: (number | string)[] = [];
+    const maxVisible = 5;
+    const { totalPages, currentPage } = paginationInfo;
+
+    if (totalPages <= maxVisible) {
+      for (let i = 1; i <= totalPages; i++) {
+        pages.push(i);
+      }
+    } else {
+      if (currentPage <= 3) {
+        for (let i = 1; i <= 4; i++) pages.push(i);
+        pages.push("...");
+        pages.push(totalPages);
+      } else if (currentPage >= totalPages - 2) {
+        pages.push(1);
+        pages.push("...");
+        for (let i = totalPages - 3; i <= totalPages; i++) pages.push(i);
+      } else {
+        pages.push(1);
+        pages.push("...");
+        for (let i = currentPage - 1; i <= currentPage + 1; i++) pages.push(i);
+        pages.push("...");
+        pages.push(totalPages);
+      }
+    }
+    return pages;
+  }, [paginationInfo]);
+
+  // Optimized callbacks
+  const toggleSelectAll = useCallback((): void => {
+    const { currentPageIds } = selectionInfo;
+    const allCurrentSelected = currentPageIds.every((id) =>
+      selectedRows.has(id)
+    );
+
+    setSelectedRows((prev) => {
+      const newSelected = new Set(prev);
+      if (allCurrentSelected) {
+        currentPageIds.forEach((id) => newSelected.delete(id));
+      } else {
+        currentPageIds.forEach((id) => newSelected.add(id));
+      }
+      return newSelected;
+    });
+  }, [selectionInfo, selectedRows]);
+
+  const toggleSelectRow = useCallback((id: string | number): void => {
+    setSelectedRows((prev) => {
+      const newSelected = new Set(prev);
+      if (newSelected.has(id)) {
+        newSelected.delete(id);
+      } else {
+        newSelected.add(id);
+      }
+      return newSelected;
+    });
+  }, []);
+
+  // Memoized pagination handlers
+  const paginationHandlers = useMemo(() => {
+    const { currentPage, totalPages, pageSize } = paginationInfo;
+
+    return {
+      goToPage: (page: number) => {
+        const targetPage = Math.max(1, Math.min(page, totalPages));
+        if (targetPage !== currentPage) {
+          onPaginationChange(targetPage, pageSize);
+        }
+      },
+      goToFirstPage: () => onPaginationChange(1, pageSize),
+      goToLastPage: () => onPaginationChange(totalPages, pageSize),
+      goToPrevPage: () =>
+        onPaginationChange(Math.max(1, currentPage - 1), pageSize),
+      goToNextPage: () =>
+        onPaginationChange(Math.min(totalPages, currentPage + 1), pageSize),
+      handlePageSizeChange: (newSize: string) => {
+        const newLimit = Number(newSize);
+        if (newLimit !== pageSize) {
+          onPaginationChange(1, newLimit);
+        }
+      },
+    };
+  }, [paginationInfo, onPaginationChange]);
+
+  // Effects
+  useEffect(() => {
+    onSelectionChange(Array.from(selectedRows));
+  }, [selectedRows, onSelectionChange]);
+
+  useEffect(() => {
+    setSelectedRows(new Set());
+  }, [data]);
+
+  const { currentPage, pageSize, totalItems, totalPages, startItem, endItem } =
+    paginationInfo;
   const {
-    selectedRows,
     isAllCurrentPageSelected,
     isSomeCurrentPageSelected,
-    toggleSelectAll,
-    toggleSelectRow,
-  } = useTableSelection({
-    data,
-    onSelectionChange,
-    enableSelection,
-  });
-
-  // Use pagination hook
-  const {
-    currentPage,
-    pageSize,
-    totalPages,
-    totalItems,
-    startItem,
-    endItem,
-    goToPage,
-    goToFirstPage,
-    goToLastPage,
-    goToPrevPage,
-    goToNextPage,
-    handlePageSizeChange,
-    getPageNumbers,
-  } = useTablePagination({
-    pagination,
-    data,
-    enablePagination,
-    onPaginationChange,
-  });
-
-  // Use columns hook
-  const {
-    regularColumns,
-    getLeftPosition,
-    getRightPosition,
-    renderCell,
-    renderActions,
-    getTotalColspan,
-  } = useTableColumns({
-    columns,
-    fixedLeftColumns,
-    fixedRightColumns,
-    enableSelection,
-  });
-
-  // Use utils hook
-  const { getRowId, getActualIndex, getRowClassName, isRowSelected } =
-    useTableUtils({
-      data,
-      pagination,
-      enablePagination,
-      zebra,
-      rowClassName,
-      selectedRows,
-    });
+  } = selectionInfo;
+  const { regularColumns, totalColspan } = columnInfo;
+  const { leftPositions, rightPositions } = positions;
 
   return (
     <div className={`w-full ${className}`}>
       <div className="bg-white rounded-lg shadow-sm border">
-        {/* Header Section */}
         {(title || description || selectedRows.size > 0) && (
           <div className="p-4 border-b">
             {title && (
@@ -120,25 +284,26 @@ const CustomTable1 = <T extends Record<string, unknown>>({
           </div>
         )}
 
-        {/* Table Content */}
         <div className="relative">
-          {/* Loading Overlay */}
           {loading && (
             <div className="absolute inset-0 bg-white bg-opacity-50 flex items-center justify-center z-50">
               <div className="flex items-center space-x-2">
-                <div className="animate-spin rounded-full h-6 w-6 border-b-2 border-blue-600"></div>
-                <span className="text-gray-600">Loading...</span>
+                <div className="relative">
+                  <div className="animate-spin rounded-full h-16 w-16 border-2 border-gray-800 border-t-white mx-auto">
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <Video className="w-7 h-7 text-gray-950 animate-pulse" />
+                    </div>
+                  </div>
+                  <div className="absolute inset-0 rounded-full border border-gray-600 opacity-20 animate-ping"></div>
+                </div>
               </div>
             </div>
           )}
 
-          {/* Scrollable Table */}
           <div className={`${maxHeight} overflow-auto`}>
             <table className="w-full text-sm">
-              {/* Header */}
               <thead className="bg-gray-50 sticky top-0 z-20">
                 <tr>
-                  {/* Selection Column */}
                   {enableSelection && (
                     <th className="sticky left-0 z-30 bg-gray-50 px-4 py-3 text-left w-12 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]">
                       <Checkbox
@@ -153,7 +318,6 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                     </th>
                   )}
 
-                  {/* Fixed Left Columns */}
                   {fixedLeftColumns.map((column, index) => {
                     const isLastFixedLeft =
                       index === fixedLeftColumns.length - 1;
@@ -161,12 +325,14 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                       <th
                         key={String(column.key)}
                         className={`sticky z-30 bg-gray-50 px-4 py-3 text-left font-medium text-gray-900 ${
+                          column.className || "text-left"
+                        } ${
                           isLastFixedLeft
                             ? "shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]"
                             : ""
                         }`}
                         style={{
-                          left: `${getLeftPosition(index)}px`,
+                          left: `${leftPositions[index]}px`,
                           minWidth: column.width || 96,
                         }}
                       >
@@ -175,30 +341,32 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                     );
                   })}
 
-                  {/* Regular Scrollable Columns */}
                   {regularColumns.map((column) => (
                     <th
                       key={String(column.key)}
-                      className="px-4 py-3 text-left font-medium text-gray-900"
+                      className={`px-4 py-3 font-medium text-gray-900 ${
+                        column.className || "text-left"
+                      }`}
                       style={{ minWidth: column.width || 96 }}
                     >
                       {column.title}
                     </th>
                   ))}
 
-                  {/* Fixed Right Columns */}
                   {fixedRightColumns.map((column, index) => {
                     const isFirstFixedRight = index === 0;
                     return (
                       <th
                         key={String(column.key)}
                         className={`sticky z-30 bg-gray-50 px-4 py-3 text-left font-medium text-gray-900 ${
+                          column.className || "text-left"
+                        } ${
                           isFirstFixedRight
                             ? "shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]"
                             : ""
                         }`}
                         style={{
-                          right: `${getRightPosition(index)}px`,
+                          right: `${rightPositions[index]}px`,
                           minWidth: column.width || 96,
                         }}
                       >
@@ -209,12 +377,11 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                 </tr>
               </thead>
 
-              {/* Body */}
               <tbody>
                 {data.length === 0 ? (
                   <tr>
                     <td
-                      colSpan={getTotalColspan()}
+                      colSpan={totalColspan}
                       className="text-center py-8 text-gray-500"
                     >
                       <div className="flex flex-col items-center justify-center">
@@ -240,17 +407,32 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                   </tr>
                 ) : (
                   data.map((row, rowIndex) => {
-                    const actualIndex = getActualIndex(rowIndex);
-                    const rowId = getRowId(row, rowIndex);
-                    const isSelected = isRowSelected(row, rowIndex);
-                    const rowClass = getRowClassName(row, rowIndex, isSelected);
+                    const actualIndex =
+                      enablePagination && pagination
+                        ? (currentPage - 1) * pageSize + rowIndex
+                        : rowIndex;
+                    const rowWithId = row as T & { id?: string | number };
+                    const rowId = rowWithId.id ?? rowIndex;
+                    const isSelected = selectedRows.has(rowId);
+                    const customRowClass = rowClassName(
+                      row,
+                      actualIndex,
+                      isSelected
+                    );
 
                     return (
                       <tr
                         key={String(rowId)}
-                        className={`${rowClass} ${loading ? "opacity-50" : ""}`}
+                        className={`border-b border-gray-200 hover:bg-gray-50 ${
+                          isSelected
+                            ? "bg-blue-50"
+                            : zebra
+                            ? rowIndex % 2 === 0
+                              ? "bg-white"
+                              : "bg-gray-50"
+                            : "bg-white"
+                        } ${customRowClass} ${loading ? "opacity-50" : ""}`}
                       >
-                        {/* Selection Column */}
                         {enableSelection && (
                           <td className="sticky left-0 z-10 bg-inherit px-4 py-3 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]">
                             <Checkbox
@@ -261,7 +443,6 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                           </td>
                         )}
 
-                        {/* Fixed Left Columns */}
                         {fixedLeftColumns.map((column, index) => {
                           const isLastFixedLeft =
                             index === fixedLeftColumns.length - 1;
@@ -273,29 +454,27 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                                   ? "shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]"
                                   : ""
                               }`}
-                              style={{ left: `${getLeftPosition(index)}px` }}
+                              style={{ left: `${leftPositions[index]}px` }}
                             >
-                              <div
-                                className={column.className || "text-gray-900"}
-                              >
-                                {renderCell(column, row, actualIndex)}
-                              </div>
+                              <TableCell
+                                column={column}
+                                row={row}
+                                rowIndex={actualIndex}
+                              />
                             </td>
                           );
                         })}
 
-                        {/* Regular Scrollable Columns */}
                         {regularColumns.map((column) => (
                           <td key={String(column.key)} className="px-4 py-3">
-                            <div
-                              className={column.className || "text-gray-600"}
-                            >
-                              {renderCell(column, row, actualIndex)}
-                            </div>
+                            <TableCell
+                              column={column}
+                              row={row}
+                              rowIndex={actualIndex}
+                            />
                           </td>
                         ))}
 
-                        {/* Fixed Right Columns */}
                         {fixedRightColumns.map((column, index) => {
                           const isFirstFixedRight = index === 0;
                           return (
@@ -306,20 +485,13 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                                   ? "shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]"
                                   : ""
                               }`}
-                              style={{ right: `${getRightPosition(index)}px` }}
+                              style={{ right: `${rightPositions[index]}px` }}
                             >
-                              <div
-                                className={column.className || "text-gray-600"}
-                              >
-                                {column.key === "actions"
-                                  ? renderActions(
-                                      row,
-                                      actualIndex,
-                                      onRowAction,
-                                      loading
-                                    )
-                                  : renderCell(column, row, actualIndex)}
-                              </div>
+                              <TableCell
+                                column={column}
+                                row={row}
+                                rowIndex={actualIndex}
+                              />
                             </td>
                           );
                         })}
@@ -332,7 +504,6 @@ const CustomTable1 = <T extends Record<string, unknown>>({
           </div>
         </div>
 
-        {/* Pagination */}
         {enablePagination && pagination && (
           <div className="px-4 py-3 bg-gray-50 border-t">
             {/* Desktop Layout */}
@@ -342,7 +513,7 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                   <span className="text-sm text-gray-600">Rows per page:</span>
                   <Select
                     value={pageSize.toString()}
-                    onValueChange={handlePageSizeChange}
+                    onValueChange={paginationHandlers.handlePageSizeChange}
                     disabled={loading}
                   >
                     <SelectTrigger className="border border-gray-300 rounded px-2 py-1 text-sm bg-white w-28 h-8">
@@ -364,7 +535,7 @@ const CustomTable1 = <T extends Record<string, unknown>>({
 
               <div className="flex items-center space-x-2">
                 <button
-                  onClick={goToFirstPage}
+                  onClick={paginationHandlers.goToFirstPage}
                   disabled={currentPage === 1 || loading}
                   className="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -372,7 +543,7 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                 </button>
 
                 <button
-                  onClick={goToPrevPage}
+                  onClick={paginationHandlers.goToPrevPage}
                   disabled={currentPage === 1 || loading}
                   className="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -380,7 +551,7 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                 </button>
 
                 <div className="flex space-x-1">
-                  {getPageNumbers().map((page, index) =>
+                  {pageNumbers.map((page, index) =>
                     page === "..." ? (
                       <span key={index} className="px-3 py-1 text-gray-500">
                         ...
@@ -388,7 +559,9 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                     ) : (
                       <button
                         key={page}
-                        onClick={() => goToPage(page as number)}
+                        onClick={() =>
+                          paginationHandlers.goToPage(page as number)
+                        }
                         disabled={loading}
                         className={`px-3 py-1 rounded text-sm min-w-[2rem] disabled:cursor-not-allowed ${
                           currentPage === page
@@ -403,7 +576,7 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                 </div>
 
                 <button
-                  onClick={goToNextPage}
+                  onClick={paginationHandlers.goToNextPage}
                   disabled={currentPage === totalPages || loading}
                   className="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -411,7 +584,7 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                 </button>
 
                 <button
-                  onClick={goToLastPage}
+                  onClick={paginationHandlers.goToLastPage}
                   disabled={currentPage === totalPages || loading}
                   className="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                 >
@@ -427,7 +600,7 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                   <span className="text-sm text-gray-600">Rows:</span>
                   <Select
                     value={pageSize.toString()}
-                    onValueChange={handlePageSizeChange}
+                    onValueChange={paginationHandlers.handlePageSizeChange}
                     disabled={loading}
                   >
                     <SelectTrigger className="border border-gray-300 rounded px-2 py-1 text-sm bg-white w-24 h-7">
@@ -450,14 +623,14 @@ const CustomTable1 = <T extends Record<string, unknown>>({
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-1">
                   <button
-                    onClick={goToFirstPage}
+                    onClick={paginationHandlers.goToFirstPage}
                     disabled={currentPage === 1 || loading}
                     className="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChevronsLeft className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={goToPrevPage}
+                    onClick={paginationHandlers.goToPrevPage}
                     disabled={currentPage === 1 || loading}
                     className="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -466,43 +639,43 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                 </div>
 
                 <div className="flex space-x-1 flex-wrap justify-center">
-                  {getPageNumbers()
-                    .slice(0, 7)
-                    .map((page, index) =>
-                      page === "..." ? (
-                        <span
-                          key={index}
-                          className="px-2 py-1 text-gray-500 text-sm"
-                        >
-                          ...
-                        </span>
-                      ) : (
-                        <button
-                          key={page}
-                          onClick={() => goToPage(page as number)}
-                          disabled={loading}
-                          className={`px-2 py-1 rounded text-sm min-w-[2rem] disabled:cursor-not-allowed ${
-                            currentPage === page
-                              ? "bg-blue-600 text-white"
-                              : "hover:bg-gray-200 text-gray-700"
-                          }`}
-                        >
-                          {page}
-                        </button>
-                      )
-                    )}
+                  {pageNumbers.slice(0, 7).map((page, index) =>
+                    page === "..." ? (
+                      <span
+                        key={index}
+                        className="px-2 py-1 text-gray-500 text-sm"
+                      >
+                        ...
+                      </span>
+                    ) : (
+                      <button
+                        key={page}
+                        onClick={() =>
+                          paginationHandlers.goToPage(page as number)
+                        }
+                        disabled={loading}
+                        className={`px-2 py-1 rounded text-sm min-w-[2rem] disabled:cursor-not-allowed ${
+                          currentPage === page
+                            ? "bg-blue-600 text-white"
+                            : "hover:bg-gray-200 text-gray-700"
+                        }`}
+                      >
+                        {page}
+                      </button>
+                    )
+                  )}
                 </div>
 
                 <div className="flex items-center space-x-1">
                   <button
-                    onClick={goToNextPage}
+                    onClick={paginationHandlers.goToNextPage}
                     disabled={currentPage === totalPages || loading}
                     className="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <ChevronRight className="w-4 h-4" />
                   </button>
                   <button
-                    onClick={goToLastPage}
+                    onClick={paginationHandlers.goToLastPage}
                     disabled={currentPage === totalPages || loading}
                     className="p-2 rounded hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -518,7 +691,7 @@ const CustomTable1 = <T extends Record<string, unknown>>({
                 <div className="flex items-center space-x-2">
                   <Select
                     value={pageSize.toString()}
-                    onValueChange={handlePageSizeChange}
+                    onValueChange={paginationHandlers.handlePageSizeChange}
                     disabled={loading}
                   >
                     <SelectTrigger className="border border-gray-300 rounded px-2 py-1 text-sm bg-white">
@@ -541,7 +714,7 @@ const CustomTable1 = <T extends Record<string, unknown>>({
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-1">
                   <button
-                    onClick={goToPrevPage}
+                    onClick={paginationHandlers.goToPrevPage}
                     disabled={currentPage === 1 || loading}
                     className="flex items-center space-x-1 px-3 py-2 rounded text-sm hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -558,7 +731,7 @@ const CustomTable1 = <T extends Record<string, unknown>>({
 
                 <div className="flex items-center space-x-1">
                   <button
-                    onClick={goToNextPage}
+                    onClick={paginationHandlers.goToNextPage}
                     disabled={currentPage === totalPages || loading}
                     className="flex items-center space-x-1 px-3 py-2 rounded text-sm hover:bg-gray-200 disabled:opacity-50 disabled:cursor-not-allowed"
                   >
@@ -571,7 +744,6 @@ const CustomTable1 = <T extends Record<string, unknown>>({
           </div>
         )}
 
-        {/* Footer without pagination */}
         {!enablePagination && (
           <div className="px-4 py-3 bg-gray-50 text-sm text-gray-600">
             Showing {data.length} results
@@ -582,4 +754,4 @@ const CustomTable1 = <T extends Record<string, unknown>>({
   );
 };
 
-export default CustomTable1;
+export default DataTable;

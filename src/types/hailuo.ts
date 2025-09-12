@@ -13,21 +13,36 @@ export interface IPrompt {
   prompt: string;
 }
 
-export interface IHailuoVideo {
+export interface IHailuoVideo extends IBase {
   accountId: string;
-  status: string | null;
-  thumbnail: string | null;
-  model: string | null;
-  fileId: string | null;
-  videoURL: string | null;
-  videoId: string | null;
-  type: string | null;
-  isDownloaded: boolean | null;
+  status: string;
+  thumbnail: string;
+  model: string;
+  fileId: string;
+  videoURL: string;
+  videoId: string;
+  type: string;
+  isDownloaded: boolean;
   ownerId: number;
-  title: string | null;
-  email: string | null;
-  description: string | null;
-  imageBase64: string | null;
+  title: string;
+  email: string;
+  description: string;
+  imageBase64: string;
+  prompt: string;
+}
+
+export interface IPaginationHailuo {
+  total: number;
+  page: number;
+  limit: number;
+  totalPages: number;
+  hasNextPage: boolean;
+  hasPrevPage: boolean;
+}
+
+export interface IHailuoData {
+  data: IHailuoVideo[];
+  pagination: IPaginationHailuo;
 }
 
 export interface CreateHailuoVideo {
@@ -36,6 +51,17 @@ export interface CreateHailuoVideo {
   prompt: string;
   fileId?: string;
   formData?: FormData;
+  topic: number;
+}
+
+export interface GetHailuoVideo {
+  page: number;
+  limit: number;
+  description: string;
+  topic: number;
+  status: string;
+  startDate: string;
+  endDate: string;
 }
 
 export interface IFilesUpload {

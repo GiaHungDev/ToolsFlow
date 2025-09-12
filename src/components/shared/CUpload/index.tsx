@@ -1,6 +1,6 @@
 import { Input } from "@/components/ui/input";
 import { Eye, Upload, X } from "lucide-react";
-import React, { useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 // Types
 export interface FileItem {
@@ -36,9 +36,11 @@ interface FileUploadProps {
   disabled?: boolean;
   // Show/hide preview
   showPreview?: boolean;
+  value?: FileItem[];
 }
 
 const FileUploadComponent: React.FC<FileUploadProps> = ({
+  value = [],
   onFilesChange,
   onFileAdd,
   onFileRemove,
@@ -47,16 +49,20 @@ const FileUploadComponent: React.FC<FileUploadProps> = ({
   acceptedTypes = [".pdf", ".doc", ".docx", ".jpg", ".jpeg", ".png", ".gif"],
   title = "Kéo thả file vào đây hoặc click để chọn file",
   subtitle = "",
-  supportText = "Kích thước file tối đa 20MB mỗi file",
+  supportText,
   sizeText = "Dung lượng",
   className = "",
   disabled = false,
   showPreview = true,
 }) => {
-  const [selectedFiles, setSelectedFiles] = useState<FileItem[]>([]);
+  const [selectedFiles, setSelectedFiles] = useState<FileItem[]>(value);
   const [isDragOver, setIsDragOver] = useState(false);
   const [error, setError] = useState<string>("");
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  useEffect(() => {
+    setSelectedFiles(value);
+  }, [value]);
 
   const validateFile = (file: File): string | null => {
     // Kiểm tra kích thước
@@ -154,7 +160,7 @@ const FileUploadComponent: React.FC<FileUploadProps> = ({
 
     const updatedFiles = selectedFiles.filter((file) => file.id !== fileId);
     setSelectedFiles(updatedFiles);
-
+    
     // Callbacks
     onFileRemove?.(fileId);
     onFilesChange?.(updatedFiles);

@@ -1,5 +1,5 @@
-import { CreatePromptFormValues } from "@/hooks/hailou-ai/useCreatePrompt";
-import { CreateVideoFormValues } from "@/hooks/hailou-ai/useCreateVideoForm";
+import { CreatePromptFormValues } from "@/hooks/hailou-ai/useFormPrompt";
+import { CreateVideoFormValues } from "@/hooks/hailou-ai/useFormVideo";
 import { ITopic } from "@/types/hailuo";
 import { UseFormReturn } from "react-hook-form";
 

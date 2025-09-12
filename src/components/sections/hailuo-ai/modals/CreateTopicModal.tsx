@@ -35,14 +35,14 @@ const CreateTopicModal: React.FC<ICreateTopic> = ({
       description="Tạo, lấy nhanh gợi ý bằng AI"
       footer={
         <>
-          <Button variant="secondary" onClick={onCancel} disabled={loadHailuo}>
+          <Button variant="secondary" onClick={onCancel} disabled={loadHailuo.loadCreateTopic}>
             Cancel
           </Button>
           <Button
             onClick={handleSubmit}
             variant="outline"
             className="flex items-center gap-1 border-indigo-400 text-indigo-600 hover:bg-indigo-50"
-            loading={loadHailuo}
+            loading={loadHailuo.loadCreateTopic}
           >
             ✨ Lấy gợi ý mô tả & từ khóa
           </Button>
