@@ -38,7 +38,7 @@ import {
 import Image from "next/image";
 import React, { useMemo } from "react";
 import FilterModal from "./modals/FilterModal";
-import ShowVideoModal from "./modals/showVideoModal";
+import ShowVideoModal from "./modals/ShowVideoModal";
 
 interface TableSectionProp {
   formVideo: ReturnType<typeof useFormVideo>;

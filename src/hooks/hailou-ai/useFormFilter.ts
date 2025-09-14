@@ -20,7 +20,7 @@ export const useFormFilter = () => {
     defaultValues: {
       description: undefined,
       topic: undefined,
-      status: undefined,
+      status: "completed",
       dateRange: undefined,
     },
   });

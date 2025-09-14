@@ -48,6 +48,26 @@ export const createPromptService = async (data: {
   }
 };
 
+export const createPromptT2VService = async (data: {
+  title: string;
+  description: string;
+  keywords: string;
+  quantity: number;
+}): Promise<string[]> => {
+  try {
+    const res: string[] = await axiosClient.post("prompts/generate-t2v", {
+      ...data,
+    });
+    return res;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error("Create new topic error in service:", error);
+    } else {
+      throw new Error("Create new topic error in service!");
+    }
+  }
+};
+
 export const getTopicService = async (): Promise<ITopic[]> => {
   try {
     const res: ITopic[] = await axiosClient.get("prompts/topics");

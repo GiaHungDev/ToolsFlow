@@ -19,6 +19,7 @@ export const useTableData = () => {
       getHailuoVideo({
         page: pagination.page,
         limit: pagination.limit,
+        status: "completed",
       })
     );
   }, [dispatch, reload, pagination]);

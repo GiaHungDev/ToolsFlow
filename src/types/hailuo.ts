@@ -57,14 +57,19 @@ export interface CreateHailuoVideo {
 export interface GetHailuoVideo {
   page: number;
   limit: number;
-  description: string;
-  topic: number;
-  status: string;
-  startDate: string;
-  endDate: string;
+  description?: string;
+  topic?: number;
+  status?: string;
+  startDate?: string;
+  endDate?: string;
 }
 
 export interface IFilesUpload {
   ossPath: string;
   fileID: string;
+}
+
+export interface IPromptItem {
+  id: string;
+  content: string;
 }

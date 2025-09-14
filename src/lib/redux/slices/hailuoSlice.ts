@@ -4,6 +4,7 @@ import { Notify } from "@/lib/Notify";
 import {
   createHailuoVideoService,
   createPromptService,
+  createPromptT2VService,
   createTopicService,
   deleteHailuoService,
   getHailuoVideoService,
@@ -17,6 +18,7 @@ import {
   IHailuoVideo,
   IPaginationHailuo,
   IPrompt,
+  IPromptItem,
   ITopic,
 } from "@/types/hailuo";
 
@@ -38,6 +40,19 @@ export const createPrompt = createAsyncThunk<
   }
 >("prompt/create", async (data) => {
   const resData = await createPromptService(data);
+  return resData;
+});
+
+export const createPromptT2V = createAsyncThunk<
+  string[],
+  {
+    title: string;
+    description: string;
+    keywords: string;
+    quantity: number;
+  }
+>("prompt/create/T2V", async (data) => {
+  const resData = await createPromptT2VService(data);
   return resData;
 });
 
@@ -89,6 +104,7 @@ interface IState {
     loadCreateVideo: boolean;
     loadGetHailuo: boolean;
     loadDeleteHailuo: boolean;
+    loadcreatePromptT2V: boolean;
   };
   topic: ITopic;
   prompt: IPrompt;
@@ -99,6 +115,8 @@ interface IState {
   listHailuoVideo: IHailuoVideo[];
   paginationHailuo: IPaginationHailuo;
   chooseVideoTopic: ITopic;
+  listPrompt: IPromptItem[];
+  mapPrompt: Record<string, IPromptItem>;
 }
 
 // ==== Initial State ====
@@ -109,6 +127,7 @@ const initialState: IState = {
     loadCreateVideo: false,
     loadGetHailuo: false,
     loadDeleteHailuo: false,
+    loadcreatePromptT2V: false,
   },
   topic: {} as ITopic,
   prompt: {} as IPrompt,
@@ -119,6 +138,8 @@ const initialState: IState = {
   listHailuoVideo: [] as IHailuoVideo[],
   paginationHailuo: {} as IPaginationHailuo,
   chooseVideoTopic: {} as ITopic,
+  listPrompt: [] as IPromptItem[],
+  mapPrompt: {},
 };
 
 // ==== Slice ====
@@ -128,11 +149,65 @@ export const LoginSlice = createSlice({
   reducers: {
     setChooseVideoTopic: (state, action: PayloadAction<ITopic>) => {
       state.chooseVideoTopic = action.payload;
-      console.log("🚀 ~ state.chooseVideoTopic:", state.chooseVideoTopic)
+      console.log("🚀 ~ state.chooseVideoTopic:", state.chooseVideoTopic);
     },
     clearChooseVideoTopic: (state) => {
       state.chooseVideoTopic = {} as ITopic;
-      console.log("🚀 ~ state.clearChooseVideoTopic:", state.chooseVideoTopic)
+      console.log("🚀 ~ state.clearChooseVideoTopic:", state.chooseVideoTopic);
+    },
+    updatePromptContent: (
+      state,
+      action: PayloadAction<{ id: string; content: string }>
+    ) => {
+      const { id, content } = action.payload;
+      const promptIndex = state.listPrompt.findIndex((p) => p.id === id);
+      if (promptIndex !== -1) {
+        state.listPrompt[promptIndex].content = content;
+        console.log(content);
+        state.mapPrompt[id].content = content;
+      }
+    },
+    removePrompt: (state, action: PayloadAction<string>) => {
+      const promptId = action.payload;
+      console.log("promptId:", promptId);
+      state.listPrompt = state.listPrompt.filter((p) => p.id !== promptId);
+      delete state.mapPrompt[promptId];
+    },
+    updatePromptCameraMovement: (
+      state,
+      action: PayloadAction<{ ids: string[]; cameraMovement: string }>
+    ) => {
+      const { ids, cameraMovement } = action.payload;
+      ids.forEach((id) => {
+        const promptIndex = state.listPrompt.findIndex((p) => p.id === id);
+        if (promptIndex !== -1) {
+          let content = state.listPrompt[promptIndex].content;
+          // Remove existing camera movement
+          content = content.replace(/Camera movement: \[[^\]]*\]/g, "").trim();
+          // Add new camera movement
+          content = `${content} Camera movement: [${cameraMovement}]`.trim();
+
+          state.listPrompt[promptIndex].content = content;
+          state.mapPrompt[id].content = content;
+        }
+      });
+    },
+    removePromptCameraMovement: (
+      state,
+      action: PayloadAction<{ ids: string[] }>
+    ) => {
+      const { ids } = action.payload;
+      ids.forEach((id) => {
+        const promptIndex = state.listPrompt.findIndex((p) => p.id === id);
+        if (promptIndex !== -1) {
+          let content = state.listPrompt[promptIndex].content;
+          // Remove camera movement
+          content = content.replace(/Camera movement: \[[^\]]*\]/g, "").trim();
+
+          state.listPrompt[promptIndex].content = content;
+          state.mapPrompt[id].content = content;
+        }
+      });
     },
   },
   extraReducers: (builder) => {
@@ -177,6 +252,45 @@ export const LoginSlice = createSlice({
       )
       .addCase(createPrompt.rejected, (state, action) => {
         state.loadHailuo.loadCreatePrompt = false;
+        Notify({
+          title: "Tạo prompt lỗi!",
+          status: "error",
+        });
+        console.error("Create prompt failed:", action.error);
+      })
+      // prompt/create/T2V =========================================
+      .addCase(createPromptT2V.pending, (state) => {
+        state.loadHailuo.loadcreatePromptT2V = true;
+      })
+      .addCase(
+        createPromptT2V.fulfilled,
+        (state, action: PayloadAction<string[]>) => {
+          state.loadHailuo.loadcreatePromptT2V = false;
+          // Convert array to objects with IDs
+          const promptItems: IPromptItem[] = action.payload.map(
+            (content, index) => ({
+              id: `prompt_${Date.now()}_${index}`,
+              content,
+            })
+          );
+
+          state.listPrompt = promptItems;
+
+          // Create map for fast lookup
+          const map: Record<string, IPromptItem> = {};
+          promptItems.forEach((item) => {
+            map[item.id] = item;
+          });
+          state.mapPrompt = map;
+
+          Notify({
+            title: "Tạo prompt thành công.",
+            status: "success",
+          });
+        }
+      )
+      .addCase(createPromptT2V.rejected, (state, action) => {
+        state.loadHailuo.loadcreatePromptT2V = false;
         Notify({
           title: "Tạo prompt lỗi!",
           status: "error",
@@ -278,7 +392,13 @@ export const LoginSlice = createSlice({
   },
 });
 
-export const { setChooseVideoTopic, clearChooseVideoTopic } =
-  LoginSlice.actions;
+export const {
+  setChooseVideoTopic,
+  clearChooseVideoTopic,
+  updatePromptContent,
+  removePrompt,
+  updatePromptCameraMovement,
+  removePromptCameraMovement,
+} = LoginSlice.actions;
 
 export default LoginSlice.reducer;

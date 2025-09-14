@@ -19,7 +19,7 @@ import { ITopic } from "@/types/hailuo";
 import { Check, ChevronsUpDown } from "lucide-react";
 import React from "react";
 
-interface ITopicSection {
+interface SelectTopicSectionProps {
   listTopic: ITopic[];
   setOpen: (open: boolean) => void;
   open: boolean;
@@ -29,23 +29,15 @@ interface ITopicSection {
   handleSelect: (topic: ITopic) => void;
 }
 
-interface SelectTopicSectionProps {
-  selectTopicHook: ITopicSection;
-}
-
 const SelectTopicSection: React.FC<SelectTopicSectionProps> = ({
-  selectTopicHook,
+  listTopic,
+  setOpen,
+  open,
+  handleSetTopic,
+  selected,
+  topic,
+  handleSelect,
 }) => {
-  const {
-    listTopic,
-    setOpen,
-    open,
-    handleSetTopic,
-    selected,
-    topic,
-    handleSelect,
-  } = selectTopicHook;
-
   return (
     <>
       <div className={cn("w-full")}>

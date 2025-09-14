@@ -48,13 +48,14 @@ export const useFilter = ({ formFilter, paginationInfo }: UseFilterProp) => {
 
       const filterClear = cleanData(filter);
 
-      console.log("🚀 ~ handleSubmitSuccess ~ filterClear:", filterClear)
-      
+      console.log("🚀 ~ handleSubmitSuccess ~ filterClear:", filterClear);
+
       await dispatch(
         getHailuoVideo({
           ...filterClear,
         })
-      );
+      ).unwrap();
+      setIsOpenFilterModal(false);
     } catch (error) {
       if (error instanceof Error) {
         throw new Error(`Create new topic error: ${error.message}`);

@@ -1,21 +1,24 @@
 "use client";
 
-import { Label } from "@/components/ui/label";
+import { useCamMotion } from "@/hooks/hailou-ai/useCamMotion";
+import { useClear } from "@/hooks/hailou-ai/useClear";
 import { useCreateVideo } from "@/hooks/hailou-ai/useCreateVideo";
 import { useCreateVideoForm } from "@/hooks/hailou-ai/useCreateVideoForm";
+import { useFormPrompt } from "@/hooks/hailou-ai/useFormPrompt";
+import { useFormVideo } from "@/hooks/hailou-ai/useFormVideo";
 import { useSelectTopic } from "@/hooks/hailou-ai/useSelectTopic";
 import { Button } from "../../ui/button";
 import { Separator } from "../../ui/separator";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "../../ui/tabs";
 import CreateVideoSection from "./CreateVideoSection";
-import SelectTopicSection from "./SelectTopicSection";
+import TopicSection from "./TopicSection";
+import CamMotionModal from "./modals/CamMotionModal";
 import CreatePromptModal from "./modals/CreatePromptModal";
 import CreateTopicModal from "./modals/CreateTopicModal";
-import { useClear } from "@/hooks/hailou-ai/useClear";
-import { useCamMotion } from "@/hooks/hailou-ai/useCamMotion";
-import CamMotionModal from "./modals/CamMotionModal";
-import { useFormVideo } from "@/hooks/hailou-ai/useFormVideo";
-import { useFormPrompt } from "@/hooks/hailou-ai/useFormPrompt";
+import CreatePromptT2VModal from "./modals/CreatePromptT2vModal";
+import { useFormPromptT2V } from "@/hooks/hailou-ai/useFormPromptT2V";
+import ListPromptModal from "./modals/ListPromptModal";
+import CreateTopicT2VModal from "./modals/CreateTopicT2VModal";
 
 interface HailouAIProp {
   formVideo: ReturnType<typeof useFormVideo>;
@@ -23,7 +26,9 @@ interface HailouAIProp {
 
 const HailouAi: React.FC<HailouAIProp> = ({ formVideo }) => {
   const formPrompt = useFormPrompt();
+  const formPromptT2V = useFormPromptT2V();
 
+  // Hook chính của HailouAi
   const {
     openTopicModal,
     setOpenTopicModal,
@@ -33,18 +38,43 @@ const HailouAi: React.FC<HailouAIProp> = ({ formVideo }) => {
     setOpenPromptModal,
     handleOpenPromptModal,
     handleCancelPromptModal,
+    handleOpenT2VPromptModal,
+    handleCloseT2VPromptModal,
+    openT2VPromptModal,
+    setOpenT2VPromptModal,
+    openListPromptModal,
+    setOpenListPromptModal,
+    handleOpenListPromptModal,
+    handleCloseListPromptModal,
+    openTopicT2VModal,
+    setOpenTopicT2VModal,
+    handleOpenTopicT2VModal,
+    handleCloseTopicT2VModal,
   } = useCreateVideo();
 
-  // hàm select topic đã có
-  const selectTopicHook = useSelectTopic({ handleOpenPromptModal, formPrompt });
-  const { handleSetTopic } = selectTopicHook;
+  // hook select topic đã có
+  const {
+    listTopic,
+    setOpen,
+    open,
+    selected,
+    handleSetTopic,
+    topic,
+    handleSelectTopicI2V,
+    handleSelectTopicT2V,
+  } = useSelectTopic({
+    handleOpenPromptModal,
+    handleOpenT2VPromptModal,
+    formPrompt,
+    formPromptT2V,
+  });
 
-  // hàm tạo video
+  // hook tạo video cuối cùng
   const { handleSubmit, loadHailuo } = useCreateVideoForm({
     formVideo,
   });
 
-  // hàm chọn góc quay
+  // hook chọn góc quay
   const {
     selectedPreset,
     setHoveredPreset,
@@ -61,7 +91,7 @@ const HailouAi: React.FC<HailouAIProp> = ({ formVideo }) => {
     setSelectedPreset,
   } = useCamMotion(formVideo);
 
-  // Hàm clear
+  // hook clear
   const { handleClearCreateVideo } = useClear({
     handleSetTopic,
     formVideo,
@@ -98,27 +128,18 @@ const HailouAi: React.FC<HailouAIProp> = ({ formVideo }) => {
               Clear
             </Button>
           </div>
-          <div className="grid w-full gap-3 sm:gap-4 mb-6 sm:mb-6">
-            <div className="grid w-full gap-2 sm:gap-2.5">
-              <Label
-                htmlFor="select-topic"
-                className="text-[6px] xs:text-[10px] sm:text-xs lg:text-sm"
-              >
-                Chọn chủ đề đã có
-              </Label>
-              <SelectTopicSection selectTopicHook={selectTopicHook} />
-            </div>
-            <p className="text-center text-muted-foreground text-[6px] xs:text-[10px] sm:text-xs lg:text-sm px-2">
-              Hoặc tạo mới chủ đề
-            </p>
-            <Button
-              variant="secondary"
-              className="w-full text-[6px] xs:text-[10px] sm:text-xs lg:text-sm"
-              onClick={handleOpenTopicModal}
-            >
-              Tạo chủ đề mới
-            </Button>
-          </div>
+
+          <TopicSection
+            listTopic={listTopic}
+            open={open}
+            setOpen={setOpen}
+            selected={selected}
+            topic={topic}
+            handleSetTopic={handleSetTopic}
+            handleSelectTopic={handleSelectTopicI2V}
+            handleOpenTopicModal={handleOpenTopicModal}
+          />
+
           <CreateVideoSection
             formVideo={formVideo}
             handleSubmit={handleSubmit}
@@ -126,19 +147,45 @@ const HailouAi: React.FC<HailouAIProp> = ({ formVideo }) => {
             handleOpenCamMotion={handleOpenCamMotion}
           />
         </TabsContent>
+        {/* //////////////////////////////////////////////////////////////////////////////////// */}
         <TabsContent value="t2v" className="mt-3 sm:mt-4">
           <Separator className="my-2 sm:my-3" />
-          <div className="text-xs sm:text-sm lg:text-base text-muted-foreground">
-            Change your password here.
+          <div className="flex justify-between">
+            <h2 className="mb-3 sm:mb-4 text-xs sm:text-sm lg:text-base xl:text-lg font-semibold">
+              Tạo video
+            </h2>
+            <Button variant="ghost" onClick={handleClearCreateVideo}>
+              Clear
+            </Button>
           </div>
+
+          <TopicSection
+            listTopic={listTopic}
+            open={open}
+            setOpen={setOpen}
+            selected={selected}
+            topic={topic}
+            handleSetTopic={handleSetTopic}
+            handleSelectTopic={handleSelectTopicT2V}
+            handleOpenTopicModal={handleOpenTopicT2VModal}
+          />
         </TabsContent>
       </Tabs>
+      {/* ---------------------------------- Modal --------------------------------------- */}
       <CreatePromptModal
         isOpen={openPromptModal}
         onCancel={handleCancelPromptModal}
         setOpen={setOpenPromptModal}
         formVideo={formVideo}
         formPrompt={formPrompt}
+      />
+      <CreateTopicT2VModal
+        isOpen={openTopicT2VModal}
+        setOpen={setOpenTopicT2VModal}
+        onCancelTopicT2V={handleCloseTopicT2VModal}
+        formPromptT2V={formPromptT2V}
+        handleOpenT2VPromptModal={handleOpenT2VPromptModal}
+        handleSetTopic={handleSetTopic}
       />
       <CreateTopicModal
         isOpen={openTopicModal}
@@ -160,6 +207,17 @@ const HailouAi: React.FC<HailouAIProp> = ({ formVideo }) => {
         videoRefs={videoRefs}
         handleMouseEnter={handleMouseEnter}
         handleMouseLeave={handleMouseLeave}
+      />
+      <CreatePromptT2VModal
+        formPromptT2V={formPromptT2V}
+        isOpen={openT2VPromptModal}
+        onCancel={handleCloseT2VPromptModal}
+        setOpen={setOpenT2VPromptModal}
+        handleOpenListPromptModal={handleOpenListPromptModal}
+      />
+      <ListPromptModal
+        open={openListPromptModal}
+        onOpenChange={setOpenListPromptModal}
       />
     </>
   );

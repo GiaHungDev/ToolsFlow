@@ -173,6 +173,7 @@ export const useTableActions = ({ formVideo }: UseTableActionsProp) => {
         getHailuoVideo({
           page: 1,
           limit: 10,
+          status: "completed",
         })
       );
     } catch (error) {

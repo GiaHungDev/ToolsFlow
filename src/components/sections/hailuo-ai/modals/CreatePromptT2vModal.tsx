@@ -9,19 +9,29 @@ import {
 } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
-import { useCreatePrompt } from "@/hooks/hailou-ai/useCreatePrompt";
-import { ICreatePrompt } from "../interface";
+import { useCreatePromptT2V } from "@/hooks/hailou-ai/useCreatePromptT2V";
+import { PromptT2VFormValues } from "@/hooks/hailou-ai/useFormPromptT2V";
+import { UseFormReturn } from "react-hook-form";
 
-const CreatePromptModal: React.FC<ICreatePrompt> = ({
+interface CreatePromptT2VProp {
+  isOpen: boolean;
+  onCancel: () => void;
+  setOpen: (open: boolean) => void;
+  formPromptT2V: UseFormReturn<PromptT2VFormValues>;
+  handleOpenListPromptModal: (state: boolean) => void;
+}
+
+const CreatePromptT2VModal: React.FC<CreatePromptT2VProp> = ({
   isOpen,
   onCancel,
   setOpen,
-  formVideo,
-  formPrompt,
+  formPromptT2V,
+  handleOpenListPromptModal,
 }) => {
-  const { handleSubmit, loadHailuo } = useCreatePrompt(
-    { onCancel, formVideo },
-    formPrompt
+  const { handleSubmit, loadHailuo } = useCreatePromptT2V(
+    onCancel,
+    formPromptT2V,
+    handleOpenListPromptModal
   );
 
   return (
@@ -30,20 +40,20 @@ const CreatePromptModal: React.FC<ICreatePrompt> = ({
         open={isOpen}
         onOpenChange={setOpen}
         title="Tạo Prompt"
-        description="Hãy chỉnh sửa thông tin như chủ đề, mô tả và từ khóa (nếu cần) để tạo prompt nhanh bằng AI"
+        description="Hãy chỉnh sửa lại thông tin như chủ đề, mô tả, từ khóa và số lượng (nếu cần) để tạo prompt nhanh bằng AI"
         footer={
           <>
             <Button
               variant="secondary"
               onClick={onCancel}
-              disabled={loadHailuo.loadCreatePrompt}
+              disabled={loadHailuo.loadcreatePromptT2V}
             >
               Cancel
             </Button>
             <Button
               onClick={handleSubmit}
-              loading={loadHailuo.loadCreatePrompt}
-              disabled={loadHailuo.loadCreatePrompt}
+              loading={loadHailuo.loadcreatePromptT2V}
+              disabled={loadHailuo.loadcreatePromptT2V}
               className="bg-blue-600 hover:bg-blue-700 text-white"
             >
               Tạo prompt
@@ -53,10 +63,10 @@ const CreatePromptModal: React.FC<ICreatePrompt> = ({
         className="max-w-[700px]"
         onlyCloseByButton
       >
-        <Form {...formPrompt}>
+        <Form {...formPromptT2V}>
           <div className="space-y-4">
             <FormField
-              control={formPrompt.control}
+              control={formPromptT2V.control}
               name="title"
               render={({ field, fieldState }) => (
                 <FormItem>
@@ -73,7 +83,7 @@ const CreatePromptModal: React.FC<ICreatePrompt> = ({
               )}
             />
             <FormField
-              control={formPrompt.control}
+              control={formPromptT2V.control}
               name="description"
               render={({ field, fieldState }) => (
                 <FormItem>
@@ -94,13 +104,38 @@ const CreatePromptModal: React.FC<ICreatePrompt> = ({
               )}
             />
             <FormField
-              control={formPrompt.control}
+              control={formPromptT2V.control}
               name="keywords"
               render={({ field, fieldState }) => (
                 <FormItem>
                   <FormLabel>Từ khóa</FormLabel>
                   <FormControl>
                     <Textarea placeholder="Nhập từ khóa." {...field} />
+                  </FormControl>
+                  {fieldState.error && (
+                    <p className="text-sm text-red-500 mt-1">
+                      {fieldState.error.message}
+                    </p>
+                  )}
+                </FormItem>
+              )}
+            />
+            <FormField
+              control={formPromptT2V.control}
+              name="quantity"
+              render={({ field, fieldState }) => (
+                <FormItem>
+                  <FormLabel>Số lượng</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      {...field}
+                      onChange={(e) =>
+                        field.onChange(
+                          e.target.value === "" ? "" : Number(e.target.value)
+                        )
+                      }
+                    />
                   </FormControl>
                   {fieldState.error && (
                     <p className="text-sm text-red-500 mt-1">
@@ -117,4 +152,4 @@ const CreatePromptModal: React.FC<ICreatePrompt> = ({
   );
 };
 
-export default CreatePromptModal;
+export default CreatePromptT2VModal;
