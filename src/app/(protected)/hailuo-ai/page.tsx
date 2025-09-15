@@ -12,7 +12,7 @@ const HailouPage = () => {
   return (
     <div className="flex">
       {/* Left Sidebar - 30% */}
-      <div className="w-[30%] bg-white border-r border-gray-200 flex-shrink-0">
+      <div className="w-[30%] min-h-[800px] bg-white border-r border-gray-200 flex-shrink-0">
         <div className="p-4 h-full overflow-auto">
           <HailouAI formVideo={formVideo} />
         </div>

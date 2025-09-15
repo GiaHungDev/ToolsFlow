@@ -125,7 +125,6 @@ export const uploadImgToHailuoService = async (
 export const getHailuoVideoService = async (
   data: GetHailuoVideo
 ): Promise<IHailuoData> => {
-  console.log("🚀 ~ getHailuoVideoService ~ data:", data);
   try {
     const res: IHailuoData = await axiosClient.get("hailuo/get/videos", {
       params: data,

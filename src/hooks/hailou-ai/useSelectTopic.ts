@@ -35,7 +35,6 @@ export const useSelectTopic = ({
   const selected = topic ? mapTopic[topic.id] : null;
 
   const handleSelectTopicI2V = (topic: ITopic) => {
-    console.log("🚀 ~ handleSelectTopicI2V ~ topic:", topic);
     try {
       const selected = topic ? mapTopic[topic.id] : null;
       if (!selected) {
@@ -60,7 +59,6 @@ export const useSelectTopic = ({
   };
 
   const handleSelectTopicT2V = (topic: ITopic) => {
-    console.log("🚀 ~ handleSelectTopicT2V ~ topic:", topic);
     try {
       const selected = topic ? mapTopic[topic.id] : null;
       if (!selected) {

@@ -1,15 +1,26 @@
-import { useState, useCallback } from "react";
-import { useAppSelector, useAppDispatch } from "@/lib/redux/store";
+import { Notify } from "@/lib/Notify";
 import {
+  createHailuoT2V,
+  removeAllPrompt,
   removePrompt,
   removePromptCameraMovement,
   updatePromptCameraMovement,
   updatePromptContent,
 } from "@/lib/redux/slices/hailuoSlice";
+import { useAppDispatch, useAppSelector } from "@/lib/redux/store";
+import { useCallback, useState } from "react";
 import { useCamMotion } from "./useCamMotion";
 
-export const useListPromptModal = () => {
-  const { listPrompt, loadHailuo } = useAppSelector((state) => state.hailuo);
+interface UseListPromptProp {
+  handleCloseListPromptModal: () => void;
+}
+
+export const useListPromptModal = ({
+  handleCloseListPromptModal,
+}: UseListPromptProp) => {
+  const { listPrompt, chooseVideoTopic, loadHailuo } = useAppSelector(
+    (state) => state.hailuo
+  );
   const dispatch = useAppDispatch();
 
   const [editingPrompt, setEditingPrompt] = useState<string | null>(null);
@@ -40,10 +51,10 @@ export const useListPromptModal = () => {
     }
   }, [editingPrompt, editedContent, dispatch]);
 
-  const handleCancelEdit = useCallback(() => {
+  const handleCancelEdit = () => {
     setEditingPrompt(null);
     setEditedContent("");
-  }, []);
+  };
 
   const handleDeletePrompt = useCallback(
     (promptId: string) => {
@@ -51,11 +62,6 @@ export const useListPromptModal = () => {
     },
     [dispatch]
   );
-
-  const resetSelections = useCallback(() => {
-    setEditingPrompt(null);
-    setEditedContent("");
-  }, []);
 
   const fakeForm = {
     getValues: () => ({ description: "" }),
@@ -91,6 +97,11 @@ export const useListPromptModal = () => {
             cameraMovement: camMotion.selectedPreset.promptKey,
           })
         );
+        Notify({
+          title: "Góc quay đã được chọn",
+          description: `"${targetIds.length}" Góc quay đã được thêm vào mô tả video.`,
+          status: "success",
+        });
       }
     }
 
@@ -114,9 +125,21 @@ export const useListPromptModal = () => {
     camMotion.setSelectedPreset(null);
   }, [camMotion]);
 
+  const resetSelections = () => {
+    setEditingPrompt(null);
+    setEditedContent("");
+    handleCamMotionCancel();
+    dispatch(removeAllPrompt());
+  };
+
   const handleRemoveCameraMovement = useCallback(
     (promptId: string) => {
       dispatch(removePromptCameraMovement({ ids: [promptId] }));
+      Notify({
+        title: "Đã xóa góc quay",
+        description: "Góc quay vừa được loại bỏ khỏi mô tả video.",
+        status: "success",
+      });
     },
     [dispatch]
   );
@@ -124,11 +147,42 @@ export const useListPromptModal = () => {
   const handleRemoveAllCameraMovement = useCallback(() => {
     const allIds = listPrompt.map((p) => p.id);
     dispatch(removePromptCameraMovement({ ids: allIds }));
+    Notify({
+      title: "Đã xóa góc quay",
+      description: `"${allIds.length}" Góc quay vừa được loại bỏ khỏi mô tả video.`,
+      status: "success",
+    });
   }, [dispatch, listPrompt]);
+
+  const handleCreateVideoT2V = async () => {
+    try {
+      if (!chooseVideoTopic)
+        throw new Error("Selected topic for creating video not found.");
+
+      for (const item of listPrompt) {
+        const payload = {
+          model: "T2V-01-Director",
+          prompt: item.content,
+          topic: chooseVideoTopic.id,
+        };
+
+        await dispatch(createHailuoT2V({ ...payload })).unwrap();
+      }
+      resetSelections();
+      handleCloseListPromptModal();
+      Notify({
+        title: "Đang xử lý yêu cầu tạo video",
+        description: `Hệ thống đã nhận thông tin tạo "${listPrompt.length}" và đưa vào hàng chờ.`,
+        status: "success",
+      });
+    } catch (error) {
+      console.error(error);
+    }
+  };
 
   return {
     listPrompt,
-    loadHailuo: loadHailuo.loadCreateVideo,
+    loadHailuo: loadHailuo.loadCreateT2V,
     editingPrompt,
     editedContent,
     setEditedContent,
@@ -145,5 +199,6 @@ export const useListPromptModal = () => {
     handleCamMotionCancel,
     handleRemoveCameraMovement,
     handleRemoveAllCameraMovement,
+    handleCreateVideoT2V,
   };
 };

@@ -81,6 +81,19 @@ export const createHailuoVideo = createAsyncThunk<
   return resData;
 });
 
+export const createHailuoT2V = createAsyncThunk<
+  IHailuoVideo,
+  CreateHailuoVideo
+>("hailuo/create/T2V", async (data) => {
+  const payload = {
+    model: data.model,
+    prompt: data.prompt,
+    topic: data.topic,
+  };
+  const resData = await createHailuoVideoService({ ...payload });
+  return resData;
+});
+
 export const getHailuoVideo = createAsyncThunk<IHailuoData, GetHailuoVideo>(
   "hailuo/get/video",
   async (data) => {
@@ -105,6 +118,7 @@ interface IState {
     loadGetHailuo: boolean;
     loadDeleteHailuo: boolean;
     loadcreatePromptT2V: boolean;
+    loadCreateT2V: boolean;
   };
   topic: ITopic;
   prompt: IPrompt;
@@ -128,6 +142,7 @@ const initialState: IState = {
     loadGetHailuo: false,
     loadDeleteHailuo: false,
     loadcreatePromptT2V: false,
+    loadCreateT2V: false,
   },
   topic: {} as ITopic,
   prompt: {} as IPrompt,
@@ -149,11 +164,9 @@ export const LoginSlice = createSlice({
   reducers: {
     setChooseVideoTopic: (state, action: PayloadAction<ITopic>) => {
       state.chooseVideoTopic = action.payload;
-      console.log("🚀 ~ state.chooseVideoTopic:", state.chooseVideoTopic);
     },
     clearChooseVideoTopic: (state) => {
       state.chooseVideoTopic = {} as ITopic;
-      console.log("🚀 ~ state.clearChooseVideoTopic:", state.chooseVideoTopic);
     },
     updatePromptContent: (
       state,
@@ -163,15 +176,16 @@ export const LoginSlice = createSlice({
       const promptIndex = state.listPrompt.findIndex((p) => p.id === id);
       if (promptIndex !== -1) {
         state.listPrompt[promptIndex].content = content;
-        console.log(content);
         state.mapPrompt[id].content = content;
       }
     },
     removePrompt: (state, action: PayloadAction<string>) => {
       const promptId = action.payload;
-      console.log("promptId:", promptId);
       state.listPrompt = state.listPrompt.filter((p) => p.id !== promptId);
       delete state.mapPrompt[promptId];
+    },
+    removeAllPrompt: (state) => {
+      state.listPrompt = [];
     },
     updatePromptCameraMovement: (
       state,
@@ -342,6 +356,21 @@ export const LoginSlice = createSlice({
         });
         console.error("Create video failed:", action.error);
       })
+      // hailuo/create/T2V =========================================
+      .addCase(createHailuoT2V.pending, (state) => {
+        state.loadHailuo.loadCreateT2V = true;
+      })
+      .addCase(createHailuoT2V.fulfilled, (state) => {
+        state.loadHailuo.loadCreateT2V = false;
+      })
+      .addCase(createHailuoT2V.rejected, (state, action) => {
+        state.loadHailuo.loadCreateT2V = false;
+        Notify({
+          title: "Tạo video hailuo lỗi!",
+          status: "error",
+        });
+        console.error("Create video failed:", action.error);
+      })
       // hailuo/get/video =========================================
       .addCase(getHailuoVideo.pending, (state) => {
         state.loadHailuo.loadGetHailuo = true;
@@ -399,6 +428,7 @@ export const {
   removePrompt,
   updatePromptCameraMovement,
   removePromptCameraMovement,
+  removeAllPrompt,
 } = LoginSlice.actions;
 
 export default LoginSlice.reducer;

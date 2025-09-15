@@ -8,7 +8,7 @@ import CamMotionModal from "./CamMotionModal";
 interface ListPromptModalProps {
   open: boolean;
   onOpenChange: (open: boolean) => void;
-  onCreateVideo?: (selectedContents: string[]) => void;
+  handleCloseListPromptModal: () => void;
 }
 
 const PromptItem = ({
@@ -111,6 +111,7 @@ const PromptItem = ({
 const ListPromptModal: React.FC<ListPromptModalProps> = ({
   open,
   onOpenChange,
+  handleCloseListPromptModal,
 }) => {
   const {
     listPrompt,
@@ -131,7 +132,8 @@ const ListPromptModal: React.FC<ListPromptModalProps> = ({
     handleCamMotionCancel,
     handleRemoveCameraMovement,
     handleRemoveAllCameraMovement,
-  } = useListPromptModal();
+    handleCreateVideoT2V,
+  } = useListPromptModal({ handleCloseListPromptModal });
 
   const handleCancel = () => {
     resetSelections();
@@ -156,6 +158,7 @@ const ListPromptModal: React.FC<ListPromptModalProps> = ({
                 variant="outline"
                 onClick={handleOpenCamMotionForAll}
                 className="flex items-center gap-2"
+                disabled={loadHailuo}
               >
                 <Camera className="h-4 w-4" />
                 Chọn góc quay cho tất cả
@@ -165,6 +168,7 @@ const ListPromptModal: React.FC<ListPromptModalProps> = ({
                   variant="outline"
                   onClick={handleRemoveAllCameraMovement}
                   className="flex items-center gap-2 border-slate-700 text-slate-600 hover:bg-slate-50"
+                  disabled={loadHailuo}
                 >
                   <CameraOff className="h-4 w-4" />
                   Hủy góc quay tất cả
@@ -172,12 +176,17 @@ const ListPromptModal: React.FC<ListPromptModalProps> = ({
               )}
             </div>
             <div className="flex gap-2">
-              <Button variant="secondary" onClick={handleCancel}>
+              <Button
+                variant="secondary"
+                onClick={handleCancel}
+                disabled={loadHailuo}
+              >
                 Hủy
               </Button>
               <Button
-                onClick={handleCancel}
+                onClick={handleCreateVideoT2V}
                 className="text-white bg-blue-600 hover:bg-blue-400"
+                disabled={loadHailuo}
               >
                 Tạo video
               </Button>
@@ -187,7 +196,11 @@ const ListPromptModal: React.FC<ListPromptModalProps> = ({
         className="max-w-[900px]"
         onlyCloseByButton
       >
-        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+        <div
+          className={`space-y-4 max-h-[60vh] overflow-y-auto ${
+            loadHailuo ? "opacity-50 pointer-events-none" : ""
+          }`}
+        >
           {listPrompt.map((prompt) => (
             <PromptItem
               key={prompt.id}

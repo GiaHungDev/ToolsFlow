@@ -46,7 +46,7 @@ export interface IHailuoData {
 }
 
 export interface CreateHailuoVideo {
-  thumbnail: string;
+  thumbnail?: string;
   model: string;
   prompt: string;
   fileId?: string;

@@ -218,6 +218,7 @@ const HailouAi: React.FC<HailouAIProp> = ({ formVideo }) => {
       <ListPromptModal
         open={openListPromptModal}
         onOpenChange={setOpenListPromptModal}
+        handleCloseListPromptModal={handleCloseListPromptModal}
       />
     </>
   );

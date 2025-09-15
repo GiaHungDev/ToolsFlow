@@ -33,7 +33,6 @@ export const useFilter = ({ formFilter, paginationInfo }: UseFilterProp) => {
   };
 
   const handleSubmitSuccess = async (values: any) => {
-    console.log("🚀 ~ handleSubmitSuccess ~ values:", values);
     try {
       if (values.dateRange) {
         values.startDate = dayjs(values.dateRange.from).format("YYYY-MM-DD");
@@ -47,8 +46,6 @@ export const useFilter = ({ formFilter, paginationInfo }: UseFilterProp) => {
       };
 
       const filterClear = cleanData(filter);
-
-      console.log("🚀 ~ handleSubmitSuccess ~ filterClear:", filterClear);
 
       await dispatch(
         getHailuoVideo({

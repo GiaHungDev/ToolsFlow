@@ -1,8 +1,6 @@
 "use client";
 
-import {
-  createHailuoVideo
-} from "@/lib/redux/slices/hailuoSlice";
+import { createHailuoVideo } from "@/lib/redux/slices/hailuoSlice";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/store";
 import { convertFilesToBase64 } from "@/utils/convertToBase64Helper";
 import { FieldErrors } from "react-hook-form";
@@ -22,10 +20,6 @@ export const useCreateVideoForm = ({ formVideo }: UseCreateVideoFormProp) => {
     try {
       if (!chooseVideoTopic)
         throw new Error("Selected topic for creating video not found.");
-      console.log(
-        "🚀 ~ handleSubmitSuccess ~ chooseVideoTopic:",
-        chooseVideoTopic
-      );
 
       const imageFiles = values.images.map((img) => img.file);
       const base64Images = await convertFilesToBase64(imageFiles);
@@ -40,7 +34,6 @@ export const useCreateVideoForm = ({ formVideo }: UseCreateVideoFormProp) => {
         formData: formData,
         topic: chooseVideoTopic.id,
       };
-      console.log("🚀 ~ handleSubmitSuccess ~ data:", data);
       await dispatch(createHailuoVideo({ ...data })).unwrap();
     } catch (error: unknown) {
       console.error("Lỗi tạo prompt useCreatePrompt:", error);
