@@ -15,7 +15,11 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Harumi AI",
   description: "AI-powered creative platform",
+  icons: {
+    icon: "/favicon.png",
+  },
 };
+
 
 export default function RootLayout({
   children,

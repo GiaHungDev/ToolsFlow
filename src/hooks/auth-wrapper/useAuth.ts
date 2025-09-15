@@ -8,12 +8,14 @@ export const useAuth = (requireAuth: boolean) => {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { isLogin, loading, user } = useAppSelector((state) => state.auth);
+  const { isLogin, loading, user, isLoggingOut } = useAppSelector(
+    (state) => state.auth
+  );
 
   useEffect(() => {
     if (pathname === "/") return;
 
-    if (!isLogin && !user) {
+    if (isLoggingOut && !isLogin && !user) {
       if (requireAuth) {
         dispatch(checkMe())
           .unwrap()
@@ -24,7 +26,7 @@ export const useAuth = (requireAuth: boolean) => {
           });
       }
     }
-  }, [dispatch, requireAuth, router, isLogin, user, pathname]);
+  }, [dispatch, requireAuth, router, isLogin, user, pathname, isLoggingOut]);
 
   return {
     // redux

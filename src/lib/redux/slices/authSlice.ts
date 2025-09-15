@@ -73,6 +73,7 @@ export const logout = createAsyncThunk<unknown, { refreshToken: string }>(
 
 interface LoginState {
   isLogin: boolean;
+  isLoggingOut: boolean;
   user: IUser | null;
   loading: boolean;
   role: number | null;
@@ -82,6 +83,7 @@ interface LoginState {
 // ==== Initial State ====
 const initialState: LoginState = {
   isLogin: false,
+  isLoggingOut: false,
   user: null,
   loading: false,
   role: 0,
@@ -93,14 +95,6 @@ export const LoginSlice = createSlice({
   name: "login",
   initialState,
   reducers: {
-    logOut: (state) => {
-      removeAllToken();
-      removeStoreLocal("account_web");
-      state.isLogin = false;
-      state.user = null;
-      state.authError = undefined;
-      state.role = null;
-    },
     clearAuthError: (state) => {
       state.authError = undefined;
     },
@@ -169,14 +163,16 @@ export const LoginSlice = createSlice({
       })
       // logout
       .addCase(logout.pending, (state) => {
-        state.loading = true;
+        state.isLoggingOut = true;
       })
       .addCase(logout.fulfilled, (state) => {
-        state.loading = false;
+        state.isLoggingOut = false;
         state.isLogin = false;
         state.user = null;
         state.authError = undefined;
         state.role = null;
+        removeAllToken();
+        removeStoreLocal("account_web");
 
         // Thông báo đăng xuất thành công
         Notify({
@@ -188,10 +184,12 @@ export const LoginSlice = createSlice({
       .addCase(logout.rejected, (state, action) => {
         state.loading = false;
         // Vẫn clear state local dù API logout failed
-        state.isLogin = false;
+        state.isLoggingOut = false;
         state.user = null;
         state.authError = undefined;
         state.role = null;
+        removeAllToken();
+        removeStoreLocal("account_web");
 
         // Thông báo lỗi nhưng vẫn đăng xuất local
         Notify({
@@ -206,5 +204,5 @@ export const LoginSlice = createSlice({
   },
 });
 
-export const { logOut, clearAuthError } = LoginSlice.actions;
+export const { clearAuthError } = LoginSlice.actions;
 export default LoginSlice.reducer;

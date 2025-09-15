@@ -12,6 +12,7 @@ export const useCheck = () => {
 
   useEffect(() => {
     if (!isLogin && !user) {
+      console.log("2");
       dispatch(checkMe())
         .unwrap()
         .catch(() => {
