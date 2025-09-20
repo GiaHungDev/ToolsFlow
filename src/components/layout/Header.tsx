@@ -5,7 +5,7 @@ import { LogOut, User } from "lucide-react";
 import UserProfileSheet from "../sections/user-profile/UserProfileSheet";
 import { CSheet } from "../shared/CSheet";
 import { Button } from "../ui/button";
-import { SheetClose } from "@/components/ui/sheet";
+import { SheetClose } from "../ui/Sheet";
 
 export default function Header() {
   const { user, handleLogout } = useHeaderControl();

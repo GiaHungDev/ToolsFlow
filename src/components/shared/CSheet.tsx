@@ -9,7 +9,7 @@ import {
   SheetHeader,
   SheetTitle,
   SheetTrigger,
-} from "@/components/ui/sheet";
+} from "../ui/Sheet";
 
 interface CustomSheetProps {
   title: ReactNode;
