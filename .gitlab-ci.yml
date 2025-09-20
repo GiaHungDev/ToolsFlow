@@ -1,0 +1,16 @@
+stages:
+  - prepare
+  - test
+  - tag
+  - build
+  - deploy
+  - release
+
+include:
+  - local: .gitlab/ci/rules.gitlab-ci.yml
+  - local: .gitlab/ci/stages/prepare.gitlab-ci.yml
+  - local: .gitlab/ci/stages/test.gitlab-ci.yml
+  - local: .gitlab/ci/stages/tag.gitlab-ci.yml
+  - local: .gitlab/ci/stages/build.gitlab-ci.yml
+  - local: .gitlab/ci/stages/deploy.gitlab-ci.yml
+  - local: .gitlab/ci/stages/release.gitlab-ci.yml

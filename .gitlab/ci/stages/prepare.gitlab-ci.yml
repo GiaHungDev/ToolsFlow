@@ -1,0 +1,19 @@
+Prepare:
+  stage: prepare
+  rules:
+    - !reference [.only-tag, rules]
+  image:
+    name: alpine
+  before_script:
+    - apk update
+    - apk add git
+    - git --version
+  script:
+    - PREV_VERSION_COMMIT_SHA=$(git log --pretty=format:%H VERSION | sed -n '1,2p' | tail -n1)
+    - git checkout $PREV_VERSION_COMMIT_SHA -- VERSION
+    - mv VERSION PREV_VERSION
+    - echo $PREV_VERSION_COMMIT_SHA > PREV_VERSION_COMMIT_SHA
+  artifacts:
+    paths:
+      - PREV_VERSION
+      - PREV_VERSION_COMMIT_SHA

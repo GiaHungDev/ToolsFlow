@@ -1,0 +1,44 @@
+"Update Changelog":
+  stage: tag
+  rules:
+    - !reference [.only-tag, rules]
+  before_script:
+    - apk update
+    - apk add curl jq
+    - TAG_NAME=$(cat VERSION)
+    - PREV_TAG_NAME=$(cat PREV_VERSION)
+    - PREV_VERSION_COMMIT_SHA=$(cat PREV_VERSION_COMMIT_SHA)
+  script:
+    - echo "Updating changelogs for version $PREV_TAG_NAME -> $TAG_NAME on $CI_COMMIT_BRANCH..."
+    - >
+      curl --fail-with-body \
+        --request POST \
+        --header "PRIVATE-TOKEN: $GITLAB_BOT_TOKEN" \
+        --data "branch=$CI_COMMIT_BRANCH${PREV_VERSION_COMMIT_SHA:+&from=$PREV_VERSION_COMMIT_SHA}&to=$CI_COMMIT_SHA&version=$TAG_NAME&message=Add changelog for version $TAG_NAME"$'\n\n'"[skip ci]" \
+        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/changelog"
+    - >
+      curl --fail-with-body \
+        --header "PRIVATE-TOKEN: $GITLAB_BOT_TOKEN" \
+        "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/changelog?${PREV_VERSION_COMMIT_SHA:+from=$PREV_VERSION_COMMIT_SHA&}to=$CI_COMMIT_SHA&version=$TAG_NAME" \
+        | jq -r .notes > RELEASE_NOTES.md
+  artifacts:
+    paths:
+      - RELEASE_NOTES.md
+
+"Create New Tag":
+  stage: tag
+  needs:
+    - Update Changelog
+  rules:
+    - !reference [.only-tag, rules]
+  before_script:
+    - apk update
+    - apk add curl
+    - TAG_NAME=$(cat VERSION)
+  script:
+    - echo "Creating tag for version $TAG_NAME on $CI_COMMIT_BRANCH..."
+    - >
+      curl --fail-with-body \
+        --request POST \
+        --header "PRIVATE-TOKEN: $GITLAB_BOT_TOKEN" \
+        --url "$CI_API_V4_URL/projects/$CI_PROJECT_ID/repository/tags?tag_name=$TAG_NAME&ref=$CI_COMMIT_BRANCH"

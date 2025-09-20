@@ -1,0 +1,57 @@
+"Pre-Test":
+  stage: test
+  rules:
+    - !reference [.push-or-merge-to-protected, rules]
+  image:
+    name: node:20.12-alpine
+  script:
+    - npm ci
+  artifacts:
+    paths:
+      - node_modules
+
+"Check Lint":
+  stage: test
+  needs:
+    - Pre-Test
+  rules:
+    - !reference [.push-or-merge-to-protected, rules]
+  image:
+    name: node:20.12-alpine
+  before_script:
+    - npm ci
+  script:
+    - npm run lint
+
+# "Test Coverage":
+#   stage: test
+#   needs:
+#     - Pre-Test
+#   rules:
+#     - !reference [.push-or-merge-to-protected, rules]
+#   image:
+#     name: node:20.12-alpine
+#   artifacts:
+#     reports:
+#       coverage_report:
+#         coverage_format: cobertura
+#         path: test-results/coverage/cobertura-coverage.xml
+#       junit:
+#         - test-results/junit.xml
+#   before_script:
+#     - npm ci
+#   script:
+#     - npm run test:cov
+
+"Test Build":
+  stage: test
+  needs:
+    - Pre-Test
+  rules:
+    - !reference [.push-or-merge-to-protected, rules]
+  image:
+    name: node:20.12-alpine
+  before_script:
+    - npm ci
+  script:
+    - npm run build

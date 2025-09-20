@@ -1,0 +1,18 @@
+Release:
+  stage: release
+  needs:
+    - job: Update Changelog
+      artifacts: true
+    - job: Deploy to Production
+  rules:
+    - !reference [.only-tag, rules]
+  image: registry.gitlab.com/gitlab-org/release-cli:latest
+  before_script:
+    - TAG_NAME=$(cat VERSION)
+  script: |
+    echo "Releasing $TAG_NAME on $CI_COMMIT_BRANCH..."
+    release-cli --private-token $GITLAB_BOT_TOKEN \
+      create \
+      --name "Release $TAG_NAME" \
+      --description "RELEASE_NOTES.md" \
+      --tag-name "$TAG_NAME"

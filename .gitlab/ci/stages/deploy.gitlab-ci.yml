@@ -1,0 +1,45 @@
+"Deploy to Development":
+  stage: deploy
+  rules:
+    - if: $CI_COMMIT_BRANCH != $CI_DEFAULT_BRANCH
+      when: never
+    - !reference [.push-or-merge-to-protected, rules]
+  needs:
+    - Build
+  environment:
+    name: development
+    url: $K8S_DEV_PROJECT_URL
+  before_script:
+    - apk update
+    - apk add openssh-client bash
+  script:
+    - eval $(ssh-agent -s)
+    - bash -c 'ssh-add <(echo "$K8S_MASTER_PRIVATE_KEY")'
+    - mkdir -p ~/.ssh
+    - ssh-keyscan -H -p $K8S_MASTER_PORT $K8S_MASTER_IP >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - >
+      ssh $K8S_MASTER_USER@$K8S_MASTER_IP -p $K8S_MASTER_PORT
+      "kubectl -n $K8S_PROJECT_NAMESPACE rollout restart deployments $K8S_DEV_PROJECT_NAME"
+
+"Deploy to Production":
+  stage: deploy
+  rules:
+    - !reference [.only-tag, rules]
+  needs:
+    - Build Production
+  environment:
+    name: production
+    url: $K8S_PROD_PROJECT_URL
+  before_script:
+    - apk update
+    - apk add openssh-client bash
+  script:
+    - eval $(ssh-agent -s)
+    - bash -c 'ssh-add <(echo "$K8S_MASTER_PRIVATE_KEY")'
+    - mkdir -p ~/.ssh
+    - ssh-keyscan -H -p $K8S_MASTER_PORT $K8S_MASTER_IP >> ~/.ssh/known_hosts
+    - chmod 644 ~/.ssh/known_hosts
+    - >
+      ssh $K8S_MASTER_USER@$K8S_MASTER_IP -p $K8S_MASTER_PORT
+      "kubectl -n $K8S_PROJECT_NAMESPACE rollout restart deployments $K8S_PROJECT_NAME"
