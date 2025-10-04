@@ -3,13 +3,13 @@ import { TypedUseSelectorHook, useDispatch, useSelector } from "react-redux";
 
 // Import các slice ở đây
 import authSlice from "./slices/authSlice";
-import hailuoSlice from "./slices/hailuoSlice";
+import flowSlice from "./slices/flowSlice";
 
 export const store = configureStore({
   reducer: {
     // Thêm các reducer ở đây
     auth: authSlice,
-    hailuo: hailuoSlice,
+    flow: flowSlice,
   },
   middleware: (getDefaultMiddleware) =>
     getDefaultMiddleware({

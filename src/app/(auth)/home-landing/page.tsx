@@ -1,16 +1,16 @@
 "use client";
 
 import LoadingWrapper from "@/components/layout/LoadingWrapper";
-import NavigationLanding from "@/components/sections/home-landing/NavigationLanding";
 import AIPlatformsSection from "@/components/sections/home-landing/AIPlatformsLandingSection";
 import CTASection from "@/components/sections/home-landing/CTALandingSection";
 import HeroSection from "@/components/sections/home-landing/HeroLandingSection";
+import NavigationLanding from "@/components/sections/home-landing/NavigationLanding";
 import { UseAIPlatformsReturn } from "@/components/sections/home/interface";
-import { useAIPlatforms } from "@/hooks/home/useAIPlatforms";
 import { useLogin } from "@/hooks/home-landing/useLogin";
+import { useFlowPlatform } from "@/hooks/home/useAIPlatforms";
 
 const HomeLanding: React.FC = () => {
-  const { aiPlatforms }: UseAIPlatformsReturn = useAIPlatforms();
+  const { aiPlatforms }: UseAIPlatformsReturn = useFlowPlatform();
   const { handleLogin, loading } = useLogin();
 
   return (

@@ -8,28 +8,23 @@ export const useAuth = (requireAuth: boolean) => {
   const router = useRouter();
   const pathname = usePathname();
 
-  const { isLogin, loading, user, isLoggingOut } = useAppSelector(
-    (state) => state.auth
-  );
+  const { isLogin, loading, user } = useAppSelector((state) => state.auth);
 
   useEffect(() => {
     if (pathname === "/") return;
 
-    if (isLoggingOut && !isLogin && !user) {
-      if (requireAuth) {
-        dispatch(checkMe())
-          .unwrap()
-          .catch(() => {
-            if (typeof window !== "undefined") {
-              router.push("/home-landing");
-            }
-          });
-      }
+    if (requireAuth) {
+      dispatch(checkMe())
+        .unwrap()
+        .catch(() => {
+          if (typeof window !== "undefined") {
+            router.push("/home-landing");
+          }
+        });
     }
-  }, [dispatch, requireAuth, router, isLogin, user, pathname, isLoggingOut]);
+  }, [dispatch, requireAuth, router, pathname]);
 
   return {
-    // redux
     isLogin,
     loading,
     user,

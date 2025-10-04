@@ -5,7 +5,7 @@ import { LogOut, User } from "lucide-react";
 import UserProfileSheet from "../sections/user-profile/UserProfileSheet";
 import { CSheet } from "../shared/CSheet";
 import { Button } from "../ui/button";
-import { SheetClose } from "../ui/Sheet";
+import { SheetClose } from "../ui/sheet";
 
 export default function Header() {
   const { user, handleLogout } = useHeaderControl();
@@ -19,16 +19,16 @@ export default function Header() {
             {/* Logo */}
             <div className="flex items-center space-x-2 pr-4">
               <div className="w-8 h-8 bg-gradient-to-r from-blue-500 to-purple-600 rounded-lg flex items-center justify-center">
-                <span className="text-white font-bold text-sm">H</span>
+                <span className="text-white font-bold text-sm">F</span>
               </div>
               <span className="text-base font-semibold text-gray-900 hidden sm:block">
-                HARUMI-AI
+                FLOW-AI
               </span>
             </div>
 
-            <div className="flex items-center space-x-2">
+            {/* <div className="flex items-center space-x-2">
               <Button variant="ghost">Hailou AI</Button>
-            </div>
+            </div> */}
           </div>
 
           <div className="flex items-center space-x-4">

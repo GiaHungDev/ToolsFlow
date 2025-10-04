@@ -9,10 +9,10 @@ export const useCheck = () => {
   const router = useRouter();
 
   const { isLogin, loading, user } = useAppSelector((state) => state.auth);
+  console.log("🚀 ~ useCheck ~ user:", user);
 
   useEffect(() => {
     if (!isLogin && !user) {
-      console.log("2");
       dispatch(checkMe())
         .unwrap()
         .catch(() => {
@@ -24,10 +24,8 @@ export const useCheck = () => {
   }, [dispatch, router, isLogin, user]);
 
   const handleRedirectClick = (platform: AIPlatform) => {
-    if (platform.key === "hailuo") {
-      router.push("/hailuo-ai");
-    } else {
-      router.push("/runway-ai");
+    if (platform.key === "flow") {
+      router.push("/flow-ai");
     }
   };
 

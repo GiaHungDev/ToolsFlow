@@ -6,9 +6,9 @@ const Navigation: React.FC<NavigationProps> = ({ user }) => (
     <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
       <div className="flex items-center space-x-3">
         <div className="w-8 h-8 bg-gradient-to-r from-purple-500 to-pink-500 rounded-lg flex items-center justify-center">
-          H
+          F
         </div>
-        <span className="text-xl font-bold">Harumi AI</span>
+        <span className="text-xl font-bold">Flow AI</span>
       </div>
       {user && (
         <div className="flex items-center space-x-2 p-2 rounded-lg group">

@@ -6,11 +6,11 @@ import {
 } from "@/components/sections/home/interface";
 import Navigation from "@/components/sections/home/Navigation";
 import PlatformCard from "@/components/sections/home/PlatformCard";
-import { useHailuoPlatform } from "@/hooks/home/useAIPlatforms";
+import { useFlowPlatform } from "@/hooks/home/useAIPlatforms";
 import { useCheck } from "@/hooks/home/useCheck";
 
 const Home: React.FC = () => {
-  const { aiPlatforms }: UseAIPlatformsReturn = useHailuoPlatform();
+  const { aiPlatforms }: UseAIPlatformsReturn = useFlowPlatform();
 
   const { user, handleRedirectClick } = useCheck();
 
