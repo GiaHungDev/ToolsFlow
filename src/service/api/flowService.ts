@@ -8,6 +8,7 @@ import {
   IPrompt,
   ITopic,
 } from "@/types/flow";
+import { Notify } from "@/lib/Notify";
 
 export const createTopicService = async (
   title: string,
@@ -100,25 +101,84 @@ export const createFlowVideoService = async (
 
 export const uploadImgToFlowService = async (
   formData: FormData
-): Promise<IFilesUpload> => {
+): Promise<IFilesUpload | null> => {
   try {
-    const res: IFilesUpload = await axiosClient.post(
-      "flow/upload/images",
+    const res = await axiosClient.post<IFilesUpload>(
+      "flow/upload-veo3",
       formData,
       {
-        headers: {
-          "Content-Type": "multipart/form-data",
-        },
+        headers: { "Content-Type": "multipart/form-data" },
       }
     );
 
+    Notify({
+      title: "Upload thành công ",
+      description: "Ảnh đã được lưu vào hệ thống.",
+      status: "success",
+    });
+
     return res;
   } catch (error) {
-    if (error instanceof Error) {
-      throw new Error("Create new topic error in service:", error);
-    } else {
-      throw new Error("Create new topic error in service!");
+    console.error("Upload image failed:", error);
+
+    Notify({
+      title: "Upload thất bại ",
+      description: "Vui lòng thử lại sau.",
+      status: "error",
+    });
+
+    return null;
+  }
+};
+
+
+export const getVeo3StreamUrlService = async (id: number) => {
+  return axiosClient.get<{ url: string; expiresInSeconds: number }>(
+    `flow/veo3/${id}/stream-url`
+  );
+};
+export const getVeo3DownloadUrlService = async (id: number) => {
+  return axiosClient.get<{ url: string; expiresInSeconds: number }>(
+    `flow/veo3/${id}/download-url`
+  );
+};
+
+export const resetVideoPendingService = async (
+  id: number,
+  ownerId: number
+) => {
+  const formData = new FormData();
+  formData.append("ownerId", String(ownerId));
+
+  return axiosClient.patch(
+    `flow/veo3/${id}/reset-pending`,
+    formData,
+    {
+      headers: {
+        "Content-Type": "multipart/form-data",
+      },
     }
+  );
+};
+
+export const createFlowT2VService = async (
+  sceneNumber: number,
+  prompt: string,
+  ownerId: number
+) => {
+  try {
+    const formData = new FormData();
+    formData.append("prompt", prompt);
+    formData.append("ownerId", String(ownerId));
+    formData.append("sceneNumber", String(sceneNumber));
+    formData.append("typeI2V", "Text to Video");
+
+    return await axiosClient.post("flow/upload-veo3", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  } catch (error: any) {
+    console.error("❌ Lỗi createFlowT2VService:", error?.response?.data || error);
+    return null;
   }
 };
 
@@ -139,9 +199,7 @@ export const getFlowVideoService = async (
   }
 };
 
-export const deleteFlowService = async (
-  id: number
-): Promise<IFlowVideo> => {
+export const deleteFlowService = async (id: number): Promise<IFlowVideo> => {
   try {
     const res: IFlowVideo = await axiosClient.delete(
       `flow/delete/videos/${id}`

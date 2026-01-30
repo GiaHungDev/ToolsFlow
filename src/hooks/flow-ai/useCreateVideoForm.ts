@@ -18,6 +18,9 @@ export const useCreateVideoForm = ({ formVideo }: UseCreateVideoFormProp) => {
 
   const handleSubmitSuccess = async (values: CreateVideoFormValues) => {
     try {
+      console.log("🎬 Giá trị videoType nhận được:", values.videoType);
+    console.log("🧩 Giá trị full values:", values);
+
       if (!chooseVideoTopic)
         throw new Error("Selected topic for creating video not found.");
 
@@ -26,11 +29,15 @@ export const useCreateVideoForm = ({ formVideo }: UseCreateVideoFormProp) => {
 
       const formData = new FormData();
       formData.append("file", values.images[0].file);
+      formData.append("prompt", values.prompt);
+      formData.append("typeI2V", values.videoType);
+      
 
       const data = {
         thumbnail: base64Images[0],
         model: "I2V-01-Director",
-        prompt: values.description,
+        prompt: values.prompt,
+        videoType: values.videoType,
         formData: formData,
         topic: chooseVideoTopic.id,
       };

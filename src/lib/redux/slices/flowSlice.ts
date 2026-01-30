@@ -61,38 +61,38 @@ export const getTopic = createAsyncThunk<ITopic[]>("topics/get", async () => {
   return resData;
 });
 
-export const createFlowVideo = createAsyncThunk<
-  IFlowVideo,
-  CreateFlowVideo
->("flow/create/video", async (data) => {
-  if (!data.formData) throw new Error("FormData not found!");
-  const uploadImagesToMinimax = await uploadImgToFlowService(data.formData);
+export const createFlowVideo = createAsyncThunk<IFlowVideo, CreateFlowVideo>(
+  "flow/create/video",
+  async (data) => {
+    if (!data.formData) throw new Error("FormData not found!");
+    const uploadImagesToMinimax = await uploadImgToFlowService(data.formData);
 
-  if (!uploadImagesToMinimax) throw new Error("Upload image to flow error!");
+    if (!uploadImagesToMinimax) throw new Error("Upload image to flow error!");
 
-  const payload = {
-    thumbnail: data.thumbnail,
-    model: data.model,
-    prompt: data.prompt,
-    fileId: uploadImagesToMinimax.fileID,
-    topic: data.topic,
-  };
-  const resData = await createFlowVideoService({ ...payload });
-  return resData;
-});
+    const payload = {
+      thumbnail: data.thumbnail,
+      model: data.model,
+      prompt: data.prompt,
+      fileId: uploadImagesToMinimax.fileID,
+      topic: data.topic,
+    };
+    const resData = await createFlowVideoService({ ...payload });
+    return resData;
+  }
+);
 
-export const createFlowT2V = createAsyncThunk<
-  IFlowVideo,
-  CreateFlowVideo
->("flow/create/T2V", async (data) => {
-  const payload = {
-    model: data.model,
-    prompt: data.prompt,
-    topic: data.topic,
-  };
-  const resData = await createFlowVideoService({ ...payload });
-  return resData;
-});
+export const createFlowT2V = createAsyncThunk<IFlowVideo, CreateFlowVideo>(
+  "flow/create/T2V",
+  async (data) => {
+    const payload = {
+      model: data.model,
+      prompt: data.prompt,
+      topic: data.topic,
+    };
+    const resData = await createFlowVideoService({ ...payload });
+    return resData;
+  }
+);
 
 export const getFlowVideo = createAsyncThunk<IFlowData, GetFlowVideo>(
   "flow/get/video",
@@ -332,46 +332,6 @@ export const LoginSlice = createSlice({
         });
         console.error("Get topic failed:", action.error);
       })
-      // flow/create/video =========================================
-      .addCase(createFlowVideo.pending, (state) => {
-        state.loadFlow.loadCreateVideo = true;
-      })
-      .addCase(
-        createFlowVideo.fulfilled,
-        (state, action: PayloadAction<IFlowVideo>) => {
-          state.loadFlow.loadCreateVideo = false;
-          state.flowVideo = action.payload;
-          Notify({
-            title: "Đang xử lý yêu cầu tạo video",
-            description: "Hệ thống đã nhận thông tin và đưa vào hàng chờ.",
-            status: "success",
-          });
-        }
-      )
-      .addCase(createFlowVideo.rejected, (state, action) => {
-        state.loadFlow.loadCreateVideo = false;
-        Notify({
-          title: "Tạo video flow lỗi!",
-          status: "error",
-        });
-        console.error("Create video failed:", action.error);
-      })
-      // flow/create/T2V =========================================
-      .addCase(createFlowT2V.pending, (state) => {
-        state.loadFlow.loadCreateT2V = true;
-      })
-      .addCase(createFlowT2V.fulfilled, (state) => {
-        state.loadFlow.loadCreateT2V = false;
-      })
-      .addCase(createFlowT2V.rejected, (state, action) => {
-        state.loadFlow.loadCreateT2V = false;
-        Notify({
-          title: "Tạo video flow lỗi!",
-          status: "error",
-        });
-        console.error("Create video failed:", action.error);
-      })
-      // flow/get/video =========================================
       .addCase(getFlowVideo.pending, (state) => {
         state.loadFlow.loadGetFlow = true;
       })

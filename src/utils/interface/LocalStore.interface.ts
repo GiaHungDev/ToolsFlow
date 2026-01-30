@@ -13,7 +13,7 @@ export enum TokenStatus {
   TOKEN_VALID = "TOKEN_VALID",
 }
 
-// Enum để định nghĩa các trạng thái xác thực
+// Enum để định nghĩa các videoStatusTable xác thực
 export enum AuthStatus {
   SUCCESS = "SUCCESS", // Token hợp lệ
   NO_TOKEN = "NO_TOKEN", // Không có token nào

@@ -41,6 +41,12 @@ export const videoStatusTable = [
   {
     id: 2,
     status: "processing",
+    label: "Đang hàng chờ",
+    color: "orange",
+  },
+  {
+    id: 7,
+    status: "Generating",
     label: "Đang xử lý",
     color: "cyan",
   },
@@ -67,5 +73,11 @@ export const videoStatusTable = [
     status: "not_downloaded",
     label: "Video chưa tải",
     color: "orange",
+  },
+  {
+    id: 7,
+    status: "uploaded",
+    label: "Đã tải lên",
+    color: "idle",
   },
 ];

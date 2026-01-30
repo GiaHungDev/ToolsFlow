@@ -14,10 +14,9 @@ const fileItemSchema = z.object({
 });
 
 export const formSchema = z.object({
-  description: z.string().min(1, {
-    message: "Hãy nhập mô tả video!",
-  }),
+  prompt: z.string().min(1, { message: "Hãy nhập mô tả video!" }),
   images: z.array(fileItemSchema).min(1, { message: "Hãy upload ảnh!" }),
+  videoType: z.enum(["Frames to Video", "Ingredients to Video"]), // đủ rồi
 });
 
 export type CreateVideoFormValues = z.infer<typeof formSchema>;
@@ -26,8 +25,9 @@ export const useFormVideo = () => {
   return useForm<CreateVideoFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      description: "",
+      prompt: "",
       images: [],
+      videoType: "Frames to Video",
     },
   });
 };

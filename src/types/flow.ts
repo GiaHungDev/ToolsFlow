@@ -29,6 +29,13 @@ export interface IFlowVideo extends IBase {
   description: string;
   imageBase64: string;
   prompt: string;
+  archiveStatus?: "Pending" | "Uploading" | "Archived" | "Failed";
+  archiveError?: string | null;
+  archiveAttempts?: number;
+  archivedAt?: string | null;
+  lockedAt?: string | null;
+  s3Key?: string | null;
+  sourceExpiresAt?: string | null;
 }
 
 export interface IPaginationFlow {
@@ -73,3 +80,5 @@ export interface IPromptItem {
   id: string;
   content: string;
 }
+
+

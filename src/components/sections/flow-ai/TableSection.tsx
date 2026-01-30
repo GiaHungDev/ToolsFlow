@@ -34,6 +34,10 @@ import {
   RefreshCcw,
   Search,
   Trash2,
+  FileText,
+  Images,
+  Clapperboard,
+  HelpCircle,
 } from "lucide-react";
 import Image from "next/image";
 import React, { useMemo } from "react";
@@ -50,7 +54,7 @@ const TableSection: React.FC<TableSectionProp> = ({
   formFilter,
 }) => {
   const { listFlowVideo, loadFlow, paginationFlow } = useAppSelector(
-    (state) => state.flow
+    (state) => state.flow,
   );
   const { handlePaginationChange, pagination } = useTableData();
   const {
@@ -107,32 +111,82 @@ const TableSection: React.FC<TableSectionProp> = ({
           return dayjs(value as string).format("DD/MM/YYYY");
         },
       },
+      // {
+      //   key: "updatedAt",
+      //   title: "Ngày cập nhật",
+      //   width: 200,
+      //   className: "font-medium text-left",
+      //   render: (value) => {
+      //     if (!value) return <span className="text-gray-400">—</span>;
+      //     return dayjs(value as string).format("DD/MM/YYYY HH:mm");
+      //   },
+      // },
       {
-        key: "updatedAt",
-        title: "Ngày cập nhật",
+        key: "typeI2V",
+        title: "Thể loại",
         width: 200,
-        className: "font-medium text-left",
         render: (value) => {
-          if (!value) return <span className="text-gray-400">—</span>;
-          return dayjs(value as string).format("DD/MM/YYYY HH:mm");
+          const type = value as string;
+
+          const getTypeInfo = (type: string) => {
+            switch (type) {
+              case "Text to Video":
+                return {
+                  icon: <FileText size={18} />,
+                  label: "Text to Video",
+                  color: "text-blue-500",
+                };
+              case "Frames to Video":
+                return {
+                  icon: <Images size={18} />,
+                  label: "Frames to Video",
+                  color: "text-green-500",
+                };
+              case "Ingredients to Video":
+                return {
+                  icon: <Clapperboard size={18} />,
+                  label: "Ingredients to Video",
+                  color: "text-purple-500",
+                };
+              default:
+                return {
+                  icon: <HelpCircle size={18} />,
+                  label: "Không xác định",
+                  color: "text-gray-400",
+                };
+            }
+          };
+
+          const info = getTypeInfo(type);
+
+          return (
+            <div className={`flex items-center gap-2 ${info.color}`}>
+              {info.icon}
+              <span>{info.label}</span>
+            </div>
+          );
         },
       },
       {
-        key: "thumbnail",
+        key: "image",
         title: "Ảnh",
         width: 120,
         className: "font-medium text-center",
         render: (value) => {
-          const thumbnailUrl = value as string;
-          if (!thumbnailUrl)
-            return <div className="text-gray-400">No image</div>;
+          const imagePath = value as string;
+          if (!imagePath) return <div className="text-gray-400">No image</div>;
+
+          const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
+          const imageUrl = imagePath.startsWith("http")
+            ? imagePath
+            : `${baseUrl}${imagePath}`;
 
           return (
             <div className="flex items-center justify-center">
               <div className="w-[60px] h-[40px] relative">
                 <Image
-                  src={thumbnailUrl}
-                  alt="Thumbnail"
+                  src={imageUrl}
+                  alt="Image"
                   fill
                   className="rounded object-cover"
                   unoptimized
@@ -154,7 +208,7 @@ const TableSection: React.FC<TableSectionProp> = ({
             return (
               <Badge
                 variant="secondary"
-                className="px-2 py-1 rounded-full w-32"
+                className="px-2 py-1 rounded-full w-32 flex justify-center items-center"
               >
                 Unknown
               </Badge>
@@ -207,25 +261,90 @@ const TableSection: React.FC<TableSectionProp> = ({
         },
       },
     ],
-    []
+    [],
   );
 
-  const fixedRightColumns = useMemo<TableColumn<IFlowVideo>[]>(
-    () => [
-      {
-        key: "actions",
-        title: "Actions",
-        width: 120,
-        className: "text-center",
-        render: (_value, record) => (
+  // const fixedRightColumns = useMemo<TableColumn<IFlowVideo>[]>(
+  //   () => [
+  //     {
+  //       key: "actions",
+  //       title: "Actions",
+  //       width: 120,
+  //       className: "text-center",
+  //       render: (_value, record) => (
+          
+  //         <DropdownMenu>
+  //           <DropdownMenuTrigger asChild>
+  //             <Button variant="outline" className="h-8 w-8 p-0">
+  //               <Ellipsis className="h-4 w-6" />
+  //             </Button>
+  //           </DropdownMenuTrigger>
+  //           <DropdownMenuContent align="end" className="w-[160px]">
+  //             {record.archiveStatus === "Archived" && (
+  //               <>
+  //                 <DropdownMenuItem
+  //                   onClick={() => handleShowVideo(record.id)}
+  //                   className="cursor-pointer"
+  //                 >
+  //                   <Play className="mr-2 h-4 w-4" />
+  //                   Xem video
+  //                 </DropdownMenuItem>
+
+  //                 <DropdownMenuSeparator />
+
+  //                 <DropdownMenuItem
+  //                   onClick={() => handleDownloadVideo(record.id)}
+  //                   className="cursor-pointer"
+  //                 >
+  //                   <Download className="mr-2 h-4 w-4" />
+  //                   Tải xuống
+  //                 </DropdownMenuItem>
+
+  //                 <DropdownMenuSeparator />
+  //               </>
+  //             )}
+
+  //             <DropdownMenuItem
+  //               onClick={() => handleRecreate(record.id)}
+  //               className="cursor-pointer"
+  //             >
+  //               <Copy className="mr-2 h-4 w-4" />
+  //               Tạo lại
+  //             </DropdownMenuItem>
+  //             <DropdownMenuSeparator />
+  //             <DropdownMenuItem
+  //               onClick={() => handleDelete(record.id)}
+  //               className="cursor-pointer text-red-600 focus:text-red-600"
+  //             >
+  //               <Trash2 className="mr-2 h-4 w-4" />
+  //               Delete
+  //             </DropdownMenuItem>
+  //           </DropdownMenuContent>
+  //         </DropdownMenu>
+  //       ),
+  //     },
+  //   ],
+  //   [handleDownloadVideo, handleRecreate, handleDelete, handleShowVideo],
+  // );
+const fixedRightColumns = useMemo<TableColumn<IFlowVideo>[]>(
+  () => [
+    {
+      key: "actions",
+      title: "Actions",
+      width: 120,
+      className: "text-center",
+      render: (_value, record) => {
+
+        return (
           <DropdownMenu>
             <DropdownMenuTrigger asChild>
               <Button variant="outline" className="h-8 w-8 p-0">
                 <Ellipsis className="h-4 w-6" />
               </Button>
             </DropdownMenuTrigger>
+
             <DropdownMenuContent align="end" className="w-[160px]">
-              {record.videoURL && (
+              {record.archiveStatus === "Archived" && (
                 <>
                   <DropdownMenuItem
                     onClick={() => handleShowVideo(record.id)}
@@ -234,7 +353,9 @@ const TableSection: React.FC<TableSectionProp> = ({
                     <Play className="mr-2 h-4 w-4" />
                     Xem video
                   </DropdownMenuItem>
+
                   <DropdownMenuSeparator />
+
                   <DropdownMenuItem
                     onClick={() => handleDownloadVideo(record.id)}
                     className="cursor-pointer"
@@ -242,6 +363,7 @@ const TableSection: React.FC<TableSectionProp> = ({
                     <Download className="mr-2 h-4 w-4" />
                     Tải xuống
                   </DropdownMenuItem>
+
                   <DropdownMenuSeparator />
                 </>
               )}
@@ -253,7 +375,9 @@ const TableSection: React.FC<TableSectionProp> = ({
                 <Copy className="mr-2 h-4 w-4" />
                 Tạo lại
               </DropdownMenuItem>
+
               <DropdownMenuSeparator />
+
               <DropdownMenuItem
                 onClick={() => handleDelete(record.id)}
                 className="cursor-pointer text-red-600 focus:text-red-600"
@@ -263,11 +387,12 @@ const TableSection: React.FC<TableSectionProp> = ({
               </DropdownMenuItem>
             </DropdownMenuContent>
           </DropdownMenu>
-        ),
+        );
       },
-    ],
-    [handleDownloadVideo, handleRecreate, handleDelete, handleShowVideo]
-  );
+    },
+  ],
+  [handleDownloadVideo, handleRecreate, handleDelete, handleShowVideo],
+);
 
   return (
     <>
@@ -295,7 +420,7 @@ const TableSection: React.FC<TableSectionProp> = ({
           data={listFlowVideo}
           columns={columns}
           fixedRightColumns={fixedRightColumns}
-          title="Danh sách video Hailou AI"
+          title="Danh sách video Flow-AI"
           maxHeight="max-h-[calc(100vh-250px)] sm:max-h-[calc(100vh-300px)] lg:max-h-[calc(100vh-350px)]"
           enableSelection={true}
           enablePagination={true}
@@ -307,15 +432,15 @@ const TableSection: React.FC<TableSectionProp> = ({
           zebra={true}
         />
       </div>
+     
       <ShowVideoModal
-        openVideoModal={isOpenVideoModal}
-        setOpenVideoModal={setIsOpenVideoModal}
-        videoUrl={
-          videoUrl ? videoUrl : "https://www.youtube.com/watch?v=dQw4w9WgXcQ"
-        }
-        title="Xem video"
-        description="Video được tạo bởi Flow AI."
-      />
+  openVideoModal={isOpenVideoModal}
+  setOpenVideoModal={setIsOpenVideoModal}
+  videoUrl={videoUrl}   // 👈 CHỈ TRUYỀN videoUrl THẬT
+  title="Xem video"
+  description="Video được tạo bởi Flow AI."
+/>
+
       <FilterModal
         formFilter={formFilter}
         isOpenModal={isOpenFilterModal}

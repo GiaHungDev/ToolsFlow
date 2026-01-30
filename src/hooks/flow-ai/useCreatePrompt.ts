@@ -29,7 +29,7 @@ export const useCreatePrompt = (
 
       if (res && formVideo) {
         setFormValues(formVideo, {
-          description: res.prompt,
+         prompt: res.prompt,
         });
         if (formPrompt) clearAllFields(formPrompt);
         onCancel?.();

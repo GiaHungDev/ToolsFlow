@@ -7,17 +7,20 @@ import {
   updatePromptCameraMovement,
   updatePromptContent,
 } from "@/lib/redux/slices/flowSlice";
+import { createFlowT2VService } from "@/service/api/flowService";
 import { useAppDispatch, useAppSelector } from "@/lib/redux/store";
 import { useCallback, useState } from "react";
 import { useCamMotion } from "./useCamMotion";
+import type { Scene } from "@/components/sections/flow-ai/modals/Results";
 
 interface UseListPromptProp {
   handleCloseListPromptModal: () => void;
 }
 
-export const useListPromptModal = ({
-  handleCloseListPromptModal,
-}: UseListPromptProp) => {
+// export const useListPromptModal = ({
+//   handleCloseListPromptModal,
+// }: UseListPromptProp) => {
+export const useListPromptModal = () => {
   const { listPrompt, chooseVideoTopic, loadFlow } = useAppSelector(
     (state) => state.flow
   );
@@ -154,35 +157,70 @@ export const useListPromptModal = ({
     });
   }, [dispatch, listPrompt]);
 
-  const handleCreateVideoT2V = async () => {
-    try {
-      if (!chooseVideoTopic)
-        throw new Error("Selected topic for creating video not found.");
+  // const handleCreateVideoT2V = async () => {
+  //   try {
+  //     if (!chooseVideoTopic)
+  //       throw new Error("Selected topic for creating video not found.");
 
-      for (const item of listPrompt) {
-        const payload = {
-          model: "T2V-01-Director",
-          prompt: item.content,
-          topic: chooseVideoTopic.id,
-        };
+  //     for (const item of listPrompt) {
+  //       const payload = {
+  //         model: "T2V-01-Director",
+  //         prompt: item.content,
+  //         topic: chooseVideoTopic.id,
+  //       };
 
-        await dispatch(createFlowT2V({ ...payload })).unwrap();
-      }
-      resetSelections();
-      handleCloseListPromptModal();
-      Notify({
-        title: "Đang xử lý yêu cầu tạo video",
-        description: `Hệ thống đã nhận thông tin tạo "${listPrompt.length}" và đưa vào hàng chờ.`,
-        status: "success",
-      });
-    } catch (error) {
-      console.error(error);
+  //       await dispatch(createFlowT2V({ ...payload })).unwrap();
+  //     }
+  //     resetSelections();
+  //     handleCloseListPromptModal();
+  //     Notify({
+  //       title: "Đang xử lý yêu cầu tạo video",
+  //       description: `Hệ thống đã nhận thông tin tạo "${listPrompt.length}" và đưa vào hàng chờ.`,
+  //       status: "success",
+  //     });
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // };
+  // const handleCreateVideoT2V = async () => {
+  //   try {
+  //     for (const item of listPrompt) {
+  //       await createFlowT2VService(item.id, item.content);
+  //     }
+
+  //     resetSelections();
+  //     // handleCloseListPromptModal();
+
+  //     Notify({
+  //       title: "Đang xử lý yêu cầu tạo video",
+  //       description: `Hệ thống đã nhận thông tin tạo "${listPrompt.length}" video.`,
+  //       status: "success",
+  //     });
+  //   } catch (error) {
+  //     console.error(error);
+  //   }
+  // };
+
+ const createVideosFromScenes = async (scenes: Scene[], ownerId: number) => {
+  try {
+    for (const scene of scenes) {
+      await createFlowT2VService(scene.scene_number, scene.prompt_text, ownerId);
     }
-  };
+
+    Notify({
+      title: "Đang xử lý yêu cầu tạo video",
+      description: `Hệ thống đã nhận ${scenes.length} video.`,
+      status: "success",
+    });
+  } catch (error) {
+    console.error(error);
+  }
+};
+
 
   return {
     listPrompt,
-    loadFlow: loadFlow.loadCreateT2V,
+    loadFlow: false,
     editingPrompt,
     editedContent,
     setEditedContent,
@@ -199,6 +237,7 @@ export const useListPromptModal = ({
     handleCamMotionCancel,
     handleRemoveCameraMovement,
     handleRemoveAllCameraMovement,
-    handleCreateVideoT2V,
+    // handleCreateVideoT2V,
+    createVideosFromScenes,
   };
 };

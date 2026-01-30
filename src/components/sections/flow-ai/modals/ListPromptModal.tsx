@@ -133,6 +133,7 @@ const ListPromptModal: React.FC<ListPromptModalProps> = ({
     handleRemoveCameraMovement,
     handleRemoveAllCameraMovement,
     handleCreateVideoT2V,
+    
   } = useListPromptModal({ handleCloseListPromptModal });
 
   const handleCancel = () => {

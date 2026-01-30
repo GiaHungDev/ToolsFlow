@@ -12,21 +12,20 @@ import {
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { CreateVideoFormValues } from "@/hooks/flow-ai/useFormVideo";
-import { Clapperboard, Video } from "lucide-react";
+import { Clapperboard } from "lucide-react";
 import { UseFormReturn } from "react-hook-form";
+import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 
 interface CreateVideoSectionProps {
   formVideo: UseFormReturn<CreateVideoFormValues>;
   handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
   loading: boolean;
-  handleOpenCamMotion: () => void;
 }
 
 const CreateVideoSection: React.FC<CreateVideoSectionProps> = ({
   formVideo,
   handleSubmit,
   loading,
-  handleOpenCamMotion,
 }) => {
   return (
     <>
@@ -34,7 +33,7 @@ const CreateVideoSection: React.FC<CreateVideoSectionProps> = ({
         <form onSubmit={handleSubmit} className="space-y-6">
           <FormField
             control={formVideo.control}
-            name="description"
+            name="prompt"
             render={({ field, fieldState }) => (
               <FormItem>
                 <FormLabel>Mô tả video</FormLabel>
@@ -53,21 +52,37 @@ const CreateVideoSection: React.FC<CreateVideoSectionProps> = ({
               </FormItem>
             )}
           />
-          <div className="grid w-full gap-2 sm:gap-2.5">
-            <Label
-              htmlFor="select-topic"
-              className="text-[6px] xs:text-[10px] sm:text-xs lg:text-sm"
-            >
-              Chọn góc quay
-            </Label>
-            <Button
-              type="button"
-              variant={"secondary"}
-              onClick={handleOpenCamMotion}
-            >
-              <Video /> Chọn góc quay
-            </Button>
-          </div>
+
+          {/* 🆕 Lựa chọn kiểu tạo video */}
+          <FormField
+            control={formVideo.control}
+            name="videoType"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Chọn kiểu tạo video</FormLabel>
+                <FormControl>
+                  <RadioGroup
+                    onValueChange={field.onChange}
+                    value={field.value}
+                    className="flex gap-4 mt-2"
+                  >
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem value="Frames to Video" id="frames" />
+                      <Label htmlFor="frames">Frames to Video</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <RadioGroupItem
+                        value="Ingredients to Video"
+                        id="ingredients"
+                      />
+                      <Label htmlFor="ingredients">Ingredients to Video</Label>
+                    </div>
+                  </RadioGroup>
+                </FormControl>
+              </FormItem>
+            )}
+          />
+
           <FormField
             control={formVideo.control}
             name="images"
@@ -92,6 +107,7 @@ const CreateVideoSection: React.FC<CreateVideoSectionProps> = ({
               </FormItem>
             )}
           />
+
           <Button
             variant="secondary"
             className="w-full"
@@ -108,3 +124,4 @@ const CreateVideoSection: React.FC<CreateVideoSectionProps> = ({
 };
 
 export default CreateVideoSection;
+
