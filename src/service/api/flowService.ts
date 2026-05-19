@@ -86,7 +86,7 @@ export const createFlowVideoService = async (
   data: CreateFlowVideo
 ): Promise<IFlowVideo> => {
   try {
-    const res: IFlowVideo = await axiosClient.post("flow/create/videos", {
+    const res: IFlowVideo = await axiosClient.post("flow/veo3", {
       ...data,
     });
     return res;
@@ -101,7 +101,7 @@ export const createFlowVideoService = async (
 
 export const getProjectNamesService = async (): Promise<string[]> => {
   try {
-    const res: string[] = await axiosClient.get("flow/get/project-names");
+    const res: string[] = await axiosClient.get("flow/veo3/project-names");
     return res;
   } catch (error) {
     if (error instanceof Error) {
@@ -117,7 +117,7 @@ export const uploadImgToFlowService = async (
 ): Promise<IFilesUpload | null> => {
   try {
     const res = await axiosClient.post<IFilesUpload>(
-      "flow/upload-veo3",
+      "flow/veo3/upload",
       formData,
       {
         headers: { "Content-Type": "multipart/form-data" },
@@ -232,7 +232,7 @@ export const createFlowT2VService = async (
       formData.append("imagePaths", JSON.stringify(pathsObj));
     }
 
-    return await axiosClient.post("flow/upload-veo3", formData, {
+    return await axiosClient.post("flow/veo3/upload", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
   } catch (error: any) {
@@ -267,7 +267,7 @@ export const createFlowBatchService = async (
       formData.append("imagePaths", JSON.stringify(pathsObj));
     }
 
-    return await axiosClient.post("flow/upload-veo3-batch", formData, {
+    return await axiosClient.post("flow/veo3/upload-batch", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
   } catch (error: any) {
@@ -280,7 +280,7 @@ export const getFlowVideoService = async (
   data: GetFlowVideo
 ): Promise<IFlowData> => {
   try {
-    const res: IFlowData = await axiosClient.get("flow/get/videos", {
+    const res: IFlowData = await axiosClient.get("flow/veo3", {
       params: data,
     });
     return res;
@@ -296,7 +296,7 @@ export const getFlowVideoService = async (
 export const deleteFlowService = async (id: number): Promise<IFlowVideo> => {
   try {
     const res: IFlowVideo = await axiosClient.delete(
-      `flow/delete/videos/${id}`
+      `flow/veo3/${id}`
     );
     return res;
   } catch (error) {

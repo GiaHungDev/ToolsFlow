@@ -945,6 +945,20 @@ class Veo3PipelineController {
                     }
                 }
 
+                // Tự động tắt khi tất cả Job đã hoàn thành
+                const hasActiveJobs = this.workers.some(w => w.state !== 'idle');
+                if (this.pendingQueue.length === 0 && !hasActiveJobs && this.workers.length > 0) {
+                    this.log('🎉 [HỆ THỐNG] Tất cả các Job trong hàng đợi đã được xử lý hoàn tất!');
+                    this.log('👉 Tiến trình tự động kết thúc. Đang đóng trình duyệt Chrome...');
+                    this.isRunning = false;
+                    await this.stop();
+                    if (this.io) {
+                        this.io.emit('veo3:pipeline-finished');
+                    }
+                    await this.sleep(1000);
+                    process.exit(0);
+                }
+
             } catch (fatalError) {
                 this.log(`Fatal Pipeline Error: ${fatalError.message}`, 'error');
             }

@@ -75,6 +75,7 @@ const TableSection: React.FC<TableSectionProp> = ({
     handleRecreate,
     handleDelete,
     handleDeleteVideos,
+    handleRecreateVideos,
     handleReload,
   } = useTableActions({ formVideo });
 
@@ -358,39 +359,8 @@ const TableSection: React.FC<TableSectionProp> = ({
     [handleRecreate, handleDelete, handleShowVideo],
   );
 
-  const [mounted, setMounted] = useState(false);
-  useEffect(() => {
-    setMounted(true);
-  }, []);
-
-  const actionButtons = (
+  const [mounted, setMounted] = useState(false);  const actionButtons = (
     <>
-      {selectedCount > 0 && (
-        <>
-          <AlertDialog>
-            <AlertDialogTrigger asChild>
-              <Button variant="destructive" className="shadow-sm">
-                <Trash2 className="w-4 h-4 mr-2" />
-                {`Xóa ${selectedCount} video`}
-              </Button>
-            </AlertDialogTrigger>
-            <AlertDialogContent>
-              <AlertDialogHeader>
-                <AlertDialogTitle>Xác nhận xóa video</AlertDialogTitle>
-                <AlertDialogDescription>
-                  Bạn có chắc chắn muốn xóa {selectedCount} video đã chọn không? Hành động này không thể hoàn tác.
-                </AlertDialogDescription>
-              </AlertDialogHeader>
-              <AlertDialogFooter>
-                <AlertDialogCancel>Hủy</AlertDialogCancel>
-                <AlertDialogAction onClick={handleDeleteVideos} className="bg-red-600 hover:bg-red-700">
-                  Đồng ý
-                </AlertDialogAction>
-              </AlertDialogFooter>
-            </AlertDialogContent>
-          </AlertDialog>
-        </>
-      )}
       <Button
         className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm"
         onClick={handleOpenFilterModal}
@@ -398,6 +368,56 @@ const TableSection: React.FC<TableSectionProp> = ({
         <Search className="w-4 h-4 mr-2" />
         Tìm kiếm
       </Button>
+
+      {selectedCount > 0 && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" className="shadow-sm">
+              <Trash2 className="w-4 h-4 mr-2" />
+              {`Xóa ${selectedCount} video`}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Xác nhận xóa video</AlertDialogTitle>
+              <AlertDialogDescription>
+                Bạn có chắc chắn muốn xóa {selectedCount} video đã chọn không? Hành động này không thể hoàn tác.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Hủy</AlertDialogCancel>
+              <AlertDialogAction onClick={handleDeleteVideos} className="bg-red-600 hover:bg-red-700">
+                Đồng ý
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
+
+      {selectedCount > 0 && (
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm border border-emerald-600">
+              <RefreshCcw className="w-4 h-4 mr-2 animate-spin-hover" />
+              {`Tạo lại ${selectedCount} video`}
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle>Xác nhận tạo lại video</AlertDialogTitle>
+              <AlertDialogDescription>
+                Bạn có chắc chắn muốn đưa {selectedCount} video đã chọn về trạng thái chờ tạo lại không?
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Hủy</AlertDialogCancel>
+              <AlertDialogAction onClick={handleRecreateVideos} className="bg-emerald-600 hover:bg-emerald-700 text-white">
+                Đồng ý
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      )}
       <Button variant="outline" onClick={() => handleReload(pagination.page, pagination.limit)} className="shadow-sm border-stone-200">
         <RefreshCcw className="w-4 h-4 mr-2" />
         Tải lại

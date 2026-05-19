@@ -114,6 +114,11 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
               }
               await createVideosFromScenes(generatedScenes, ownerId, validImages, projectName.trim());
               handleGenerateSuccess(generatedScenes, topicFormData);
+              // Clear storyboard states to prevent overwriting next time
+              setGeneratedScenes([]);
+              setTopicFormData(null);
+              setValidImages([]);
+              setProjectName("");
             }}
             className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl transition border border-emerald-600 shadow-sm"
           >

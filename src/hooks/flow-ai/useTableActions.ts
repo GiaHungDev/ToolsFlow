@@ -151,12 +151,63 @@ export const useTableActions = ({ formVideo }: UseTableActionsProp) => {
     }
   };
 
+  const handleRecreateVideos = async () => {
+    try {
+      if (!listSelectedId || listSelectedId.length === 0) {
+        Notify({
+          title: "Chọn video cần tạo lại",
+          description: "Hãy chọn các video cần tạo lại",
+          status: "warning",
+        });
+        return;
+      }
+
+      if (!listFlowVideo) {
+        throw new Error("Không có dữ liệu có sẵn!");
+      }
+
+      const promises = listSelectedId.map(async (id) => {
+        const video = listFlowVideo.find((item) => Number(item.id) === Number(id));
+        if (video && video.prompt) {
+          await resetVideoPendingService(Number(id), Number(video.ownerId));
+        }
+      });
+
+      await Promise.all(promises);
+
+      // Force reload the list to show new statuses
+      await dispatch(
+        getFlowVideo({
+          page: 1,
+          limit: 10,
+        })
+      );
+
+      Notify({
+        title: "Tạo lại thành công",
+        description: `Đã đưa ${listSelectedId.length} video về trạng thái chờ tạo lại.`,
+        status: "success",
+      });
+
+      setListSelectedId([]);
+      setSelectedCount(0);
+    } catch (error: any) {
+      console.error("❌ Lỗi tạo lại nhiều video:", error);
+      Notify({
+        title: "Lỗi tạo lại video",
+        description: "Không thể tạo lại các video đã chọn.",
+        status: "error",
+      });
+    }
+  };
+
   return {
     handleSelectionChange,
     selectedCount,
     handleRecreate,
     handleDelete,
     handleDeleteVideos,
+    handleRecreateVideos,
     handleReload,
   };
 };

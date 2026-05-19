@@ -3,8 +3,10 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Play, Pause, Server, FileText, MonitorPlay, Key, FileUp, ListRestart, Minus, Plus, Settings, Save } from "lucide-react";
 import { Notify } from "@/lib/Notify";
+import { useAppSelector } from "@/lib/redux/store";
 
 const Veo3Section = () => {
+  const { user } = useAppSelector((state) => state.auth);
   const [threadCount, setThreadCount] = useState<number>(1);
   const [loginMethod, setLoginMethod] = useState<"account" | "cookie" | "tool">("cookie");
   const [importMethod, setImportMethod] = useState<"text" | "file">("text");
@@ -25,23 +27,34 @@ const Veo3Section = () => {
   }, [logs]);
 
   useEffect(() => {
-    const savedAccount = localStorage.getItem("veo3_account");
-    if (savedAccount) setAccountData(JSON.parse(savedAccount));
+    if (!user?.id) return;
+    
+    const userId = user.id;
 
-    const savedCookie = localStorage.getItem("veo3_cookie");
-    if (savedCookie) setCookieData(savedCookie);
+    const savedAccount = localStorage.getItem(`veo3_${userId}_account`);
+    if (savedAccount) {
+      setAccountData(JSON.parse(savedAccount));
+    } else {
+      setAccountData({ email: "", password: "", twoFA: "" });
+    }
 
-    const savedChromePath = localStorage.getItem("veo3_chrome_path");
+    const savedCookie = localStorage.getItem(`veo3_${userId}_cookie`);
+    setCookieData(savedCookie || "");
+
+    const savedChromePath = localStorage.getItem(`veo3_${userId}_chrome_path`);
     if (savedChromePath) {
       setChromePath(savedChromePath);
       // Auto-lock if they already have the required Chrome Path
       setIsConfigSaved(true);
+    } else {
+      setChromePath("");
+      setIsConfigSaved(false);
     }
 
-    const savedToolAccount = localStorage.getItem("veo3_tool_account");
-    if (savedToolAccount) setToolAccount(savedToolAccount);
+    const savedToolAccount = localStorage.getItem(`veo3_${userId}_tool_account`);
+    setToolAccount(savedToolAccount || "");
 
-    const savedLoginMethod = localStorage.getItem("veo3_login_method") as "account" | "cookie" | "tool";
+    const savedLoginMethod = localStorage.getItem(`veo3_${userId}_login_method`) as "account" | "cookie" | "tool";
     if (savedLoginMethod) {
       if (savedLoginMethod === "account") {
         setLoginMethod("cookie"); // Default to cookie if account is temporarily disabled
@@ -52,9 +65,13 @@ const Veo3Section = () => {
       setLoginMethod("cookie");
     }
 
-    const savedThreadCount = localStorage.getItem("veo3_thread_count");
-    if (savedThreadCount) setThreadCount(Number(savedThreadCount));
-  }, []);
+    const savedThreadCount = localStorage.getItem(`veo3_${userId}_thread_count`);
+    if (savedThreadCount) {
+      setThreadCount(Number(savedThreadCount));
+    } else {
+      setThreadCount(1);
+    }
+  }, [user?.id]);
 
   // Tự động kiểm tra trạng thái chạy ngầm khi tải trang
   useEffect(() => {
@@ -79,22 +96,30 @@ const Veo3Section = () => {
   const handleAccountChange = (field: keyof typeof accountData, value: string) => {
     const newData = { ...accountData, [field]: value };
     setAccountData(newData);
-    localStorage.setItem("veo3_account", JSON.stringify(newData));
+    if (user?.id) {
+      localStorage.setItem(`veo3_${user.id}_account`, JSON.stringify(newData));
+    }
   };
 
   const handleCookieChange = (value: string) => {
     setCookieData(value);
-    localStorage.setItem("veo3_cookie", value);
+    if (user?.id) {
+      localStorage.setItem(`veo3_${user.id}_cookie`, value);
+    }
   };
 
   const handleToolAccountChange = (value: string) => {
     setToolAccount(value);
-    localStorage.setItem("veo3_tool_account", value);
+    if (user?.id) {
+      localStorage.setItem(`veo3_${user.id}_tool_account`, value);
+    }
   };
 
   const handleChromePathChange = (value: string) => {
     setChromePath(value);
-    localStorage.setItem("veo3_chrome_path", value);
+    if (user?.id) {
+      localStorage.setItem(`veo3_${user.id}_chrome_path`, value);
+    }
   };
 
   const addLog = (msg: string) => {
@@ -337,7 +362,9 @@ const Veo3Section = () => {
                     type="button"
                     onClick={() => setThreadCount((prev) => {
                       const val = Math.max(1, prev - 1);
-                      localStorage.setItem("veo3_thread_count", val.toString());
+                      if (user?.id) {
+                        localStorage.setItem(`veo3_${user.id}_thread_count`, val.toString());
+                      }
                       return val;
                     })}
                     disabled={isRunning || isConfigSaved || threadCount <= 1}
@@ -352,7 +379,9 @@ const Veo3Section = () => {
                     type="button"
                     onClick={() => setThreadCount((prev) => {
                       const val = Math.min(loginMethod === "cookie" ? 3 : 5, prev + 1);
-                      localStorage.setItem("veo3_thread_count", val.toString());
+                      if (user?.id) {
+                        localStorage.setItem(`veo3_${user.id}_thread_count`, val.toString());
+                      }
                       return val;
                     })}
                     disabled={isRunning || isConfigSaved || threadCount >= (loginMethod === "cookie" ? 3 : 5)}
@@ -386,10 +415,12 @@ const Veo3Section = () => {
                   <label className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${loginMethod === "cookie" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
                     <input type="radio" name="loginMethod" value="cookie" checked={loginMethod === "cookie"} onChange={() => { 
                       setLoginMethod("cookie"); 
-                      localStorage.setItem("veo3_login_method", "cookie");
-                      if (threadCount > 3) {
-                        setThreadCount(3);
-                        localStorage.setItem("veo3_thread_count", "3");
+                      if (user?.id) {
+                        localStorage.setItem(`veo3_${user.id}_login_method`, "cookie");
+                        if (threadCount > 3) {
+                          setThreadCount(3);
+                          localStorage.setItem(`veo3_${user.id}_thread_count`, "3");
+                        }
                       }
                     }} disabled={isRunning || isConfigSaved} className="hidden" />
                     <FileText className="w-5 h-5" />
@@ -398,7 +429,9 @@ const Veo3Section = () => {
                   <label className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${loginMethod === "tool" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
                     <input type="radio" name="loginMethod" value="tool" checked={loginMethod === "tool"} onChange={() => { 
                       setLoginMethod("tool"); 
-                      localStorage.setItem("veo3_login_method", "tool");
+                      if (user?.id) {
+                        localStorage.setItem(`veo3_${user.id}_login_method`, "tool");
+                      }
                     }} disabled={isRunning || isConfigSaved} className="hidden" />
                     <Server className="w-5 h-5" />
                     <span className="font-medium text-sm">Tài khoản tool</span>

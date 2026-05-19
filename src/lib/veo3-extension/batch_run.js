@@ -167,7 +167,7 @@ async function startBatchProcess() {
         const limit = 100;
 
         while (hasMore) {
-            const res = await fetch(`${backendUrl}/flow/get/videos?page=${currentPage}&limit=${limit}`, {
+            const res = await fetch(`${backendUrl}/flow/veo3?page=${currentPage}&limit=${limit}`, {
                 headers: { 'Authorization': `Bearer ${config.token}` }
             });
             const data = await res.json();
