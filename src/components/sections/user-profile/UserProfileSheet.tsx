@@ -4,13 +4,18 @@ import { Badge, BadgeProps } from "@/components/ui/badge";
 import { Label } from "@/components/ui/label";
 import { IUser } from "@/types/user";
 import dayjs from "dayjs";
-import { Calendar, Mail, User } from "lucide-react";
+import { Calendar, Mail, User, Shield } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { SheetClose } from "@/components/ui/Sheet";
+import { Button } from "@/components/ui/button";
 
 interface UserProfileProp {
   user: IUser | null;
 }
 
 const UserProfileSheet: React.FC<UserProfileProp> = ({ user }) => {
+  const router = useRouter();
+
   if (!user) return null;
 
   return (
@@ -54,6 +59,21 @@ const UserProfileSheet: React.FC<UserProfileProp> = ({ user }) => {
             </p>
           </div>
         </div>
+
+        {/* Nút Admin - Chỉ hiện khi role là ADMIN */}
+        {user.role === "ADMIN" && (
+          <div className="pt-4 border-t border-gray-100">
+            <SheetClose asChild>
+              <Button
+                onClick={() => router.push("/admin")}
+                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium hover:from-blue-700 hover:to-indigo-700 shadow-md flex items-center justify-center space-x-2 transition-all duration-200"
+              >
+                <Shield className="h-4 w-4" />
+                <span>Trang quản trị (Admin)</span>
+              </Button>
+            </SheetClose>
+          </div>
+        )}
       </div>
     </div>
   );
