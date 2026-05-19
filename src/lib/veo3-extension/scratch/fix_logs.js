@@ -1,3 +1,4 @@
+/* eslint-disable */
 const fs = require('fs');
 let content = fs.readFileSync('Veo3PipelineController.js', 'utf8');
 

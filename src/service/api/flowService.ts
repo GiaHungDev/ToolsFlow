@@ -190,7 +190,7 @@ export const resetVideoPendingService = async (
 //   }
 // };
 
-const convertBase64ToFile = (base64String: string, mimeType: string, filename: string) => {
+export const convertBase64ToFile = (base64String: string, mimeType: string, filename: string) => {
   const byteString = atob(base64String);
   const ab = new ArrayBuffer(byteString.length);
   const ia = new Uint8Array(ab);

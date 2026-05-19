@@ -103,7 +103,7 @@ export default function AdminPage() {
       return;
     }
     loadData();
-  }, [user]);
+  }, [user, router]);
 
   // Clean form flow
   const resetFlowForm = (item: IFlowAccount | null = null) => {
@@ -151,7 +151,7 @@ export default function AdminPage() {
     if (flowCookies.trim()) {
       try {
         parsedCookies = JSON.parse(flowCookies);
-      } catch (err) {
+      } catch {
         Notify({
           title: "Lỗi cấu hình Cookies",
           description: "Cookies phải ở định dạng JSON hợp lệ.",

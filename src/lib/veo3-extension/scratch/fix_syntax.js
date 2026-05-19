@@ -1,3 +1,4 @@
+/* eslint-disable */
 const fs = require('fs');
 const file = 'c:\\Users\\admin\\OneDrive\\Pictures\\Screenshots\\Extension\\Veo3PipelineController.js';
 let data = fs.readFileSync(file, 'utf8').split(/\r?\n/);
