@@ -221,6 +221,7 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
               onKeySelect={handleSelectKey}
               handleOpenTopicModal={() => setStep(2)}
               onKeysInit={handleKeysInit}
+              userId={ownerId?.toString() || ""}
             />
           </div>
         )}

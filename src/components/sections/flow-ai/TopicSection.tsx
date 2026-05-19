@@ -9,10 +9,11 @@ interface ApiKeySectionProps {
   onKeyDelete: (keyId: string) => void;
   handleOpenTopicModal: () => void;
   onKeysInit: (keys: ApiKey[]) => void;
+  userId?: string;
 }
 
-const LS_KEYS = "flow_ai_api_keys";
-const LS_ACTIVE = "flow_ai_active_key";
+const getLSKeys = (userId: string) => userId ? `flow_ai_api_keys_${userId}` : "flow_ai_api_keys";
+const getLSActive = (userId: string) => userId ? `flow_ai_active_key_${userId}` : "flow_ai_active_key";
 
 const safeParseKeys = (raw: string | null): ApiKey[] => {
   if (!raw) return [];
@@ -24,8 +25,8 @@ const safeParseKeys = (raw: string | null): ApiKey[] => {
   }
 };
 
-const saveKeysToLS = (keys: ApiKey[]) => {
-  localStorage.setItem(LS_KEYS, JSON.stringify(keys));
+const saveKeysToLS = (keys: ApiKey[], userId: string) => {
+  localStorage.setItem(getLSKeys(userId), JSON.stringify(keys));
 };
 
 const ApiKeySection: React.FC<ApiKeySectionProps> = ({
@@ -34,25 +35,27 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({
   onKeyAdd,
   onKeyDelete,
   handleOpenTopicModal,
-  onKeysInit, // ✅ QUAN TRỌNG: bạn thiếu cái này trong destructure
+  onKeysInit,
+  userId = "",
 }) => {
   const [newKeyName, setNewKeyName] = useState("");
   const [newKeyValue, setNewKeyValue] = useState("");
   const [error, setError] = useState("");
 
-  // ✅ Load keys từ localStorage khi F5 / mount component
+  // ✅ Load keys từ localStorage khi userId sẵn sàng
   useEffect(() => {
-    const storedKeys = safeParseKeys(localStorage.getItem(LS_KEYS));
+    if (!userId) return;
+    const storedKeys = safeParseKeys(localStorage.getItem(getLSKeys(userId)));
     onKeysInit(storedKeys);
 
     // ✅ restore active key (nếu có)
-    const activeId = localStorage.getItem(LS_ACTIVE);
+    const activeId = localStorage.getItem(getLSActive(userId));
     if (activeId) {
       const activeKey = storedKeys.find((k) => k.id === activeId);
       if (activeKey) onKeySelect(activeKey);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [userId]);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -73,9 +76,9 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({
     onKeyAdd(newKey);
 
     // ✅ Sync localStorage (đọc list hiện tại rồi push)
-    const current = safeParseKeys(localStorage.getItem(LS_KEYS));
+    const current = safeParseKeys(localStorage.getItem(getLSKeys(userId)));
     const next = [...current, newKey];
-    saveKeysToLS(next);
+    saveKeysToLS(next, userId);
 
     setNewKeyName("");
     setNewKeyValue("");
@@ -83,7 +86,7 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({
 
   const handlePickKeyAndOpen = (key: ApiKey) => {
     onKeySelect(key);
-    localStorage.setItem(LS_ACTIVE, key.id);
+    localStorage.setItem(getLSActive(userId), key.id);
     handleOpenTopicModal();
   };
 
@@ -92,14 +95,14 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({
     onKeyDelete(key.id);
 
     // ✅ Sync localStorage
-    const current = safeParseKeys(localStorage.getItem(LS_KEYS));
+    const current = safeParseKeys(localStorage.getItem(getLSKeys(userId)));
     const next = current.filter((k) => k.id !== key.id);
-    saveKeysToLS(next);
+    saveKeysToLS(next, userId);
 
     // ✅ nếu đang xóa active key thì remove active
-    const activeId = localStorage.getItem(LS_ACTIVE);
+    const activeId = localStorage.getItem(getLSActive(userId));
     if (activeId === key.id) {
-      localStorage.removeItem(LS_ACTIVE);
+      localStorage.removeItem(getLSActive(userId));
     }
   };
 

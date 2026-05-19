@@ -28,7 +28,7 @@ const Veo3Section = () => {
 
   useEffect(() => {
     if (!user?.id) return;
-    
+
     const userId = user.id;
 
     const savedAccount = localStorage.getItem(`veo3_${userId}_account`);
@@ -88,7 +88,7 @@ const Veo3Section = () => {
             handlePlay(true);
           }
         }
-      } catch (e) {}
+      } catch (e) { }
     };
     setTimeout(checkRunningStatus, 300);
   }, []);
@@ -407,14 +407,14 @@ const Veo3Section = () => {
               <div>
                 <label className="block text-sm font-semibold text-stone-700 mb-2">Phương thức đăng nhập</label>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <label className={`flex items-center gap-2 p-3 border rounded-xl transition flex-1 opacity-40 bg-stone-50 border-stone-200 cursor-not-allowed`}>
+                  {/* <label className={`flex items-center gap-2 p-3 border rounded-xl transition flex-1 opacity-40 bg-stone-50 border-stone-200 cursor-not-allowed`}>
                     <input type="radio" name="loginMethod" value="account" checked={loginMethod === "account"} disabled={true} className="hidden" />
                     <Key className="w-5 h-5 text-stone-400" />
                     <span className="font-medium text-sm text-stone-400">Tài khoản Google (Bảo trì)</span>
-                  </label>
+                  </label> */}
                   <label className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${loginMethod === "cookie" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
-                    <input type="radio" name="loginMethod" value="cookie" checked={loginMethod === "cookie"} onChange={() => { 
-                      setLoginMethod("cookie"); 
+                    <input type="radio" name="loginMethod" value="cookie" checked={loginMethod === "cookie"} onChange={() => {
+                      setLoginMethod("cookie");
                       if (user?.id) {
                         localStorage.setItem(`veo3_${user.id}_login_method`, "cookie");
                         if (threadCount > 3) {
@@ -427,14 +427,14 @@ const Veo3Section = () => {
                     <span className="font-medium text-sm">Cookies</span>
                   </label>
                   <label className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${loginMethod === "tool" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
-                    <input type="radio" name="loginMethod" value="tool" checked={loginMethod === "tool"} onChange={() => { 
-                      setLoginMethod("tool"); 
+                    <input type="radio" name="loginMethod" value="tool" checked={loginMethod === "tool"} onChange={() => {
+                      setLoginMethod("tool");
                       if (user?.id) {
                         localStorage.setItem(`veo3_${user.id}_login_method`, "tool");
                       }
                     }} disabled={isRunning || isConfigSaved} className="hidden" />
                     <Server className="w-5 h-5" />
-                    <span className="font-medium text-sm">Tài khoản tool</span>
+                    <span className="font-medium text-sm">Tài khoản Tools</span>
                   </label>
                 </div>
               </div>
