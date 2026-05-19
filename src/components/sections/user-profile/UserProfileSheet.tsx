@@ -66,10 +66,10 @@ const UserProfileSheet: React.FC<UserProfileProp> = ({ user }) => {
             <SheetClose asChild>
               <Button
                 onClick={() => router.push("/admin")}
-                className="w-full bg-gradient-to-r from-blue-600 to-indigo-600 text-white font-medium hover:from-blue-700 hover:to-indigo-700 shadow-md flex items-center justify-center space-x-2 transition-all duration-200"
+                className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium shadow-md flex items-center justify-center space-x-2 transition-all duration-200"
               >
                 <Shield className="h-4 w-4" />
-                <span>Trang quản trị (Admin)</span>
+                <span>Quản trị</span>
               </Button>
             </SheetClose>
           </div>
