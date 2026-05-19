@@ -54,13 +54,13 @@ TableCell.displayName = "TableCell";
 const DataTable = <T extends object>({
   data = [],
   columns = [],
-  title = "Data Table",
+  title = "Danh Sách Video AI",
   description = "",
   maxHeight = "max-h-96",
   enableSelection = true,
   fixedLeftColumns = [],
   fixedRightColumns = [],
-  onSelectionChange = () => {},
+  onSelectionChange = () => { },
   className = "",
   rowClassName = () => "",
   zebra = true,
@@ -68,8 +68,9 @@ const DataTable = <T extends object>({
   enablePagination = true,
   pagination,
   pageSizeOptions = [10, 20, 30, 50, 100],
-  onPaginationChange = () => {},
+  onPaginationChange = () => { },
   loading = false,
+  headerActions,
 }: CustomTableProps<T>) => {
   const [selectedRows, setSelectedRows] = useState<Set<string | number>>(
     new Set()
@@ -267,19 +268,26 @@ const DataTable = <T extends object>({
   return (
     <div className={`w-full ${className}`}>
       <div className="bg-white rounded-lg shadow-sm border">
-        {(title || description || selectedRows.size > 0) && (
-          <div className="p-4 border-b">
-            {title && (
-              <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
-            )}
-            {description && (
-              <p className="text-sm text-gray-600 mt-1">{description}</p>
-            )}
-            {enableSelection && (
-              <p className="text-sm text-gray-600 mt-1">
-                {selectedRows.size} of {data.length} rows selected (current
-                page)
-              </p>
+        {(title || description || headerActions || selectedRows.size > 0) && (
+          <div className="p-4 border-b flex justify-between items-center flex-wrap gap-4">
+            <div>
+              {title && (
+                <h2 className="text-xl font-semibold text-gray-900">{title}</h2>
+              )}
+              {title === "Danh Sách Video AI" && (
+                <p className="text-xs text-gray-500 mt-1">
+                  Trạng thái video thành công hãy kiểm tra trong ổ C sẽ được lưu dưới dạng C:// {`{Tên dự án}`} / video_{`{id}`}
+                </p>
+              )}
+              {description && (
+                <p className="text-sm text-gray-600 mt-1">{description}</p>
+              )}
+            </div>
+
+            {headerActions && (
+              <div className="flex items-center gap-2">
+                {headerActions}
+              </div>
             )}
           </div>
         )}
@@ -324,13 +332,11 @@ const DataTable = <T extends object>({
                     return (
                       <th
                         key={String(column.key)}
-                        className={`sticky z-30 bg-gray-50 px-4 py-3 text-left font-medium text-gray-900 ${
-                          column.className || "text-left"
-                        } ${
-                          isLastFixedLeft
+                        className={`sticky z-30 bg-gray-50 px-4 py-2 text-left font-medium text-gray-900 ${column.className || "text-left"
+                          } ${isLastFixedLeft
                             ? "shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]"
                             : ""
-                        }`}
+                          }`}
                         style={{
                           left: `${leftPositions[index]}px`,
                           minWidth: column.width || 96,
@@ -344,9 +350,8 @@ const DataTable = <T extends object>({
                   {regularColumns.map((column) => (
                     <th
                       key={String(column.key)}
-                      className={`px-4 py-3 font-medium text-gray-900 ${
-                        column.className || "text-left"
-                      }`}
+                      className={`px-4 py-2 font-medium text-gray-900 ${column.className || "text-left"
+                        }`}
                       style={{ minWidth: column.width || 96 }}
                     >
                       {column.title}
@@ -358,13 +363,11 @@ const DataTable = <T extends object>({
                     return (
                       <th
                         key={String(column.key)}
-                        className={`sticky z-30 bg-gray-50 px-4 py-3 text-left font-medium text-gray-900 ${
-                          column.className || "text-left"
-                        } ${
-                          isFirstFixedRight
+                        className={`sticky z-30 bg-gray-50 px-4 py-2 text-left font-medium text-gray-900 ${column.className || "text-left"
+                          } ${isFirstFixedRight
                             ? "shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]"
                             : ""
-                        }`}
+                          }`}
                         style={{
                           right: `${rightPositions[index]}px`,
                           minWidth: column.width || 96,
@@ -423,18 +426,17 @@ const DataTable = <T extends object>({
                     return (
                       <tr
                         key={String(rowId)}
-                        className={`border-b border-gray-200 hover:bg-gray-50 ${
-                          isSelected
-                            ? "bg-blue-50"
-                            : zebra
+                        className={`border-b border-gray-200 hover:bg-gray-50 ${isSelected
+                          ? "bg-blue-50"
+                          : zebra
                             ? rowIndex % 2 === 0
                               ? "bg-white"
                               : "bg-gray-50"
                             : "bg-white"
-                        } ${customRowClass} ${loading ? "opacity-50" : ""}`}
+                          } ${customRowClass} ${loading ? "opacity-50" : ""}`}
                       >
                         {enableSelection && (
-                          <td className="sticky left-0 z-10 bg-inherit px-4 py-3 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]">
+                          <td className="sticky left-0 z-10 bg-inherit px-4 py-2 shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]">
                             <Checkbox
                               checked={isSelected}
                               onCheckedChange={() => toggleSelectRow(rowId)}
@@ -449,11 +451,10 @@ const DataTable = <T extends object>({
                           return (
                             <td
                               key={String(column.key)}
-                              className={`sticky z-10 bg-inherit px-4 py-3 ${
-                                isLastFixedLeft
-                                  ? "shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]"
-                                  : ""
-                              }`}
+                              className={`sticky z-10 bg-inherit px-4 py-2 ${isLastFixedLeft
+                                ? "shadow-[2px_0_4px_-2px_rgba(0,0,0,0.1)]"
+                                : ""
+                                }`}
                               style={{ left: `${leftPositions[index]}px` }}
                             >
                               <TableCell
@@ -466,7 +467,7 @@ const DataTable = <T extends object>({
                         })}
 
                         {regularColumns.map((column) => (
-                          <td key={String(column.key)} className="px-4 py-3">
+                          <td key={String(column.key)} className="px-4 py-2 text-sm">
                             <TableCell
                               column={column}
                               row={row}
@@ -480,11 +481,10 @@ const DataTable = <T extends object>({
                           return (
                             <td
                               key={String(column.key)}
-                              className={`sticky z-10 bg-inherit px-4 py-3 ${
-                                isFirstFixedRight
-                                  ? "shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]"
-                                  : ""
-                              }`}
+                              className={`sticky z-10 bg-inherit px-4 py-2 ${isFirstFixedRight
+                                ? "shadow-[-2px_0_4px_-2px_rgba(0,0,0,0.1)]"
+                                : ""
+                                }`}
                               style={{ right: `${rightPositions[index]}px` }}
                             >
                               <TableCell
@@ -563,11 +563,10 @@ const DataTable = <T extends object>({
                           paginationHandlers.goToPage(page as number)
                         }
                         disabled={loading}
-                        className={`px-3 py-1 rounded text-sm min-w-[2rem] disabled:cursor-not-allowed ${
-                          currentPage === page
-                            ? "bg-blue-600 text-white"
-                            : "hover:bg-gray-200 text-gray-700"
-                        }`}
+                        className={`px-3 py-1 rounded text-sm min-w-[2rem] disabled:cursor-not-allowed ${currentPage === page
+                          ? "bg-blue-600 text-white"
+                          : "hover:bg-gray-200 text-gray-700"
+                          }`}
                       >
                         {page}
                       </button>
@@ -654,11 +653,10 @@ const DataTable = <T extends object>({
                           paginationHandlers.goToPage(page as number)
                         }
                         disabled={loading}
-                        className={`px-2 py-1 rounded text-sm min-w-[2rem] disabled:cursor-not-allowed ${
-                          currentPage === page
-                            ? "bg-blue-600 text-white"
-                            : "hover:bg-gray-200 text-gray-700"
-                        }`}
+                        className={`px-2 py-1 rounded text-sm min-w-[2rem] disabled:cursor-not-allowed ${currentPage === page
+                          ? "bg-blue-600 text-white"
+                          : "hover:bg-gray-200 text-gray-700"
+                          }`}
                       >
                         {page}
                       </button>

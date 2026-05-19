@@ -7,7 +7,7 @@ export const videoStatus = [
   },
   {
     id: 2,
-    status: "completed",
+    status: "Completed",
     label: "Đã hoàn thành",
     color: "green",
   },

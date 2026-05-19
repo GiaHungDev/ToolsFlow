@@ -6,26 +6,12 @@ import { IUser } from "@/types/user";
 import dayjs from "dayjs";
 import { Calendar, Mail, User } from "lucide-react";
 
-const getRoleName = (
-  role: number
-): { name: string; variant: BadgeProps["variant"] } => {
-  switch (role) {
-    case 1:
-      return { name: "Admin", variant: "destructive" };
-    case 2:
-      return { name: "User", variant: "secondary" };
-    default:
-      return { name: "Guest", variant: "outline" };
-  }
-};
-
 interface UserProfileProp {
   user: IUser | null;
 }
 
 const UserProfileSheet: React.FC<UserProfileProp> = ({ user }) => {
   if (!user) return null;
-  const roleInfo = getRoleName(user.role);
 
   return (
     <div className="w-full max-w-md mx-auto bg-white pt-20">
@@ -37,15 +23,12 @@ const UserProfileSheet: React.FC<UserProfileProp> = ({ user }) => {
         <h2 className="text-xl font-semibold text-gray-900 mb-1">
           {user.username}
         </h2>
-        <Badge variant={roleInfo.variant} className="text-xs">
-          {roleInfo.name}
-        </Badge>
       </div>
 
       {/* Thông tin chi tiết */}
       <div className="space-y-6">
         {/* Email */}
-        <div className="flex items-start space-x-3">
+        {/* <div className="flex items-start space-x-3">
           <div className="w-10 h-10 bg-blue-50 rounded-lg flex items-center justify-center flex-shrink-0">
             <Mail className="h-5 w-5 text-blue-600" />
           </div>
@@ -55,7 +38,7 @@ const UserProfileSheet: React.FC<UserProfileProp> = ({ user }) => {
               {user.email}
             </p>
           </div>
-        </div>
+        </div> */}
 
         {/* Ngày tạo tài khoản */}
         <div className="flex items-start space-x-3">

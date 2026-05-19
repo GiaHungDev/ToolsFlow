@@ -12,6 +12,17 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
+import {
   Tooltip,
   TooltipContent,
   TooltipTrigger,
@@ -40,7 +51,8 @@ import {
   HelpCircle,
 } from "lucide-react";
 import Image from "next/image";
-import React, { useMemo } from "react";
+import React, { useMemo, useState, useEffect } from "react";
+import { createPortal } from "react-dom";
 import FilterModal from "./modals/FilterModal";
 import ShowVideoModal from "./modals/ShowVideoModal";
 
@@ -60,10 +72,9 @@ const TableSection: React.FC<TableSectionProp> = ({
   const {
     handleSelectionChange,
     selectedCount,
-    handleDownloadVideo,
-    handleDownloadVideos,
     handleRecreate,
     handleDelete,
+    handleDeleteVideos,
     handleReload,
   } = useTableActions({ formVideo });
 
@@ -78,12 +89,6 @@ const TableSection: React.FC<TableSectionProp> = ({
     usePlayVideo();
 
   const {
-    isOpenSelectTopic,
-    setIsOpenSelectTopic,
-    listTopic,
-    selected,
-    setTopic,
-    topic,
     handleOpenFilterModal,
     handleCloseFilterModal,
     isOpenFilterModal,
@@ -111,16 +116,6 @@ const TableSection: React.FC<TableSectionProp> = ({
           return dayjs(value as string).format("DD/MM/YYYY");
         },
       },
-      // {
-      //   key: "updatedAt",
-      //   title: "Ngày cập nhật",
-      //   width: 200,
-      //   className: "font-medium text-left",
-      //   render: (value) => {
-      //     if (!value) return <span className="text-gray-400">—</span>;
-      //     return dayjs(value as string).format("DD/MM/YYYY HH:mm");
-      //   },
-      // },
       {
         key: "typeI2V",
         title: "Thể loại",
@@ -148,6 +143,13 @@ const TableSection: React.FC<TableSectionProp> = ({
                   label: "Ingredients to Video",
                   color: "text-purple-500",
                 };
+
+              case "Image to Video":
+                return {
+                  icon: <Clapperboard size={18} />,
+                  label: "Image to Video",
+                  color: "text-purple-500",
+                };
               default:
                 return {
                   icon: <HelpCircle size={18} />,
@@ -168,30 +170,64 @@ const TableSection: React.FC<TableSectionProp> = ({
         },
       },
       {
-        key: "image",
+        key: "images", // Chú ý: Backend trả về key là 'images' (số nhiều) nhé
         title: "Ảnh",
         width: 120,
         className: "font-medium text-center",
         render: (value) => {
-          const imagePath = value as string;
-          if (!imagePath) return <div className="text-gray-400">No image</div>;
+          const imageArray = value as any[];
+          if (!imageArray || imageArray.length === 0) {
+            return <div className="text-gray-400">No image</div>;
+          }
 
-          const baseUrl = process.env.NEXT_PUBLIC_API_URL || "";
-          const imageUrl = imagePath.startsWith("http")
-            ? imagePath
-            : `${baseUrl}${imagePath}`;
+          const imageStrs: string[] = [];
+
+          // Trích xuất tất cả các đường dẫn ảnh từ array/object
+          for (const item of imageArray) {
+            if (typeof item === "object" && item !== null) {
+              const vals = Object.values(item);
+              for (const v of vals) {
+                if (typeof v === "string" && v.trim() !== "") {
+                  imageStrs.push(v);
+                }
+              }
+            } else if (typeof item === "string" && item.trim() !== "") {
+              imageStrs.push(item);
+            }
+          }
+
+          if (imageStrs.length === 0) {
+            return <div className="text-gray-400">No image</div>;
+          }
+
+          const baseUrl = (process.env.NEXT_PUBLIC_API_URL || "http://localhost:3000").replace(/\/$/, "");
 
           return (
-            <div className="flex items-center justify-center">
-              <div className="w-[60px] h-[40px] relative">
-                <Image
-                  src={imageUrl}
-                  alt="Image"
-                  fill
-                  className="rounded object-cover"
-                  unoptimized
-                />
-              </div>
+            <div className="flex items-center justify-center gap-1 flex-wrap max-w-[150px]">
+              {imageStrs.map((imageStr, idx) => {
+                let finalUrl = "";
+                if (imageStr.includes(":\\") || imageStr.startsWith("file://")) {
+                  finalUrl = `${baseUrl}/flow/local-image?path=${encodeURIComponent(imageStr)}`;
+                } else if (imageStr.startsWith("http")) {
+                  finalUrl = imageStr;
+                } else if (imageStr.startsWith("uploads/")) {
+                  finalUrl = `${baseUrl}/${imageStr}`;
+                } else {
+                  finalUrl = `${baseUrl}/uploads/${imageStr}`;
+                }
+
+                return (
+                  <div key={idx} className="w-[50px] h-[35px] relative shrink-0" title={imageStr}>
+                    <Image
+                      src={finalUrl}
+                      alt={`Scene Image ${idx}`}
+                      fill
+                      className="rounded object-cover"
+                      unoptimized
+                    />
+                  </div>
+                );
+              })}
             </div>
           );
         },
@@ -202,13 +238,14 @@ const TableSection: React.FC<TableSectionProp> = ({
         width: 120,
         className: "font-medium text-center",
         render: (value) => {
-          const status = videoStatusTable.find((s) => s.status === value);
+          const statusValue = String(value || "").toLowerCase();
+          const status = videoStatusTable.find((s) => s.status.toLowerCase() === statusValue);
 
           if (!status) {
             return (
               <Badge
                 variant="secondary"
-                className="px-2 py-1 rounded-full w-32 flex justify-center items-center"
+                className="px-2 py-1 rounded-full w-32 mx-auto flex justify-center items-center"
               >
                 Unknown
               </Badge>
@@ -227,9 +264,8 @@ const TableSection: React.FC<TableSectionProp> = ({
 
           return (
             <Badge
-              className={`${
-                colorMap[status.color] || ""
-              } px-2 py-1 rounded-full w-32 flex justify-center`}
+              className={`${colorMap[status.color] || ""
+                } px-2 py-1 rounded-full w-32 mx-auto flex justify-center items-center`}
               variant={"outline"}
             >
               {status.label}
@@ -264,164 +300,119 @@ const TableSection: React.FC<TableSectionProp> = ({
     [],
   );
 
-  // const fixedRightColumns = useMemo<TableColumn<IFlowVideo>[]>(
-  //   () => [
-  //     {
-  //       key: "actions",
-  //       title: "Actions",
-  //       width: 120,
-  //       className: "text-center",
-  //       render: (_value, record) => (
-          
-  //         <DropdownMenu>
-  //           <DropdownMenuTrigger asChild>
-  //             <Button variant="outline" className="h-8 w-8 p-0">
-  //               <Ellipsis className="h-4 w-6" />
-  //             </Button>
-  //           </DropdownMenuTrigger>
-  //           <DropdownMenuContent align="end" className="w-[160px]">
-  //             {record.archiveStatus === "Archived" && (
-  //               <>
-  //                 <DropdownMenuItem
-  //                   onClick={() => handleShowVideo(record.id)}
-  //                   className="cursor-pointer"
-  //                 >
-  //                   <Play className="mr-2 h-4 w-4" />
-  //                   Xem video
-  //                 </DropdownMenuItem>
+  const fixedRightColumns = useMemo<TableColumn<IFlowVideo>[]>(
+    () => [
+      {
+        key: "actions",
+        title: "Actions",
+        width: 120,
+        className: "text-center",
+        render: (_value, record) => {
 
-  //                 <DropdownMenuSeparator />
+          return (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="h-8 w-8 p-0">
+                  <Ellipsis className="h-4 w-6" />
+                </Button>
+              </DropdownMenuTrigger>
 
-  //                 <DropdownMenuItem
-  //                   onClick={() => handleDownloadVideo(record.id)}
-  //                   className="cursor-pointer"
-  //                 >
-  //                   <Download className="mr-2 h-4 w-4" />
-  //                   Tải xuống
-  //                 </DropdownMenuItem>
+              <DropdownMenuContent align="end" className="w-[160px]">
+                {record.archiveStatus === "Archived" && (
+                  <>
+                    <DropdownMenuItem
+                      onClick={() => handleShowVideo(record.id)}
+                      className="cursor-pointer"
+                    >
+                      <Play className="mr-2 h-4 w-4" />
+                      Xem video
+                    </DropdownMenuItem>
 
-  //                 <DropdownMenuSeparator />
-  //               </>
-  //             )}
+                    <DropdownMenuSeparator />
+                  </>
+                )}
 
-  //             <DropdownMenuItem
-  //               onClick={() => handleRecreate(record.id)}
-  //               className="cursor-pointer"
-  //             >
-  //               <Copy className="mr-2 h-4 w-4" />
-  //               Tạo lại
-  //             </DropdownMenuItem>
-  //             <DropdownMenuSeparator />
-  //             <DropdownMenuItem
-  //               onClick={() => handleDelete(record.id)}
-  //               className="cursor-pointer text-red-600 focus:text-red-600"
-  //             >
-  //               <Trash2 className="mr-2 h-4 w-4" />
-  //               Delete
-  //             </DropdownMenuItem>
-  //           </DropdownMenuContent>
-  //         </DropdownMenu>
-  //       ),
-  //     },
-  //   ],
-  //   [handleDownloadVideo, handleRecreate, handleDelete, handleShowVideo],
-  // );
-const fixedRightColumns = useMemo<TableColumn<IFlowVideo>[]>(
-  () => [
-    {
-      key: "actions",
-      title: "Actions",
-      width: 120,
-      className: "text-center",
-      render: (_value, record) => {
+                <DropdownMenuItem
+                  onClick={() => handleRecreate(record.id)}
+                  className="cursor-pointer"
+                >
+                  <Copy className="mr-2 h-4 w-4" />
+                  Tạo lại
+                </DropdownMenuItem>
 
-        return (
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="h-8 w-8 p-0">
-                <Ellipsis className="h-4 w-6" />
-              </Button>
-            </DropdownMenuTrigger>
+                <DropdownMenuSeparator />
 
-            <DropdownMenuContent align="end" className="w-[160px]">
-              {record.archiveStatus === "Archived" && (
-                <>
-                  <DropdownMenuItem
-                    onClick={() => handleShowVideo(record.id)}
-                    className="cursor-pointer"
-                  >
-                    <Play className="mr-2 h-4 w-4" />
-                    Xem video
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-
-                  <DropdownMenuItem
-                    onClick={() => handleDownloadVideo(record.id)}
-                    className="cursor-pointer"
-                  >
-                    <Download className="mr-2 h-4 w-4" />
-                    Tải xuống
-                  </DropdownMenuItem>
-
-                  <DropdownMenuSeparator />
-                </>
-              )}
-
-              <DropdownMenuItem
-                onClick={() => handleRecreate(record.id)}
-                className="cursor-pointer"
-              >
-                <Copy className="mr-2 h-4 w-4" />
-                Tạo lại
-              </DropdownMenuItem>
-
-              <DropdownMenuSeparator />
-
-              <DropdownMenuItem
-                onClick={() => handleDelete(record.id)}
-                className="cursor-pointer text-red-600 focus:text-red-600"
-              >
-                <Trash2 className="mr-2 h-4 w-4" />
-                Delete
-              </DropdownMenuItem>
-            </DropdownMenuContent>
-          </DropdownMenu>
-        );
+                <DropdownMenuItem
+                  onClick={() => handleDelete(record.id)}
+                  className="cursor-pointer text-red-600 focus:text-red-600"
+                >
+                  <Trash2 className="mr-2 h-4 w-4" />
+                  Delete
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          );
+        },
       },
-    },
-  ],
-  [handleDownloadVideo, handleRecreate, handleDelete, handleShowVideo],
-);
+    ],
+    [handleRecreate, handleDelete, handleShowVideo],
+  );
+
+  const [mounted, setMounted] = useState(false);
+  useEffect(() => {
+    setMounted(true);
+  }, []);
+
+  const actionButtons = (
+    <>
+      {selectedCount > 0 && (
+        <>
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button variant="destructive" className="shadow-sm">
+                <Trash2 className="w-4 h-4 mr-2" />
+                {`Xóa ${selectedCount} video`}
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>Xác nhận xóa video</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Bạn có chắc chắn muốn xóa {selectedCount} video đã chọn không? Hành động này không thể hoàn tác.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Hủy</AlertDialogCancel>
+                <AlertDialogAction onClick={handleDeleteVideos} className="bg-red-600 hover:bg-red-700">
+                  Đồng ý
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
+        </>
+      )}
+      <Button
+        className="bg-emerald-500 hover:bg-emerald-600 text-white shadow-sm"
+        onClick={handleOpenFilterModal}
+      >
+        <Search className="w-4 h-4 mr-2" />
+        Tìm kiếm
+      </Button>
+      <Button variant="outline" onClick={() => handleReload(pagination.page, pagination.limit)} className="shadow-sm border-stone-200">
+        <RefreshCcw className="w-4 h-4 mr-2" />
+        Tải lại
+      </Button>
+    </>
+  );
 
   return (
-    <>
-      <div className="flex justify-end space-x-2 rounded-lg p-2 bg-gray-50 mb-2">
-        {selectedCount > 0 && (
-          <Button variant="default" onClick={handleDownloadVideos}>
-            <Download />
-            {`Tải xuống ${selectedCount} video`}
-          </Button>
-        )}
-        <Button
-          className="bg-blue-500 hover:bg-blue-400"
-          onClick={handleOpenFilterModal}
-        >
-          <Search />
-          Tìm kiếm
-        </Button>
-        <Button variant="outline" onClick={handleReload}>
-          <RefreshCcw />
-          Tải lại dữ liệu
-        </Button>
-      </div>
-      <div className="rounded-lg p-2 bg-gray-50">
+    <div className="flex flex-col gap-6 w-full">
+      <div className="w-full bg-white rounded-3xl p-6 shadow-sm border border-stone-100">
         <DataTable<IFlowVideo>
           data={listFlowVideo}
           columns={columns}
           fixedRightColumns={fixedRightColumns}
-          title="Danh sách video Flow-AI"
-          maxHeight="max-h-[calc(100vh-250px)] sm:max-h-[calc(100vh-300px)] lg:max-h-[calc(100vh-350px)]"
+          maxHeight="max-h-[1500px]"
           enableSelection={true}
           enablePagination={true}
           pageSizeOptions={[10, 20, 30, 50]}
@@ -430,32 +421,26 @@ const fixedRightColumns = useMemo<TableColumn<IFlowVideo>[]>(
           loading={loadFlow.loadGetFlow}
           onPaginationChange={handlePaginationChange}
           zebra={true}
+          headerActions={actionButtons}
         />
       </div>
-     
       <ShowVideoModal
-  openVideoModal={isOpenVideoModal}
-  setOpenVideoModal={setIsOpenVideoModal}
-  videoUrl={videoUrl}   // 👈 CHỈ TRUYỀN videoUrl THẬT
-  title="Xem video"
-  description="Video được tạo bởi Flow AI."
-/>
+        openVideoModal={isOpenVideoModal}
+        setOpenVideoModal={setIsOpenVideoModal}
+        videoUrl={videoUrl}   // 👈 CHỈ TRUYỀN videoUrl THẬT
+        title="Xem video"
+        description="Video được tạo bởi Flow AI."
+      />
 
       <FilterModal
         formFilter={formFilter}
         isOpenModal={isOpenFilterModal}
         setOpenModal={setIsOpenFilterModal}
         onCancelModal={handleCloseFilterModal}
-        listTopic={listTopic}
-        selected={selected}
-        isOpenSelectTopic={isOpenSelectTopic}
-        setIsOpenSelectTopic={setIsOpenSelectTopic}
-        setTopic={setTopic}
-        topic={topic}
         handleSubmit={handleSubmit}
         loading={loadFlow.loadGetFlow}
       />
-    </>
+    </div>
   );
 };
 

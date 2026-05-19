@@ -99,6 +99,19 @@ export const createFlowVideoService = async (
   }
 };
 
+export const getProjectNamesService = async (): Promise<string[]> => {
+  try {
+    const res: string[] = await axiosClient.get("flow/get/project-names");
+    return res;
+  } catch (error) {
+    if (error instanceof Error) {
+      throw new Error(`Get project names error in service: ${error.message}`);
+    } else {
+      throw new Error("Get project names error in service!");
+    }
+  }
+};
+
 export const uploadImgToFlowService = async (
   formData: FormData
 ): Promise<IFilesUpload | null> => {
@@ -137,11 +150,6 @@ export const getVeo3StreamUrlService = async (id: number) => {
     `flow/veo3/${id}/stream-url`
   );
 };
-export const getVeo3DownloadUrlService = async (id: number) => {
-  return axiosClient.get<{ url: string; expiresInSeconds: number }>(
-    `flow/veo3/${id}/download-url`
-  );
-};
 
 export const resetVideoPendingService = async (
   id: number,
@@ -161,23 +169,109 @@ export const resetVideoPendingService = async (
   );
 };
 
+// export const createFlowT2VService = async (
+//   sceneNumber: number,
+//   prompt: string,
+//   ownerId: number
+// ) => {
+//   try {
+//     const formData = new FormData();
+//     formData.append("prompt", prompt);
+//     formData.append("ownerId", String(ownerId));
+//     formData.append("sceneNumber", String(sceneNumber));
+//     formData.append("typeI2V", "Text to Video");
+
+//     return await axiosClient.post("flow/upload-veo3", formData, {
+//       headers: { "Content-Type": "multipart/form-data" },
+//     });
+//   } catch (error: any) {
+//     console.error("❌ Lỗi createFlowT2VService:", error?.response?.data || error);
+//     return null;
+//   }
+// };
+
+const convertBase64ToFile = (base64String: string, mimeType: string, filename: string) => {
+  const byteString = atob(base64String);
+  const ab = new ArrayBuffer(byteString.length);
+  const ia = new Uint8Array(ab);
+  for (let i = 0; i < byteString.length; i++) {
+    ia[i] = byteString.charCodeAt(i);
+  }
+  const blob = new Blob([ab], { type: mimeType });
+  return new File([blob], filename, { type: mimeType });
+};
+
+// ---------------------------------------------------------
+// 2. HÀM SERVICE CỦA BẠN SẼ GỌI HÀM CONVERT Ở TRÊN
+// ---------------------------------------------------------
 export const createFlowT2VService = async (
   sceneNumber: number,
   prompt: string,
-  ownerId: number
+  ownerId: number,
+  images?: any[] // Thêm tham số nhận mảng ảnh
 ) => {
   try {
     const formData = new FormData();
     formData.append("prompt", prompt);
     formData.append("ownerId", String(ownerId));
     formData.append("sceneNumber", String(sceneNumber));
-    formData.append("typeI2V", "Text to Video");
+    
+    // Nếu có ảnh thì đổi type thành Ingredients to Video (tùy logic backend của bạn)
+    const hasImages = images && images.length > 0;
+    formData.append("typeI2V", hasImages ? "Ingredients to Video" : "Text to Video");
+
+    if (hasImages) {
+      const pathsObj: Record<string, string> = {};
+      let counter = 1;
+      images.forEach((img) => {
+        if (img && img.path) {
+          pathsObj[`Image${counter}`] = img.path;
+          counter++;
+        }
+      });
+      formData.append("imagePaths", JSON.stringify(pathsObj));
+    }
 
     return await axiosClient.post("flow/upload-veo3", formData, {
       headers: { "Content-Type": "multipart/form-data" },
     });
   } catch (error: any) {
     console.error("❌ Lỗi createFlowT2VService:", error?.response?.data || error);
+    return null;
+  }
+};
+
+export const createFlowBatchService = async (
+  scenes: { prompt: string; typeI2V: string; sceneNumber: number }[],
+  ownerId: number,
+  allImages: any[] = [],
+  projectName: string = ""
+) => {
+  try {
+    const formData = new FormData();
+    formData.append("ownerId", String(ownerId));
+    formData.append("scenes", JSON.stringify(scenes));
+    if (projectName) {
+      formData.append("projectName", projectName);
+    }
+
+    if (allImages && allImages.length > 0) {
+      const pathsObj: Record<string, string> = {};
+      let counter = 1;
+      allImages.forEach((img) => {
+        if (img && img.path) {
+          pathsObj[`Image${counter}`] = img.path;
+          counter++;
+        }
+      });
+      formData.append("imagePaths", JSON.stringify(pathsObj));
+    }
+
+    return await axiosClient.post("flow/upload-veo3-batch", formData, {
+      headers: { "Content-Type": "multipart/form-data" },
+    });
+  } catch (error: any) {
+    console.error("❌ Lỗi createFlowBatchService:", error?.response?.data || error);
     return null;
   }
 };

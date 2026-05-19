@@ -64,8 +64,7 @@ export interface CreateFlowVideo {
 export interface GetFlowVideo {
   page: number;
   limit: number;
-  description?: string;
-  topic?: number;
+  projectName?: string;
   status?: string;
   startDate?: string;
   endDate?: string;

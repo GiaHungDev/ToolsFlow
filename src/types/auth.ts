@@ -5,7 +5,3 @@ export interface ITokenData {
   refresh_token: string;
   refresh_expires_in: number;
 }
-
-export interface ILoginLink {
-  url: string;
-}

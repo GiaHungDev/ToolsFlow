@@ -16,13 +16,7 @@ interface UseFilterProp {
 export const useFilter = ({ formFilter, paginationInfo }: UseFilterProp) => {
   const dispatch = useAppDispatch();
 
-  const { listTopic, mapTopic } = useAppSelector((state) => state.flow);
-
-  const [isOpenSelectTopic, setIsOpenSelectTopic] = useState<boolean>(false);
-  const [topic, setTopic] = useState<ITopic | null>(null);
   const [isOpenFilterModal, setIsOpenFilterModal] = useState<boolean>(false);
-
-  const selected = topic ? mapTopic[topic.id] : null;
 
   const handleOpenFilterModal = () => {
     setIsOpenFilterModal(true);
@@ -36,7 +30,9 @@ export const useFilter = ({ formFilter, paginationInfo }: UseFilterProp) => {
     try {
       if (values.dateRange) {
         values.startDate = dayjs(values.dateRange.from).format("YYYY-MM-DD");
-        values.endDate = dayjs(values.dateRange.from).format("YYYY-MM-DD");
+        values.endDate = values.dateRange.to 
+          ? dayjs(values.dateRange.to).format("YYYY-MM-DD")
+          : values.startDate;
         delete values.dateRange;
       }
       const filter = {
@@ -76,12 +72,6 @@ export const useFilter = ({ formFilter, paginationInfo }: UseFilterProp) => {
   };
 
   return {
-    listTopic,
-    setIsOpenSelectTopic,
-    isOpenSelectTopic,
-    setTopic,
-    topic,
-    selected,
     setIsOpenFilterModal,
     isOpenFilterModal,
     handleOpenFilterModal,

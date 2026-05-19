@@ -14,10 +14,18 @@ export interface ScenePrompt {
 // The Scene type is now simplified, as video generation is handled externally.
 export type Scene = ScenePrompt;
 
+// export interface UploadedImage {
+//   base64: string;
+//   mimeType: string;
+// }
+
 export interface UploadedImage {
   base64: string;
   mimeType: string;
+  name: string;      // <-- Thêm dòng này
+  path?: string;     // <-- Thêm dòng này (có dấu ? để không bắt buộc phải có path)
 }
+
 
 export interface FormData {
   idea: string;
@@ -37,6 +45,7 @@ export interface FormData {
   characterConsistency: boolean;
   characterCount: number;
   temperature: number;
+   uploadedImages: (UploadedImage | null)[];
 }
 
 export interface VideoJob {

@@ -16,7 +16,7 @@ export default function ProtectedLayout({
     <AuthWrapper requireAuth>
       <div className="min-h-screen bg-white text-black">
         <Header />
-        <div className="pt-20 px-2">{children}</div>
+        <div className="pt-[60px]">{children}</div>
       </div>
     </AuthWrapper>
   );

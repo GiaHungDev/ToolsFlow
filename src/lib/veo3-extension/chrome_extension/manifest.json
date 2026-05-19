@@ -1,0 +1,37 @@
+{
+  "manifest_version": 3,
+  "name": "Veo3 Auto Pipeline",
+  "version": "1.0.0",
+  "description": "Tự động hóa tiến trình tạo video trên Google Veo từ file Excel.",
+  "permissions": [
+    "storage",
+    "scripting",
+    "activeTab",
+    "tabs",
+    "downloads",
+    "cookies"
+  ],
+  "host_permissions": [
+    "*://*.google.com/*",
+    "*://labs.google/*"
+  ],
+  "background": {
+    "service_worker": "background.js"
+  },
+  "action": {
+    "default_title": "Mở Dashboard"
+  },
+  "content_scripts": [
+    {
+      "matches": ["*://labs.google/fx/tools/flow*", "*://labs.google/fx/vi/tools/flow*"],
+      "js": ["content.js"],
+      "run_at": "document_idle"
+    }
+  ],
+  "web_accessible_resources": [
+    {
+      "resources": ["inject.js"],
+      "matches": ["*://labs.google/*"]
+    }
+  ]
+}

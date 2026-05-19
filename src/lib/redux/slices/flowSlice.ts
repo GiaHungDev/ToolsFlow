@@ -363,19 +363,10 @@ export const LoginSlice = createSlice({
           state.listFlowVideo = state.listFlowVideo.filter(
             (item) => item.id !== deleteFlow.id
           );
-
-          Notify({
-            title: "Xóa video Flow thành công!",
-            status: "success",
-          });
         }
       )
       .addCase(deleteFlowVideo.rejected, (state, action) => {
         state.loadFlow.loadDeleteFlow = false;
-        Notify({
-          title: "Xóa video Flow lỗi!",
-          status: "error",
-        });
         console.error("Delete video failed:", action.error);
       });
   },

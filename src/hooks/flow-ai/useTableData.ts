@@ -19,7 +19,6 @@ export const useTableData = () => {
       getFlowVideo({
         page: pagination.page,
         limit: pagination.limit,
-        status: "completed",
       })
     );
   }, [dispatch, reload, pagination]);

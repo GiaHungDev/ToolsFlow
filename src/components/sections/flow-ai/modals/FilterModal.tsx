@@ -34,20 +34,16 @@ import { useFormFilter } from "@/hooks/flow-ai/useFormFilter";
 import { cn } from "@/lib/utils";
 import { ITopic } from "@/types/flow";
 import { videoStatus } from "@/types/listConstant";
+import { getProjectNamesService } from "@/service/api/flowService";
 import dayjs from "dayjs";
 import { CalendarIcon, Check, ChevronsUpDown } from "lucide-react";
+import React, { useEffect, useState } from "react";
 
 interface FilterModalProp {
   isOpenModal: boolean;
   onCancelModal: () => void;
   setOpenModal: (state: boolean) => void;
   formFilter: ReturnType<typeof useFormFilter>;
-  isOpenSelectTopic: boolean;
-  setIsOpenSelectTopic: (state: boolean) => void;
-  listTopic: ITopic[];
-  selected: ITopic | null;
-  setTopic: (topic: ITopic | null) => void;
-  topic: ITopic | null;
   loading: boolean;
   handleSubmit: (e?: React.BaseSyntheticEvent) => Promise<void>;
 }
@@ -57,15 +53,24 @@ const FilterModal: React.FC<FilterModalProp> = ({
   onCancelModal,
   setOpenModal,
   formFilter,
-  isOpenSelectTopic,
-  setIsOpenSelectTopic,
-  listTopic,
-  selected,
-  setTopic,
-  topic,
   loading,
   handleSubmit,
 }) => {
+  const [projectNames, setProjectNames] = useState<string[]>([]);
+  const [loadingProjects, setLoadingProjects] = useState(false);
+
+  useEffect(() => {
+    if (isOpenModal) {
+      setLoadingProjects(true);
+      getProjectNamesService()
+        .then((res) => {
+          setProjectNames(res);
+        })
+        .catch((err) => console.error("Lỗi tải danh sách dự án:", err))
+        .finally(() => setLoadingProjects(false));
+    }
+  }, [isOpenModal]);
+
   return (
     <>
       <CDialog
@@ -78,13 +83,10 @@ const FilterModal: React.FC<FilterModalProp> = ({
               variant="outline"
               onClick={() => {
                 formFilter.reset({
-                  description: "",
-                  topic: "",
+                  projectName: "",
                   status: "",
                   dateRange: undefined,
                 });
-                setTopic(null);
-                setIsOpenSelectTopic(false);
               }}
               disabled={loading}
               className="text-red-500 hover:text-red-600 hover:bg-red-50"
@@ -114,100 +116,49 @@ const FilterModal: React.FC<FilterModalProp> = ({
         <Form {...formFilter}>
           <div className="space-y-6">
             {/* Hàng đầu tiên */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
               <FormField
                 control={formFilter.control}
-                name="description"
+                name="projectName"
                 render={({ field, fieldState }) => (
                   <FormItem>
-                    <FormLabel>Tìm theo mô tả</FormLabel>
+                    <FormLabel>Tìm theo tên dự án</FormLabel>
                     <FormControl>
-                      <Input placeholder="Nhập vào mô tả" {...field} />
-                    </FormControl>
-                    {fieldState.error && (
-                      <p className="text-sm text-red-500 mt-1">
-                        {fieldState.error.message}
-                      </p>
-                    )}
-                  </FormItem>
-                )}
-              />
-              <FormField
-                control={formFilter.control}
-                name="topic"
-                render={({ field, fieldState }) => (
-                  <FormItem>
-                    <FormLabel>Tìm theo chủ đề</FormLabel>
-                    <FormControl>
-                      <div className={cn("w-full")}>
-                        <Popover
-                          open={isOpenSelectTopic}
-                          onOpenChange={setIsOpenSelectTopic}
-                        >
-                          <PopoverTrigger asChild>
-                            <Button
-                              variant="outline"
-                              role="combobox"
-                              aria-expanded={isOpenSelectTopic}
-                              className="w-full justify-between"
+                      <Select
+                        value={field.value}
+                        onValueChange={(val) =>
+                          field.onChange(val === "clear" ? "" : val)
+                        }
+                      >
+                        <SelectTrigger className="w-full">
+                          <SelectValue placeholder="Chọn tên dự án" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectGroup>
+                            <SelectItem
+                              value="clear"
+                              className="italic text-gray-500"
                             >
-                              <span className="truncate">
-                                {topic ? topic.title : "Chọn chủ đề"}
-                              </span>
-                              <ChevronsUpDown className="ml-2 h-4 w-4 shrink-0 opacity-50" />
-                            </Button>
-                          </PopoverTrigger>
-                          <PopoverContent className="w-full p-0">
-                            <Command>
-                              <CommandInput placeholder="Tìm kiếm..." />
-                              <CommandList>
-                                <CommandEmpty>
-                                  Không tìm thấy kết quả.
-                                </CommandEmpty>
-                                <CommandGroup>
-                                  {selected &&
-                                    selected !== null &&
-                                    selected !== undefined && (
-                                      <CommandItem
-                                        value=""
-                                        onSelect={() => setTopic(null)}
-                                        className={cn(
-                                          "text-muted-foreground italic"
-                                        )}
-                                      >
-                                        Clear selection
-                                        <Check
-                                          className={cn("ml-auto opacity-0")}
-                                        />
-                                      </CommandItem>
-                                    )}
-                                  {listTopic.map((item) => (
-                                    <CommandItem
-                                      key={item.id}
-                                      value={`${item.title}-${item.id}`}
-                                      onSelect={() => {
-                                        setTopic(item);
-                                        field.onChange(String(item.id));
-                                        setIsOpenSelectTopic(false);
-                                      }}
-                                    >
-                                      {item.title}
-                                      <Check
-                                        className={cn(
-                                          "ml-auto h-4 w-4",
-                                          selected?.id === item.id
-                                            ? "opacity-100"
-                                            : "opacity-0"
-                                        )}
-                                      />
-                                    </CommandItem>
-                                  ))}
-                                </CommandGroup>
-                              </CommandList>
-                            </Command>
-                          </PopoverContent>
-                        </Popover>
-                      </div>
+                              Bỏ chọn
+                            </SelectItem>
+                            {loadingProjects ? (
+                              <SelectItem value="loading" disabled>
+                                Đang tải...
+                              </SelectItem>
+                            ) : projectNames.length === 0 ? (
+                              <SelectItem value="empty" disabled>
+                                Không có dự án nào
+                              </SelectItem>
+                            ) : (
+                              projectNames.map((name, idx) => (
+                                <SelectItem key={idx} value={name}>
+                                  {name}
+                                </SelectItem>
+                              ))
+                            )}
+                          </SelectGroup>
+                        </SelectContent>
+                      </Select>
                     </FormControl>
                     {fieldState.error && (
                       <p className="text-sm text-red-500 mt-1">
@@ -217,10 +168,6 @@ const FilterModal: React.FC<FilterModalProp> = ({
                   </FormItem>
                 )}
               />
-            </div>
-
-            {/* Hàng thứ hai */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <FormField
                 control={formFilter.control}
                 name="status"

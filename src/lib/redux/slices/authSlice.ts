@@ -54,12 +54,9 @@ export const checkMe = createAsyncThunk<IUser, void, { rejectValue: string }>(
 
 export const login = createAsyncThunk<
   ITokenData,
-  { code: string; redirectUri: string }
+  any
 >("login", async (data) => {
-  const resData = await loginService({
-    code: data.code,
-    redirectUri: data.redirectUri,
-  });
+  const resData = await loginService(data);
   return resData;
 });
 
@@ -76,7 +73,6 @@ interface LoginState {
   isLoggingOut: boolean;
   user: IUser | null;
   loading: boolean;
-  role: number | null;
   authError?: string;
 }
 
@@ -86,7 +82,6 @@ const initialState: LoginState = {
   isLoggingOut: false,
   user: null,
   loading: false,
-  role: 0,
   authError: undefined,
 };
 
@@ -114,17 +109,11 @@ export const LoginSlice = createSlice({
 
         // Lưu thông tin user vào localStorage
         localStorage.setItem("account_web", JSON.stringify(action.payload));
-
-        // Extract roles nếu có
-        if (action.payload.role) {
-          state.role = action.payload.role;
-        }
       })
       .addCase(checkMe.rejected, (state, action) => {
         state.loading = false;
         state.isLogin = false;
         state.user = null;
-        state.role = null;
         state.authError = action.payload;
       })
       // login
@@ -147,18 +136,6 @@ export const LoginSlice = createSlice({
       .addCase(login.rejected, (state, action) => {
         state.loading = false;
         state.authError = "Đăng nhập thất bại";
-
-        // Thông báo lỗi đăng nhập
-        Notify({
-          title: "Đăng nhập thất bại",
-          description: "Hệ thống đang có lỗi, vui lòng thử lại sau",
-          status: "error",
-          actionLabel: "Thử lại",
-          onAction: () => {
-            window.location.reload();
-          },
-        });
-
         console.error("Login failed:", action.error);
       })
       // logout
@@ -170,7 +147,6 @@ export const LoginSlice = createSlice({
         state.isLogin = false;
         state.user = null;
         state.authError = undefined;
-        state.role = null;
         removeAllToken();
         removeStoreLocal("account_web");
 
@@ -187,7 +163,6 @@ export const LoginSlice = createSlice({
         state.isLoggingOut = false;
         state.user = null;
         state.authError = undefined;
-        state.role = null;
         removeAllToken();
         removeStoreLocal("account_web");
 

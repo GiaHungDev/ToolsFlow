@@ -1,30 +1,9 @@
 import axiosClient from "@/lib/axiosClient";
 import { saveToken } from "../../utils/localStore";
-import { ILoginLink, ITokenData } from "@/types/auth";
+import { ITokenData } from "@/types/auth";
 import { IUser } from "@/types/user";
 import axiosBase from "@/lib/axiosBase";
 import axiosAuth from "@/lib/axiosAuth";
-
-/**
- * Lấy đường dẫn đăng nhập từ server
- * @param redirectUri - URL sẽ chuyển hướng sau khi đăng nhập
- * @returns Một string chứa link đăng nhập Keycloak (hoặc tương tự)
- * @throws Error nếu gọi API thất bại
- */
-export const getLoginLinkService = async (
-  redirectUri: string
-): Promise<ILoginLink> => {
-  try {
-    return await axiosBase.get<ILoginLink>("/authen/login-link", {
-      params: { redirect_uri: redirectUri },
-    });
-  } catch (error) {
-    if (error instanceof Error) {
-      throw new Error("Error getting login link: " + error.message);
-    }
-    throw new Error("Error getting login link: Unknown error");
-  }
-};
 
 /**
  * Làm mới access token khi token cũ hết hạn
@@ -72,23 +51,34 @@ export const checkMeService = async (): Promise<IUser> => {
 };
 
 /**
- * Gọi API xác thực để lấy access token và refresh token
- * @param data - Gồm mã code (OAuth) và redirectUri
+ * Gọi API xác thực để lấy access token
+ * @param data - Gồm thông tin đăng nhập mới
  * @returns ITokenData từ server
  * @throws Error nếu gọi API thất bại
  */
-export const loginService = async (data: {
-  code: string;
-  redirectUri: string;
-}): Promise<ITokenData> => {
+export const loginService = async (data: any): Promise<ITokenData> => {
   try {
-    const res = await axiosBase.post<ITokenData>("/authen/verify", data);
-    return res;
+    const res: any = await axiosBase.post("/user/login-device", data);
+
+    if (res && res.success === false) {
+        throw new Error(res.message || "Tài khoản hoặc mật khẩu không chính xác.");
+    }
+
+    if (res && res.access_token) {
+        return {
+            access_token: res.access_token,
+            expires_in: 3600 * 24, // 24h
+            refresh_token: res.access_token,
+            refresh_expires_in: 3600 * 24 * 7,
+        };
+    }
+    
+    throw new Error("Lỗi định dạng phản hồi từ máy chủ");
   } catch (error) {
     if (error instanceof Error) {
-      throw new Error("Error during login: " + error.message);
+      throw error;
     }
-    throw new Error("Error during login: Unknown error");
+    throw new Error("Lỗi không xác định khi đăng nhập");
   }
 };
 

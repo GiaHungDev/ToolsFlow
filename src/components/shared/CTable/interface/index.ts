@@ -42,4 +42,5 @@ export interface CustomTableProps<T extends object> {
   pageSizeOptions?: number[];
   onPaginationChange?: (page: number, limit: number) => void;
   loading?: boolean;
+  headerActions?: ReactNode;
 }

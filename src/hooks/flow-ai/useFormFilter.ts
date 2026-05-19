@@ -6,8 +6,7 @@ import { useForm } from "react-hook-form";
 import { z } from "zod";
 
 export const formSchema = z.object({
-  description: z.string().optional(),
-  topic: z.string().optional(),
+  projectName: z.string().optional(),
   status: z.string().optional(),
   dateRange: z.custom<DateRange>().optional(),
 });
@@ -18,8 +17,7 @@ export const useFormFilter = () => {
   return useForm<FilterFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      description: undefined,
-      topic: undefined,
+      projectName: undefined,
       status: "completed",
       dateRange: undefined,
     },

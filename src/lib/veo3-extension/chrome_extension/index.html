@@ -1,0 +1,47 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Veo3 Auto Pipeline Dashboard</title>
+  <link rel="stylesheet" href="dashboard.css">
+</head>
+<body>
+  <div class="container">
+    <header>
+      <h1>Veo3 Auto Pipeline</h1>
+      <p>Tự động hóa tiến trình tạo video trên Google Veo từ file Excel</p>
+    </header>
+
+    <main>
+      <div class="cookie-panel">
+        <h2>Đăng nhập bằng Cookies</h2>
+        <p>Dán mã JSON chứa thông tin cookies của bạn vào đây:</p>
+        <textarea id="cookieInput" placeholder='{"url":"https://labs.google","cookies":[{...}]}' rows="4"></textarea>
+        <button id="loginCookieBtn" class="primary-btn">Đăng nhập</button>
+      </div>
+
+      <div class="controls">
+        <button id="selectFolderBtn" class="primary-btn">Chọn thư mục chứa Excel</button>
+        <button id="startPipelineBtn" class="success-btn" disabled>Bắt đầu chạy tiến trình</button>
+        <button id="pausePipelineBtn" class="warning-btn" style="display:none;">Tạm dừng</button>
+      </div>
+
+      <div class="status-panel">
+        <h2>Trạng thái</h2>
+        <p>Thư mục hiện tại: <span id="currentFolder">Chưa chọn</span></p>
+        <p>Số lượng Job: <span id="totalJobs">0</span></p>
+        <p>Hoàn thành: <span id="completedJobs">0</span></p>
+      </div>
+
+      <div class="log-panel">
+        <h2>Nhật ký (Logs)</h2>
+        <div id="logOutput" class="logs"></div>
+      </div>
+    </main>
+  </div>
+
+  <script src="lib/xlsx.full.min.js"></script>
+  <script src="dashboard.js"></script>
+</body>
+</html>
