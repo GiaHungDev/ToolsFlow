@@ -13,8 +13,13 @@ import {
   createBasAccount,
   updateBasAccount,
   deleteBasAccount,
+  getAutomationUsers,
+  createAutomationUser,
+  updateAutomationUser,
+  deleteAutomationUser,
   IFlowAccount,
   IBasAccount,
+  IAccountWeb,
 } from "@/service/api/adminService";
 import {
   Shield,
@@ -32,18 +37,20 @@ import {
   X,
   Loader2,
   ExternalLink,
+  MonitorPlay,
 } from "lucide-react";
 
 export default function AdminPage() {
   const router = useRouter();
   const { user } = useAppSelector((state) => state.auth);
 
-  // tab state: 'flow' or 'bas'
-  const [activeTab, setActiveTab] = useState<"flow" | "bas">("flow");
+  // tab state: 'flow' or 'bas' or 'users'
+  const [activeTab, setActiveTab] = useState<"flow" | "bas" | "users">("flow");
 
   // data states
   const [flowAccounts, setFlowAccounts] = useState<IFlowAccount[]>([]);
   const [basAccounts, setBasAccounts] = useState<IBasAccount[]>([]);
+  const [automationUsers, setAutomationUsers] = useState<IAccountWeb[]>([]);
   const [loading, setLoading] = useState(true);
 
   // search/filter state
@@ -65,21 +72,31 @@ export default function AdminPage() {
   const [basStaffCount, setBasStaffCount] = useState<number | "">("");
   const [basFlowAccountId, setBasFlowAccountId] = useState<number | "">("");
 
+  // user modal state
+  const [isUserModalOpen, setIsUserModalOpen] = useState(false);
+  const [editingUser, setEditingUser] = useState<any>(null);
+  const [formUserId, setFormUserId] = useState("");
+  const [userUsername, setUserUsername] = useState("");
+  const [userComputerId, setUserComputerId] = useState("");
+  const [userRole, setUserRole] = useState("user");
+
   // delete confirmation state
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [deleteType, setDeleteType] = useState<"flow" | "bas" | null>(null);
-  const [deleteId, setDeleteId] = useState<number | null>(null);
+  const [deleteType, setDeleteType] = useState<"flow" | "bas" | "users" | null>(null);
+  const [deleteId, setDeleteId] = useState<any>(null);
 
   // Load all data
   const loadData = async () => {
     try {
       setLoading(true);
-      const [flows, bases] = await Promise.all([
+      const [flows, bases, usersResp] = await Promise.all([
         getFlowAccounts(),
         getBasAccounts(),
+        getAutomationUsers(),
       ]);
       setFlowAccounts(flows || []);
       setBasAccounts(bases || []);
+      setAutomationUsers(usersResp || []);
     } catch (error: any) {
       console.error("Error loading admin data:", error);
       Notify({
@@ -93,7 +110,10 @@ export default function AdminPage() {
   };
 
   useEffect(() => {
-    if (user && user.role !== "ADMIN") {
+    // Nếu chưa có user (chưa tải xong state hoặc vừa đăng xuất) thì không làm gì cả
+    if (!user) return;
+
+    if (user.role !== "ADMIN") {
       Notify({
         title: "Từ chối truy cập",
         description: "Bạn không có quyền quản trị để truy cập trang này.",
@@ -136,6 +156,36 @@ export default function AdminPage() {
       setBasPassword("");
       setBasStaffCount("");
       setBasFlowAccountId("");
+    }
+  };
+
+  // Clean form user
+  const resetUserForm = (item: any = null) => {
+    if (item) {
+      setEditingUser(item);
+      setFormUserId(String(item.id || ""));
+      setUserUsername(item.username || "");
+      setUserComputerId(item.computerId || "");
+      setUserRole(item.role || "user");
+    } else {
+      setEditingUser(null);
+      setFormUserId("");
+      setUserUsername("");
+      setUserComputerId("");
+      setUserRole("user");
+    }
+  };
+
+  // Toggle Headless for Automation Users
+  const handleToggleHeadless = async (userId: string | number, currentVal: boolean) => {
+    try {
+      await updateAutomationUser(Number(userId), { isHeadless: !currentVal });
+      setAutomationUsers(prev => 
+        prev.map(u => u.id === userId ? { ...u, isHeadless: !currentVal } : u)
+      );
+      Notify({ title: "Cập nhật thành công", description: `Đã ${!currentVal ? "Bật" : "Tắt"} chạy ngầm.`, status: "success" });
+    } catch (err) {
+      Notify({ title: "Lỗi", description: "Không thể cập nhật trạng thái", status: "error" });
     }
   };
 
@@ -221,6 +271,42 @@ export default function AdminPage() {
     }
   };
 
+  // Save Automation User
+  const handleSaveUser = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!userUsername.trim()) {
+      Notify({ title: "Lỗi biểu mẫu", description: "Tên người dùng không được để trống", status: "warning" });
+      return;
+    }
+
+    try {
+      if (editingUser) {
+        await updateAutomationUser(editingUser.id, {
+          username: userUsername.trim(),
+          computerId: userComputerId.trim(),
+          role: userRole
+        });
+        Notify({ title: "Thành công", description: "Cập nhật thông tin người dùng thành công!", status: "success" });
+      } else {
+        await createAutomationUser({
+          username: userUsername.trim(),
+          computerId: userComputerId.trim(),
+          role: userRole,
+          isHeadless: true
+        });
+        Notify({ title: "Thành công", description: "Thêm người dùng mới thành công!", status: "success" });
+      }
+      setIsUserModalOpen(false);
+      loadData();
+    } catch (error: any) {
+      Notify({
+        title: "Lỗi xử lý",
+        description: "Đã xảy ra lỗi khi lưu thông tin người dùng.",
+        status: "error",
+      });
+    }
+  };
+
   // Trigger delete flow
   const triggerDeleteFlow = (id: number) => {
     setDeleteType("flow");
@@ -235,6 +321,13 @@ export default function AdminPage() {
     setIsDeleteOpen(true);
   };
 
+  // Trigger delete user
+  const triggerDeleteUser = (id: string | number) => {
+    setDeleteType("users");
+    setDeleteId(id);
+    setIsDeleteOpen(true);
+  };
+
   // Confirm delete action
   const handleConfirmDelete = async () => {
     if (!deleteType || !deleteId) return;
@@ -243,9 +336,12 @@ export default function AdminPage() {
       if (deleteType === "flow") {
         await deleteFlowAccount(deleteId);
         Notify({ title: "Xóa thành công", description: "Đã xóa tài khoản Flow khỏi hệ thống.", status: "success" });
-      } else {
+      } else if (deleteType === "bas") {
         await deleteBasAccount(deleteId);
         Notify({ title: "Xóa thành công", description: "Đã xóa tài khoản BAS khỏi hệ thống.", status: "success" });
+      } else if (deleteType === "users") {
+        await deleteAutomationUser(Number(deleteId));
+        Notify({ title: "Xóa thành công", description: "Đã xóa người dùng khỏi hệ thống.", status: "success" });
       }
       setIsDeleteOpen(false);
       loadData();
@@ -275,6 +371,10 @@ export default function AdminPage() {
   const filteredBases = basAccounts.filter((acc) =>
     acc.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
     acc.flowAccount?.email.toLowerCase().includes(searchTerm.toLowerCase())
+  );
+
+  const filteredUsers = automationUsers.filter((u) =>
+    u.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
   return (
@@ -335,6 +435,20 @@ export default function AdminPage() {
             <Users className="h-4 w-4" />
             <span>Tài khoản BAS ({basAccounts.length})</span>
           </button>
+          <button
+            onClick={() => {
+              setActiveTab("users");
+              setSearchTerm("");
+            }}
+            className={`flex items-center space-x-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
+              activeTab === "users"
+                ? "bg-white text-blue-600 shadow"
+                : "text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            <MonitorPlay className="h-4 w-4" />
+            <span>Người dùng ({automationUsers.length})</span>
+          </button>
         </div>
 
         <div className="flex items-center gap-3 w-full md:w-auto">
@@ -344,28 +458,31 @@ export default function AdminPage() {
             </span>
             <input
               type="text"
-              placeholder={activeTab === "flow" ? "Tìm email tài khoản Flow..." : "Tìm tên hoặc email liên kết..."}
+              placeholder={activeTab === "flow" ? "Tìm email tài khoản Flow..." : activeTab === "bas" ? "Tìm tên hoặc email liên kết..." : "Tìm username người dùng..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="pl-9 pr-4 py-2.5 w-full bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
             />
           </div>
 
-          <button
-            onClick={() => {
-              if (activeTab === "flow") {
-                resetFlowForm();
-                setIsFlowModalOpen(true);
-              } else {
-                resetBasForm();
-                setIsBasModalOpen(true);
-              }
-            }}
-            className="inline-flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-semibold hover:from-blue-700 hover:to-indigo-700 shadow-md transition"
-          >
-            <Plus className="h-4 w-4" />
-            <span>{activeTab === "flow" ? "Thêm tài khoản Flow" : "Thêm tài khoản BAS"}</span>
-          </button>
+            <button
+              onClick={() => {
+                if (activeTab === "flow") {
+                  resetFlowForm();
+                  setIsFlowModalOpen(true);
+                } else if (activeTab === "bas") {
+                  resetBasForm();
+                  setIsBasModalOpen(true);
+                } else {
+                  resetUserForm();
+                  setIsUserModalOpen(true);
+                }
+              }}
+              className="inline-flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-semibold hover:from-blue-700 hover:to-indigo-700 shadow-md transition"
+            >
+              <Plus className="h-4 w-4" />
+              <span>{activeTab === "flow" ? "Thêm tài khoản Flow" : activeTab === "bas" ? "Thêm tài khoản BAS" : "Thêm Người dùng"}</span>
+            </button>
         </div>
       </div>
 
@@ -435,6 +552,70 @@ export default function AdminPage() {
                             onClick={() => triggerDeleteFlow(item.id)}
                             className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
                             title="Xóa tài khoản"
+                          >
+                            <Trash2 className="h-4 w-4" />
+                          </button>
+                        </div>
+                      </td>
+                    </tr>
+                  ))
+                )}
+              </tbody>
+            </table>
+          </div>
+        ) : activeTab === "users" ? (
+          /* AUTOMATION USERS TABLE */
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-100">
+              <thead className="bg-gray-50/70">
+                <tr>
+                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID User</th>
+                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên người dùng (Username)</th>
+                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thiết bị (Computer ID)</th>
+                  <th className="px-6 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Chạy ngầm (Headless)</th>
+                  <th className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100 bg-white">
+                {filteredUsers.length === 0 ? (
+                  <tr>
+                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">
+                      Chưa có dữ liệu người dùng Automation.
+                    </td>
+                  </tr>
+                ) : (
+                  filteredUsers.map((item) => (
+                    <tr key={item.id} className="hover:bg-gray-50/50 transition">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.id}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.username}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{item.computerId || <span className="italic">Không có</span>}</td>
+                      <td className="px-6 py-4 whitespace-nowrap text-center">
+                        <label className="relative inline-flex items-center cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={item.isHeadless}
+                            onChange={() => handleToggleHeadless(item.id, item.isHeadless)}
+                            className="sr-only peer"
+                          />
+                          <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+                        </label>
+                      </td>
+                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
+                        <div className="flex justify-end space-x-2">
+                          <button
+                            onClick={() => {
+                              resetUserForm(item);
+                              setIsUserModalOpen(true);
+                            }}
+                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+                            title="Sửa"
+                          >
+                            <Edit className="h-4 w-4" />
+                          </button>
+                          <button
+                            onClick={() => triggerDeleteUser(item.id)}
+                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
+                            title="Xóa"
                           >
                             <Trash2 className="h-4 w-4" />
                           </button>
@@ -723,6 +904,78 @@ export default function AdminPage() {
                   className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow transition"
                 >
                   Lưu cấu hình
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* USER ACCOUNT MODAL */}
+      {isUserModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden border border-gray-100 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900">
+                {editingUser ? "Sửa người dùng Automation" : "Thêm người dùng Automation"}
+              </h2>
+              <button
+                onClick={() => setIsUserModalOpen(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveUser}>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tên người dùng (Username)</label>
+                  <input
+                    type="text"
+                    value={userUsername}
+                    onChange={(e) => setUserUsername(e.target.value)}
+                    placeholder="Nhập username..."
+                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Thiết bị (Computer ID)</label>
+                  <input
+                    type="text"
+                    value={userComputerId}
+                    onChange={(e) => setUserComputerId(e.target.value)}
+                    placeholder="Nhập Computer ID..."
+                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Vai trò (Role)</label>
+                  <select
+                    value={userRole}
+                    onChange={(e) => setUserRole(e.target.value)}
+                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white"
+                  >
+                    <option value="user">User thường</option>
+                    <option value="admin">Admin</option>
+                  </select>
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setIsUserModalOpen(false)}
+                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-100 transition"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow transition"
+                >
+                  Lưu
                 </button>
               </div>
             </form>

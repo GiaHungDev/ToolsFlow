@@ -42,7 +42,7 @@ const account = {
     password: config.accountData ? config.accountData.password : '',
     twoFactorSecret: config.accountData ? config.accountData.twoFA : '',
     loginType: 'auto',
-    headless: false, // User requested to see the browser
+    headless: config.isHeadless !== undefined ? config.isHeadless : false,
     profilePath: 'C:\\Profiles_BAS_Flow',
     outputDir: OUTPUT_DIR,
     cookies: config.cookieData ? (typeof config.cookieData === 'string' ? JSON.parse(config.cookieData) : config.cookieData) : null,

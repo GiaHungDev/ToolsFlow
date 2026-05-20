@@ -181,6 +181,8 @@ const Veo3Section = () => {
           cookieData: loginMethod === "cookie" ? cookieData : null,
           toolAccount: loginMethod === "tool" ? toolAccount : null,
           chromePath,
+          userId: user?.id,
+          username: user?.username,
           isReconnecting,
         }),
       });

@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { spawn } from 'child_process';
 import readline from 'readline';
 import path from 'path';
+import fs from 'fs';
 
 // Define global interface to persist state across Next.js API reloads
 interface GlobalProcess {
@@ -59,8 +60,30 @@ export async function POST(req: NextRequest) {
     // 3. Connect to stream or start process
     const token = req.headers.get('authorization')?.split(' ')[1] || '';
 
+    // Lấy config Headless từ Backend bằng token
+    let finalIsHeadless = true;
+    try {
+      if (token) {
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const res = await fetch(`${backendUrl}/user/checkme`, {
+          headers: {
+            'Authorization': `Bearer ${token}`
+          }
+        });
+        if (res.ok) {
+          const user = await res.json();
+          if (user && user.isHeadless !== undefined) {
+            finalIsHeadless = user.isHeadless;
+          }
+        }
+      }
+    } catch (e) {
+      console.log('Lỗi cập nhật isHeadless từ backend', e);
+    }
+
     const config = {
       ...body,
+      isHeadless: finalIsHeadless,
       token,
       apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
     };
