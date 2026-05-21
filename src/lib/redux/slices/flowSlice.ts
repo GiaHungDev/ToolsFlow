@@ -272,7 +272,7 @@ export const LoginSlice = createSlice({
         });
         console.error("Create prompt failed:", action.error);
       })
-      // prompt/create/T2V =========================================
+
       .addCase(createPromptT2V.pending, (state) => {
         state.loadFlow.loadcreatePromptT2V = true;
       })
@@ -280,7 +280,6 @@ export const LoginSlice = createSlice({
         createPromptT2V.fulfilled,
         (state, action: PayloadAction<string[]>) => {
           state.loadFlow.loadcreatePromptT2V = false;
-          // Convert array to objects with IDs
           const promptItems: IPromptItem[] = action.payload.map(
             (content, index) => ({
               id: `prompt_${Date.now()}_${index}`,
@@ -290,7 +289,6 @@ export const LoginSlice = createSlice({
 
           state.listPrompt = promptItems;
 
-          // Create map for fast lookup
           const map: Record<string, IPromptItem> = {};
           promptItems.forEach((item) => {
             map[item.id] = item;
@@ -311,7 +309,7 @@ export const LoginSlice = createSlice({
         });
         console.error("Create prompt failed:", action.error);
       })
-      // topics/get =========================================
+
       .addCase(getTopic.pending, (state) => {
         state.loadFlow.loadGetFlow = true;
       })
@@ -351,7 +349,7 @@ export const LoginSlice = createSlice({
         });
         console.error("Create video failed:", action.error);
       })
-      // flow/get/video =========================================
+
       .addCase(deleteFlowVideo.pending, (state) => {
         state.loadFlow.loadDeleteFlow = true;
       })

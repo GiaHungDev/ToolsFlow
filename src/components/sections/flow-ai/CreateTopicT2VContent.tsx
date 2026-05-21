@@ -174,7 +174,6 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
 
 
   const handleImageUpload = (e: ChangeEvent<HTMLInputElement>) => {
-    // Ép kiểu sang any một chút để lấy được thuộc tính path (nếu chạy trên app electron)
     const file = e.target.files?.[0] as any;
     if (!file) {
       setFormData((prev) => ({ ...prev, liveArtistImage: null }));
@@ -190,8 +189,8 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
             liveArtistImage: {
               base64: base64Data,
               mimeType: file.type,
-              name: file.name, // <-- Đã thêm name để fix lỗi
-              path: file.path || file.name, // <-- Đã thêm path cho đồng bộ với hàm kia
+              name: file.name, 
+              path: file.path || file.name, 
             },
           }));
       }

@@ -148,16 +148,8 @@ async function startBatchProcess() {
     }
 
     const controller = new Veo3PipelineController(account, masterService, null, 'edge', null);
-    await controller.start();
 
-    if (!controller.isRunning) {
-        console.log("❌ LỖI NGHIÊM TRỌNG: Không thể khởi động trình duyệt tự động.");
-        console.log("👉 LÝ DO: Có thể một tiến trình Chrome bị kẹt (chạy ngầm) đang khóa thư mục cấu hình (edge_data).");
-        console.log("👉 CÁCH KHẮC PHỤC: Vui lòng mở Task Manager (Ctrl+Shift+Esc), tìm và 'End Task' tất cả các tiến trình 'Google Chrome' rồi chạy lại.");
-        process.exit(1);
-    }
-
-    // Lấy job từ API
+    // Lấy job từ API TRƯỚC KHI KHỞI ĐỘNG TRÌNH DUYỆT
     console.log(`Đang nạp dữ liệu từ API...`);
     try {
         const backendUrl = config.apiUrl;
@@ -196,7 +188,7 @@ async function startBatchProcess() {
             const job = {
                 id: row.id,
                 prompt: row.prompt || '',
-                isImageTask: false, // IN2V is a video task, not an image generation task
+                isImageTask: false,
                 typeVideo: (row.images && Array.isArray(row.images) && row.images.length > 0) || (row.typeI2V === 'Ingredients to Video') || (row.videoType === 'Ingredients to Video') ? 'IN2V' : 'T2V',
                 settings: {
                     videoSettings: {
@@ -218,6 +210,16 @@ async function startBatchProcess() {
     }
 
     console.log(`\n✅ Đã đẩy toàn bộ Job vào hàng đợi (Pending Queue).`);
+
+    // BÂY GIỜ MỚI KHỞI ĐỘNG BROWSER
+    await controller.start();
+
+    if (!controller.isRunning) {
+        console.log("❌ LỖI NGHIÊM TRỌNG: Không thể khởi động trình duyệt tự động.");
+        console.log("👉 LÝ DO: Có thể một tiến trình Chrome bị kẹt (chạy ngầm) đang khóa thư mục cấu hình (edge_data).");
+        console.log("👉 CÁCH KHẮC PHỤC: Vui lòng mở Task Manager (Ctrl+Shift+Esc), tìm và 'End Task' tất cả các tiến trình 'Google Chrome' rồi chạy lại.");
+        process.exit(1);
+    }
 }
 
 startBatchProcess().catch(err => {

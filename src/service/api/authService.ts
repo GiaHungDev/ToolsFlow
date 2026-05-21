@@ -5,23 +5,16 @@ import { IUser } from "@/types/user";
 import axiosBase from "@/lib/axiosBase";
 import axiosAuth from "@/lib/axiosAuth";
 
-/**
- * Làm mới access token khi token cũ hết hạn
- * @param refreshToken - Refresh token hiện tại
- * @param redirectUri - URL sẽ dùng cho luồng đăng nhập
- * @returns ITokenData mới nhận được từ server
- * @throws Error nếu gọi API thất bại
- */
 export const refreshTokenService = async (
   refreshToken: string,
-  redirectUri: string
+  redirectUri: string,
 ): Promise<ITokenData> => {
   try {
     const res = await axiosBase.post<ITokenData>("/authen/refresh-token", {
       refreshToken,
       redirectUri,
     });
-    // Lưu token mới vào localStorage
+
     saveToken(res);
     return res;
   } catch (error) {
@@ -32,12 +25,6 @@ export const refreshTokenService = async (
   }
 };
 
-/**
- * Lấy thông tin người dùng từ server dựa trên userId
- * @param userId - ID người dùng
- * @returns Đối tượng User lấy từ API
- * @throws Error nếu gọi API thất bại
- */
 export const checkMeService = async (): Promise<IUser> => {
   try {
     const res = await axiosAuth.get<IUser>("/user/checkme");
@@ -50,29 +37,25 @@ export const checkMeService = async (): Promise<IUser> => {
   }
 };
 
-/**
- * Gọi API xác thực để lấy access token
- * @param data - Gồm thông tin đăng nhập mới
- * @returns ITokenData từ server
- * @throws Error nếu gọi API thất bại
- */
 export const loginService = async (data: any): Promise<ITokenData> => {
   try {
     const res: any = await axiosBase.post("/user/login-device", data);
 
     if (res && res.success === false) {
-        throw new Error(res.message || "Tài khoản hoặc mật khẩu không chính xác.");
+      throw new Error(
+        res.message || "Tài khoản hoặc mật khẩu không chính xác.",
+      );
     }
 
     if (res && res.access_token) {
-        return {
-            access_token: res.access_token,
-            expires_in: 3600 * 24, // 24h
-            refresh_token: res.access_token,
-            refresh_expires_in: 3600 * 24 * 7,
-        };
+      return {
+        access_token: res.access_token,
+        expires_in: 3600 * 24, // 24h
+        refresh_token: res.access_token,
+        refresh_expires_in: 3600 * 24 * 7,
+      };
     }
-    
+
     throw new Error("Lỗi định dạng phản hồi từ máy chủ");
   } catch (error) {
     if (error instanceof Error) {
@@ -82,12 +65,6 @@ export const loginService = async (data: any): Promise<ITokenData> => {
   }
 };
 
-/**
- * Gọi API để đăng xuất khỏi hệ thống
- * @param data - Gồm refresh token cần huỷ
- * @returns void
- * @throws Error nếu gọi API thất bại
- */
 export const logoutService = async (data: {
   refreshToken: string;
 }): Promise<void> => {
@@ -101,16 +78,9 @@ export const logoutService = async (data: {
   }
 };
 
-/**
- * Gọi API để đổi mật khẩu của người dùng
- * @param id - ID người dùng
- * @param data - Gồm mật khẩu cũ và mật khẩu mới
- * @returns void
- * @throws Error nếu gọi API thất bại
- */
 export const changePasswordService = async (
   id: string,
-  data: { oldPassword: string; newPassword: string }
+  data: { oldPassword: string; newPassword: string },
 ): Promise<void> => {
   try {
     await axiosClient.patch(`/user/${id}`, data);

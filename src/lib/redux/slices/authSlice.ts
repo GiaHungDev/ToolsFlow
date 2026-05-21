@@ -16,7 +16,7 @@ import {
   saveToken,
 } from "@/utils/localStore";
 
-// ==== Async Thunks ====
+
 export const checkMe = createAsyncThunk<IUser, void, { rejectValue: string }>(
   "checkMe",
   async (_, thunkAPI) => {
@@ -42,7 +42,6 @@ export const checkMe = createAsyncThunk<IUser, void, { rejectValue: string }>(
     } catch (error: unknown) {
       console.error("CheckMe error:", error);
 
-      // Kiểm tra loại lỗi cụ thể
       if (error instanceof Error) {
         return thunkAPI.rejectWithValue(error.message);
       }
@@ -85,7 +84,7 @@ const initialState: LoginState = {
   authError: undefined,
 };
 
-// ==== Slice ====
+
 export const LoginSlice = createSlice({
   name: "login",
   initialState,
@@ -96,7 +95,6 @@ export const LoginSlice = createSlice({
   },
   extraReducers: (builder) => {
     builder
-      // checkMe
       .addCase(checkMe.pending, (state) => {
         state.loading = true;
         state.authError = undefined;
@@ -106,8 +104,6 @@ export const LoginSlice = createSlice({
         state.user = action.payload;
         state.isLogin = true;
         state.authError = undefined;
-
-        // Lưu thông tin user vào localStorage
         localStorage.setItem("account_web", JSON.stringify(action.payload));
       })
       .addCase(checkMe.rejected, (state, action) => {
@@ -126,7 +122,6 @@ export const LoginSlice = createSlice({
         saveToken(action.payload);
         state.authError = undefined;
 
-        // Thông báo đăng nhập thành công
         Notify({
           title: "Đăng nhập thành công",
           description: "Chào mừng bạn quay trở lại!",
@@ -150,7 +145,6 @@ export const LoginSlice = createSlice({
         removeAllToken();
         removeStoreLocal("account_web");
 
-        // Thông báo đăng xuất thành công
         Notify({
           title: "Đăng xuất thành công",
           description: "Cảm ơn bạn đã sử dụng dịch vụ",
@@ -159,14 +153,13 @@ export const LoginSlice = createSlice({
       })
       .addCase(logout.rejected, (state, action) => {
         state.loading = false;
-        // Vẫn clear state local dù API logout failed
+
         state.isLoggingOut = false;
         state.user = null;
         state.authError = undefined;
         removeAllToken();
         removeStoreLocal("account_web");
 
-        // Thông báo lỗi nhưng vẫn đăng xuất local
         Notify({
           title: "Có lỗi khi đăng xuất",
           description:

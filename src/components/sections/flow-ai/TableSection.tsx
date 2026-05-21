@@ -208,7 +208,7 @@ const TableSection: React.FC<TableSectionProp> = ({
               {imageStrs.map((imageStr, idx) => {
                 let finalUrl = "";
                 if (imageStr.includes(":\\") || imageStr.startsWith("file://")) {
-                  finalUrl = `${baseUrl}/flow/local-image?path=${encodeURIComponent(imageStr)}`;
+                  finalUrl = `${baseUrl}/flow/veo3/local-image?path=${encodeURIComponent(imageStr)}`;
                 } else if (imageStr.startsWith("http")) {
                   finalUrl = imageStr;
                 } else if (imageStr.startsWith("uploads/")) {

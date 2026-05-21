@@ -201,14 +201,12 @@ export const convertBase64ToFile = (base64String: string, mimeType: string, file
   return new File([blob], filename, { type: mimeType });
 };
 
-// ---------------------------------------------------------
-// 2. HÀM SERVICE CỦA BẠN SẼ GỌI HÀM CONVERT Ở TRÊN
-// ---------------------------------------------------------
+
 export const createFlowT2VService = async (
   sceneNumber: number,
   prompt: string,
   ownerId: number,
-  images?: any[] // Thêm tham số nhận mảng ảnh
+  images?: any[] 
 ) => {
   try {
     const formData = new FormData();
@@ -216,7 +214,7 @@ export const createFlowT2VService = async (
     formData.append("ownerId", String(ownerId));
     formData.append("sceneNumber", String(sceneNumber));
     
-    // Nếu có ảnh thì đổi type thành Ingredients to Video (tùy logic backend của bạn)
+
     const hasImages = images && images.length > 0;
     formData.append("typeI2V", hasImages ? "Ingredients to Video" : "Text to Video");
 

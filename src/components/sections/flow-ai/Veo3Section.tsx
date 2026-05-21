@@ -225,20 +225,19 @@ const Veo3Section = () => {
                 // Lọc những log rác không có giá trị
                 if (logText.includes("Ignoring extra certs") || logText.includes("PEM routines::ASN1 lib")) continue;
                 if (logText.includes("[Master][Account") && logText.endsWith("Pipeline")) continue;
-                if (logText.replace(/^\[.*?\]\s*/, '').trim() === '') continue; // Bỏ qua log trống
-                if (logText.includes("Đang kiểm tra tiến độ Job")) continue; // Bỏ qua log kiểm tra lặp lại
-                if (logText.includes("chuyển sang: Rendering")) continue; // Rendering bị lặp nhiều lần
+                if (logText.replace(/^\[.*?\]\s*/, '').trim() === '') continue; 
+                if (logText.includes("Đang kiểm tra tiến độ Job")) continue; 
+                if (logText.includes("chuyển sang: Rendering")) continue; 
 
-                // Xử lý thông minh log tiến trình (VD: Tiến trình Job 233: 4%)
+              
                 const progressMatch = logText.match(/Tiến trình Job (.*?):\s*(\d+)%/);
                 if (progressMatch) {
                   const jobId = progressMatch[1];
                   const percent = parseInt(progressMatch[2], 10);
                   setJobProgress((prev) => ({ ...prev, [jobId]: percent }));
-                  continue; // Không in ra text log nữa để đỡ rối
+                  continue; 
                 }
 
-                // Xử lý hoàn thành hoặc thất bại
                 const statusMatch = logText.match(/\[TRẠNG THÁI\] Job (.*?) chuyển sang: (Completed|Failed)/);
                 if (statusMatch) {
                   const jobId = statusMatch[1];
@@ -258,7 +257,6 @@ const Veo3Section = () => {
                   continue;
                 }
 
-                // Không thêm timestamp vì backend/tool đã có timestamp rồi
                 setLogs((prev) => [...prev, logText]);
               }
             } catch (e) { }
@@ -295,7 +293,6 @@ const Veo3Section = () => {
     const file = e.target.files?.[0];
     if (file) {
       addLog(`Đã chọn file: ${file.name}`);
-      // Normally you'd parse the file here
     }
   };
 
@@ -545,7 +542,6 @@ const Veo3Section = () => {
                 ))
               )}
 
-              {/* THÔNG MINH: Thanh tiến trình hiển thị CÙNG DÒNG VỚI LOG */}
               {Object.keys(jobProgress).length > 0 && (
                 <div className="pt-2 pb-2 space-y-3">
                   {Object.entries(jobProgress).map(([jobId, percent]) => (

@@ -42,13 +42,13 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({
   const [newKeyValue, setNewKeyValue] = useState("");
   const [error, setError] = useState("");
 
-  // ✅ Load keys từ localStorage khi userId sẵn sàng
+
   useEffect(() => {
     if (!userId) return;
     const storedKeys = safeParseKeys(localStorage.getItem(getLSKeys(userId)));
     onKeysInit(storedKeys);
 
-    // ✅ restore active key (nếu có)
+
     const activeId = localStorage.getItem(getLSActive(userId));
     if (activeId) {
       const activeKey = storedKeys.find((k) => k.id === activeId);
@@ -72,10 +72,9 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({
       value: newKeyValue.trim(),
     };
 
-    // ✅ Update UI
+    
     onKeyAdd(newKey);
 
-    // ✅ Sync localStorage (đọc list hiện tại rồi push)
     const current = safeParseKeys(localStorage.getItem(getLSKeys(userId)));
     const next = [...current, newKey];
     saveKeysToLS(next, userId);
@@ -91,15 +90,14 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({
   };
 
   const handleDelete = (key: ApiKey) => {
-    // ✅ Update UI
+
     onKeyDelete(key.id);
 
-    // ✅ Sync localStorage
+   
     const current = safeParseKeys(localStorage.getItem(getLSKeys(userId)));
     const next = current.filter((k) => k.id !== key.id);
     saveKeysToLS(next, userId);
 
-    // ✅ nếu đang xóa active key thì remove active
     const activeId = localStorage.getItem(getLSActive(userId));
     if (activeId === key.id) {
       localStorage.removeItem(getLSActive(userId));

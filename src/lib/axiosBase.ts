@@ -1,9 +1,6 @@
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse } from "axios";
 
-/**
- * Custom Axios Instance Interface
- * Luôn trả về response.data thay vì AxiosResponse
- */
+
 interface CustomAxiosBase
   extends Omit<
     AxiosInstance,
@@ -37,9 +34,7 @@ const axiosBase = axios.create({
   },
 });
 
-/**
- * Interceptor response để luôn trả về response.data
- */
+
 axiosBase.interceptors.response.use(
   (response: AxiosResponse) => response.data,
   (error) => {

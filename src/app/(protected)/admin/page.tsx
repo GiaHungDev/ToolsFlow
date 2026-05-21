@@ -1,5 +1,7 @@
 "use client";
 
+import CustomTable from "@/components/shared/CTable";
+import { TableColumn } from "@/components/shared/CTable/interface";
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/lib/redux/store";
@@ -377,6 +379,127 @@ export default function AdminPage() {
     u.username.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
+  // Table Columns
+  const flowColumns: TableColumn<IFlowAccount>[] = [
+    { key: "email", title: "Email liên hệ" },
+    { key: "password", title: "Mật khẩu", render: (_, row) => row.password ? "••••••••" : <span className="italic text-gray-300">Không có</span> },
+    { key: "twoFaCode", title: "Mã 2FA (Auth Code)", render: (_, row) => row.twoFaCode || <span className="italic text-gray-300">Không có</span> },
+    { key: "cookies", title: "Trạng thái Cookies", render: (_, row) => row.cookies ? (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
+        Có JSON Cookies
+      </span>
+    ) : (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 border border-gray-200">
+        Không có
+      </span>
+    ) },
+    { key: "actions", title: "Hành động", render: (_, row) => (
+      <div className="flex justify-end space-x-2">
+        <button
+          onClick={() => {
+            resetFlowForm(row);
+            setIsFlowModalOpen(true);
+          }}
+          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+          title="Sửa thông tin"
+        >
+          <Edit className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => triggerDeleteFlow(row.id)}
+          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
+          title="Xóa tài khoản"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    ) }
+  ];
+
+  const userColumns: TableColumn<any>[] = [
+    { key: "id", title: "ID User" },
+    { key: "username", title: "Tên người dùng (Username)" },
+    { key: "computerId", title: "Thiết bị (Computer ID)", render: (_, row) => row.computerId || <span className="italic">Không có</span> },
+    { key: "isHeadless", title: "Chạy ngầm (Headless)", render: (_, row) => (
+      <div className="text-center">
+        <label className="relative inline-flex items-center cursor-pointer">
+          <input
+            type="checkbox"
+            checked={row.isHeadless}
+            onChange={() => handleToggleHeadless(row.id, row.isHeadless)}
+            className="sr-only peer"
+          />
+          <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+        </label>
+      </div>
+    ) },
+    { key: "actions", title: "Hành động", render: (_, row) => (
+      <div className="flex justify-end space-x-2">
+        <button
+          onClick={() => {
+            resetUserForm(row);
+            setIsUserModalOpen(true);
+          }}
+          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+          title="Sửa"
+        >
+          <Edit className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => triggerDeleteUser(row.id)}
+          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
+          title="Xóa"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    ) }
+  ];
+
+  const basColumns: TableColumn<IBasAccount>[] = [
+    { key: "username", title: "Tên đăng nhập BAS" },
+    { key: "password", title: "Mật khẩu", render: (_, row) => row.password ? "••••••••" : <span className="italic text-gray-300">Không có</span> },
+    { key: "staffCount", title: "Số lượng luồng (Staff)", render: (_, row) => (
+      <span className="font-semibold">{row.staffCount !== null && row.staffCount !== undefined ? row.staffCount : <span className="italic font-normal text-gray-300">Không giới hạn</span>}</span>
+    ) },
+    { key: "flowAccount", title: "Tài khoản Flow liên kết", render: (_, row) => row.flowAccount ? (
+      <div className="flex flex-col">
+        <span className="text-sm font-medium text-blue-600 flex items-center gap-1">
+          {row.flowAccount.email}
+          <ExternalLink className="h-3 w-3" />
+        </span>
+        {row.flowAccount.twoFaCode && (
+          <span className="text-xs text-gray-400">2FA: {row.flowAccount.twoFaCode}</span>
+        )}
+      </div>
+    ) : (
+      <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
+        Chưa liên kết
+      </span>
+    ) },
+    { key: "actions", title: "Hành động", render: (_, row) => (
+      <div className="flex justify-end space-x-2">
+        <button
+          onClick={() => {
+            resetBasForm(row);
+            setIsBasModalOpen(true);
+          }}
+          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+          title="Sửa cấu hình"
+        >
+          <Edit className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => triggerDeleteBas(row.id)}
+          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
+          title="Xóa cấu hình"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    ) }
+  ];
+
   return (
     <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-16 text-gray-900">
       {/* Top bar & Header */}
@@ -487,223 +610,22 @@ export default function AdminPage() {
       </div>
 
       {/* Main content table */}
-      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-        {loading ? (
-          <div className="flex flex-col items-center justify-center py-20 text-center">
-            <Loader2 className="h-8 w-8 text-blue-600 animate-spin mb-3" />
-            <p className="text-gray-400 text-sm">Đang tải danh sách tài khoản dịch vụ...</p>
-          </div>
-        ) : activeTab === "flow" ? (
-          /* FLOW ACCOUNT TABLE */
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50/70">
-                <tr>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Email liên hệ</th>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mật khẩu</th>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mã 2FA (Auth Code)</th>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Trạng thái Cookies</th>
-                  <th className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {filteredFlows.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">
-                      Không tìm thấy tài khoản Flow nào phù hợp.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredFlows.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50/50 transition">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {item.email}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                        {item.password ? "••••••••" : <span className="italic text-gray-300">Không có</span>}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">
-                        {item.twoFaCode || <span className="italic text-gray-300">Không có</span>}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {item.cookies ? (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-emerald-50 text-emerald-700 border border-emerald-100">
-                            Có JSON Cookies
-                          </span>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-gray-100 text-gray-500 border border-gray-200">
-                            Không có
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end space-x-2">
-                          <button
-                            onClick={() => {
-                              resetFlowForm(item);
-                              setIsFlowModalOpen(true);
-                            }}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                            title="Sửa thông tin"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => triggerDeleteFlow(item.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
-                            title="Xóa tài khoản"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : activeTab === "users" ? (
-          /* AUTOMATION USERS TABLE */
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50/70">
-                <tr>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">ID User</th>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên người dùng (Username)</th>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Thiết bị (Computer ID)</th>
-                  <th className="px-6 py-3.5 text-center text-xs font-semibold text-gray-500 uppercase tracking-wider">Chạy ngầm (Headless)</th>
-                  <th className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {filteredUsers.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">
-                      Chưa có dữ liệu người dùng Automation.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredUsers.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50/50 transition">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">{item.id}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600">{item.username}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">{item.computerId || <span className="italic">Không có</span>}</td>
-                      <td className="px-6 py-4 whitespace-nowrap text-center">
-                        <label className="relative inline-flex items-center cursor-pointer">
-                          <input
-                            type="checkbox"
-                            checked={item.isHeadless}
-                            onChange={() => handleToggleHeadless(item.id, item.isHeadless)}
-                            className="sr-only peer"
-                          />
-                          <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
-                        </label>
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end space-x-2">
-                          <button
-                            onClick={() => {
-                              resetUserForm(item);
-                              setIsUserModalOpen(true);
-                            }}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                            title="Sửa"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => triggerDeleteUser(item.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
-                            title="Xóa"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        ) : (
-          /* BAS ACCOUNT TABLE */
-          <div className="overflow-x-auto">
-            <table className="min-w-full divide-y divide-gray-100">
-              <thead className="bg-gray-50/70">
-                <tr>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tên đăng nhập BAS</th>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Mật khẩu</th>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Số lượng luồng (Staff)</th>
-                  <th className="px-6 py-3.5 text-left text-xs font-semibold text-gray-500 uppercase tracking-wider">Tài khoản Flow liên kết</th>
-                  <th className="px-6 py-3.5 text-right text-xs font-semibold text-gray-500 uppercase tracking-wider">Hành động</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-gray-100 bg-white">
-                {filteredBases.length === 0 ? (
-                  <tr>
-                    <td colSpan={5} className="px-6 py-12 text-center text-gray-400 text-sm">
-                      Không tìm thấy tài khoản BAS nào phù hợp.
-                    </td>
-                  </tr>
-                ) : (
-                  filteredBases.map((item) => (
-                    <tr key={item.id} className="hover:bg-gray-50/50 transition">
-                      <td className="px-6 py-4 whitespace-nowrap text-sm font-medium text-gray-900">
-                        {item.username}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-400">
-                        {item.password ? "••••••••" : <span className="italic text-gray-300">Không có</span>}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-600 font-semibold">
-                        {item.staffCount !== null && item.staffCount !== undefined ? item.staffCount : <span className="italic font-normal text-gray-300">Không giới hạn</span>}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap">
-                        {item.flowAccount ? (
-                          <div className="flex flex-col">
-                            <span className="text-sm font-medium text-blue-600 flex items-center gap-1">
-                              {item.flowAccount.email}
-                              <ExternalLink className="h-3 w-3" />
-                            </span>
-                            {item.flowAccount.twoFaCode && (
-                              <span className="text-xs text-gray-400">2FA: {item.flowAccount.twoFaCode}</span>
-                            )}
-                          </div>
-                        ) : (
-                          <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold bg-amber-50 text-amber-700 border border-amber-100">
-                            Chưa liên kết
-                          </span>
-                        )}
-                      </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
-                        <div className="flex justify-end space-x-2">
-                          <button
-                            onClick={() => {
-                              resetBasForm(item);
-                              setIsBasModalOpen(true);
-                            }}
-                            className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
-                            title="Sửa cấu hình"
-                          >
-                            <Edit className="h-4 w-4" />
-                          </button>
-                          <button
-                            onClick={() => triggerDeleteBas(item.id)}
-                            className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
-                            title="Xóa cấu hình"
-                          >
-                            <Trash2 className="h-4 w-4" />
-                          </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        )}
+      <div className="mb-8">
+        <CustomTable<any>
+          data={
+            activeTab === "flow" ? filteredFlows :
+            activeTab === "users" ? filteredUsers :
+            filteredBases
+          }
+          columns={
+            (activeTab === "flow" ? flowColumns :
+            activeTab === "users" ? userColumns :
+            basColumns) as any
+          }
+          loading={loading}
+          enableSelection={false}
+          enablePagination={false}
+        />
       </div>
 
       {/* FLOW ACCOUNT MODAL */}

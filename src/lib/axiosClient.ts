@@ -13,27 +13,26 @@ import { Notify } from "./Notify";
  * Custom Axios Instance Interface
  * Override default Axios methods để trả về data thay vì AxiosResponse
  */
-interface CustomAxiosInstance
-  extends Omit<
-    AxiosInstance,
-    "get" | "post" | "put" | "delete" | "patch" | "request"
-  > {
+interface CustomAxiosInstance extends Omit<
+  AxiosInstance,
+  "get" | "post" | "put" | "delete" | "patch" | "request"
+> {
   get<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T>;
   post<T = unknown>(
     url: string,
     data?: unknown,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<T>;
   put<T = unknown>(
     url: string,
     data?: unknown,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<T>;
   delete<T = unknown>(url: string, config?: AxiosRequestConfig): Promise<T>;
   patch<T = unknown>(
     url: string,
     data?: unknown,
-    config?: AxiosRequestConfig
+    config?: AxiosRequestConfig,
   ): Promise<T>;
   request<T = unknown>(config: AxiosRequestConfig): Promise<T>;
 }
@@ -53,7 +52,10 @@ const axiosClient = axios.create({
  * Custom Error class cho auth redirect
  */
 class AuthRedirectError extends Error {
-  constructor(message: string, public code: string) {
+  constructor(
+    message: string,
+    public code: string,
+  ) {
     super(message);
     this.name = "AuthRedirectError";
   }
@@ -63,21 +65,19 @@ class AuthRedirectError extends Error {
  * Interceptor xử lý trước khi request được gửi đi
  */
 const onRequest = async (
-  config: InternalAxiosRequestConfig
+  config: InternalAxiosRequestConfig,
 ): Promise<InternalAxiosRequestConfig> => {
   try {
-    // Sử dụng hàm checkAuth
     const authResult: AuthResult = await checkAuth(
-      process.env.NEXT_PUBLIC_HOST_NAME_REDIRECT ?? window.location.origin
+      process.env.NEXT_PUBLIC_HOST_NAME_REDIRECT ?? window.location.origin,
     );
 
     switch (authResult.status) {
       case AuthStatus.SUCCESS:
-        // Token hợp lệ, thêm vào header
         if (authResult.access_token) {
           config.headers.set(
             "Authorization",
-            `Bearer ${authResult.access_token}`
+            `Bearer ${authResult.access_token}`,
           );
         }
         return config;
@@ -86,7 +86,7 @@ const onRequest = async (
         // Xử lý redirect và cancel request
         await handleLoginRedirect(
           "Hãy đăng nhập",
-          "Hãy đăng nhập vào hệ thống để sử dụng dịch vụ"
+          "Hãy đăng nhập vào hệ thống để sử dụng dịch vụ",
         );
         throw new AuthRedirectError("User needs to login", "NO_TOKEN");
 
@@ -94,7 +94,7 @@ const onRequest = async (
         await handleLoginRedirect(
           "Hãy đăng nhập lại",
           "Hết phiên đăng nhập, vui lòng đăng nhập lại hệ thống",
-          true
+          true,
         );
         throw new AuthRedirectError("Session expired", "SESSION_EXPIRED");
 
@@ -102,7 +102,7 @@ const onRequest = async (
         await handleLoginRedirect(
           "Lỗi xác thực",
           "Có lỗi xảy ra khi làm mới token, vui lòng đăng nhập lại",
-          true
+          true,
         );
         throw new AuthRedirectError("Refresh token failed", "REFRESH_ERROR");
 
@@ -110,7 +110,6 @@ const onRequest = async (
         throw new Error("Lỗi xác thực không xác định");
     }
   } catch (error) {
-    // Nếu là AuthRedirectError thì pass through
     if (error instanceof AuthRedirectError) {
       throw error;
     }
@@ -128,11 +127,7 @@ const onRequest = async (
   }
 };
 
-/**
- * Xử lý lỗi trong request interceptor
- */
 const onRequestError = (error: unknown) => {
-  // Không log AuthRedirectError vì đây là flow bình thường
   if (!(error instanceof AuthRedirectError)) {
     console.error("Request interceptor error:", error);
   }
@@ -143,18 +138,11 @@ const onRequestError = (error: unknown) => {
   return Promise.reject(new Error("Unknown request error"));
 };
 
-/**
- * Interceptor xử lý response - luôn trả về response.data
- */
 const onResponse = (response: AxiosResponse) => {
   return response.data;
 };
 
-/**
- * Xử lý lỗi trong response interceptor
- */
 const onResponseError = (error: unknown) => {
-  // Xử lý các HTTP status codes
   if (axios.isAxiosError(error)) {
     const status = error.response?.status;
     const url = error.config?.url;
@@ -193,9 +181,7 @@ const onResponseError = (error: unknown) => {
   return Promise.reject(new Error("Unknown response error"));
 };
 
-// Gắn interceptors vào axiosClient
 axiosClient.interceptors.request.use(onRequest, onRequestError);
 axiosClient.interceptors.response.use(onResponse, onResponseError);
 
-// Export với type definition mới
 export default axiosClient as CustomAxiosInstance;

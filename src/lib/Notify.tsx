@@ -1,4 +1,3 @@
-// src/lib/notify.ts
 import { toast } from "sonner";
 
 type ToastStatus = "success" | "error" | "warning" | "info";
@@ -18,7 +17,6 @@ export function Notify({
   actionLabel,
   onAction,
 }: NotifyOptions) {
-  // Cách 1: Sử dụng built-in toast types của Sonner
   const toastOptions = {
     description,
     action:
