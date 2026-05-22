@@ -553,7 +553,7 @@ const DataTable = <T extends object>({
                 <div className="flex space-x-1">
                   {pageNumbers.map((page, index) =>
                     page === "..." ? (
-                      <span key={index} className="px-3 py-1 text-gray-500">
+                      <span key={`ellipsis-${index}`} className="px-3 py-1 text-gray-500">
                         ...
                       </span>
                     ) : (
@@ -641,7 +641,7 @@ const DataTable = <T extends object>({
                   {pageNumbers.slice(0, 7).map((page, index) =>
                     page === "..." ? (
                       <span
-                        key={index}
+                        key={`ellipsis-${index}`}
                         className="px-2 py-1 text-gray-500 text-sm"
                       >
                         ...

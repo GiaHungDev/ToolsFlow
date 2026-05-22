@@ -4,7 +4,8 @@ import { useFormFilter } from "@/hooks/flow-ai/useFormFilter";
 import { useFormVideo } from "@/hooks/flow-ai/useFormVideo";
 import ApiKeySection from "./TopicSection";
 import CreateTopicT2VContent from "./CreateTopicT2VContent";
-import React, { useState } from "react";
+import React, { useState, useRef } from "react";
+import * as XLSX from "xlsx";
 import { FormData, Scene, ApiKey, Preset } from "./types";
 import { useAppSelector } from "@/lib/redux/store";
 import { useListPromptModal } from "@/hooks/flow-ai/useListPromptModal";
@@ -21,6 +22,7 @@ interface FlowAIProp {
 const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
 
   const [step, setStep] = useState(1);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeApiKey, setActiveApiKey] = useState<ApiKey | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
   const [feedback, setFeedback] = useState<{
@@ -47,6 +49,97 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
     setStep(3); // Go to Storyboard
   };
 
+  const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith(".xlsx")) {
+      Notify({
+        title: "Lỗi định dạng",
+        description: "Không hỗ trợ dạng file này. Vui lòng chọn file .xlsx",
+        status: "error",
+      });
+      if (fileInputRef.current) fileInputRef.current.value = "";
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (evt) => {
+      try {
+        const bstr = evt.target?.result;
+        const wb = XLSX.read(bstr, { type: "binary" });
+        const wsname = wb.SheetNames[0];
+        const ws = wb.Sheets[wsname];
+        const data = XLSX.utils.sheet_to_json<any>(ws);
+
+        if (data.length === 0) {
+          throw new Error("File Excel rỗng");
+        }
+
+        const newScenes: Scene[] = data.map((row: any, index: number) => ({
+          scene_number: index + 1,
+          scene_title: row.JOB_ID ? String(row.JOB_ID) : `Scene ${index + 1}`,
+          prompt_text: row.PROMPT ? String(row.PROMPT) : "",
+        }));
+
+        const firstRow = data[0];
+        const mappedImages: any[] = [];
+        
+        const path1 = firstRow.IMAGE_PATH ? String(firstRow.IMAGE_PATH) : "";
+        const path2 = firstRow.IMAGE_PATH_2 ? String(firstRow.IMAGE_PATH_2) : "";
+        const path3 = firstRow.IMAGE_PATH_3 ? String(firstRow.IMAGE_PATH_3) : "";
+
+        if (path1) mappedImages.push({ path: path1, name: path1.split('\\').pop() || path1, mimeType: "image/jpeg", base64: "" });
+        if (path2) mappedImages.push({ path: path2, name: path2.split('\\').pop() || path2, mimeType: "image/jpeg", base64: "" });
+        if (path3) mappedImages.push({ path: path3, name: path3.split('\\').pop() || path3, mimeType: "image/jpeg", base64: "" });
+
+        const dummyFormData: FormData = {
+          idea: "",
+          liveAtmosphere: "",
+          liveArtistImage: null,
+          liveArtistName: "",
+          liveArtist: "",
+          songMinutes: "3",
+          songSeconds: "30",
+          projectName: file.name.replace(".xlsx", ""),
+          model: "gemini-flash-lite-latest",
+          mvGenre: "narrative",
+          filmingStyle: "auto",
+          country: "Vietnamese",
+          musicGenre: "v-pop",
+          customMusicGenre: "",
+          characterConsistency: true,
+          characterCount: 1,
+          temperature: 0.3,
+          uploadedImages: [
+             path1 ? { path: path1, name: path1.split('\\').pop() || path1, mimeType: "image/jpeg", base64: "" } : null,
+             path2 ? { path: path2, name: path2.split('\\').pop() || path2, mimeType: "image/jpeg", base64: "" } : null,
+             path3 ? { path: path3, name: path3.split('\\').pop() || path3, mimeType: "image/jpeg", base64: "" } : null,
+          ]
+        };
+
+        setProjectName(file.name.replace(".xlsx", ""));
+        handleGenerationComplete(newScenes, dummyFormData, mappedImages);
+        
+        Notify({
+          title: "Thành công",
+          description: "Upload file Excel thành công!",
+          status: "success"
+        });
+
+      } catch (err: any) {
+        Notify({
+          title: "Lỗi upload",
+          description: err.message || "Không thể đọc file Excel",
+          status: "error",
+        });
+      } finally {
+        if (fileInputRef.current) fileInputRef.current.value = "";
+      }
+    };
+    reader.readAsBinaryString(file);
+  };
+
   const handleGenerateSuccess = (scenes: Scene[], formData: FormData) => {
     setStep(4); // Chuyển sang Step 4: Danh sách video
   };
@@ -70,17 +163,46 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
 
   return (
     <div className="flex flex-col h-full max-h-full relative">
-      {/* Back Button for Steps > 1 */}
-      {step > 1 && (
-        <button
-          onClick={() => setStep(step - 1)}
-          className="absolute left-4 top-4 md:left-8 md:top-6 z-10 flex items-center gap-2 px-4 py-2 text-sm font-bold text-stone-500 bg-white/80 backdrop-blur-sm hover:bg-white hover:text-stone-700 rounded-xl transition border border-stone-200 shadow-sm"
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-            <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-          </svg>
-          Quay lại {step === 2 ? "Chọn Khóa" : step === 3 ? "Kịch Bản" : "Storyboard"}
-        </button>
+      {/* Top Left Actions */}
+      <div className="absolute left-4 top-4 md:left-8 md:top-6 z-10 flex items-center gap-3">
+        {step > 1 && (
+          <button
+            onClick={() => setStep(step - 1)}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-stone-500 bg-white/80 backdrop-blur-sm hover:bg-white hover:text-stone-700 rounded-xl transition border border-stone-200 shadow-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+            </svg>
+            Quay lại {step === 2 ? "Chọn Khóa" : step === 3 ? "Kịch Bản" : "Storyboard"}
+          </button>
+        )}
+
+
+      </div>
+
+      {/* Upload Excel Button for Step 2 (Kịch bản) */}
+      {step === 2 && (
+        <div className="absolute right-4 top-4 md:right-8 md:top-6 z-10 flex items-center gap-3">
+          <input 
+            type="file" 
+            accept=".xlsx" 
+            ref={fileInputRef} 
+            onChange={handleExcelUpload} 
+            className="hidden" 
+          />
+          <button
+            type="button"
+            onClick={() => {
+              fileInputRef.current?.click();
+            }}
+            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-emerald-600 bg-white hover:bg-emerald-50 rounded-xl transition border-2 border-emerald-600 shadow-sm"
+          >
+            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+            </svg>
+            Upload Excel
+          </button>
+        </div>
       )}
 
       {/* Save Button for Step 3 */}
@@ -129,6 +251,7 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
           </button>
         </div>
       )}
+
 
       {/* Dynamic Action Container for Step 4+ */}
       <div id="step-right-actions" className="absolute right-4 top-4 md:right-8 md:top-6 z-10 flex items-center gap-2"></div>

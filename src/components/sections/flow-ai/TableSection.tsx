@@ -447,7 +447,7 @@ const TableSection: React.FC<TableSectionProp> = ({
       <ShowVideoModal
         openVideoModal={isOpenVideoModal}
         setOpenVideoModal={setIsOpenVideoModal}
-        videoUrl={videoUrl}   // 👈 CHỈ TRUYỀN videoUrl THẬT
+        videoUrl={videoUrl}   
         title="Xem video"
         description="Video được tạo bởi Flow AI."
       />

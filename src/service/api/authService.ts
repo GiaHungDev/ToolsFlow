@@ -40,26 +40,50 @@ export const checkMeService = async (): Promise<IUser> => {
 
 export const loginService = async (data: any): Promise<ITokenData> => {
   try {
-    const authUrl = process.env.NEXT_PUBLIC_AUTH_API_URL;
-    const response = await axios.post(`${authUrl}/auth/login-tool`, data, {
-      headers: {
-        'Content-Type': 'application/json',
-      }
-    });
-    
-    const res = response.data;
+    let authRes: any = null;
+    const isAdmin = data.username === "admin";
 
-    if (res && res.success === false) {
+    if (!isAdmin) {
+      // 1. Xác thực qua Server Tổng (Auth API)
+      const authUrl = process.env.NEXT_PUBLIC_AUTH_API_URL;
+      const authResponse = await axios.post(`${authUrl}/auth/login-tool`, data, {
+        headers: {
+          'Content-Type': 'application/json',
+        }
+      });
+      
+      authRes = authResponse.data;
+
+      if (authRes && authRes.success === false) {
+        throw new Error(
+          authRes.message || "Tài khoản hoặc mật khẩu không chính xác tại Server Tổng.",
+        );
+      }
+    } else {
+      // Cấp phát computerId mặc định cho admin nếu bị rỗng để tránh lỗi class-validator ở Backend
+      if (!data.computerId) {
+        data.computerId = "ADMIN-DEVICE";
+      }
+    }
+
+    // 2. Tiếp tục xác thực và kiểm tra DB tại Local Backend
+    // Lưu ý: axiosBase đã được config interceptor tự động trả về response.data
+    const localRes: any = await axiosBase.post("/user/login-device", data);
+
+    if (localRes && localRes.success === false) {
       throw new Error(
-        res.message || "Tài khoản hoặc mật khẩu không chính xác.",
+        localRes.message || "Lỗi xác thực thiết bị từ hệ thống nội bộ.",
       );
     }
 
-    if (res && res.access_token) {
+    // Ưu tiên sử dụng access_token từ Local Backend để gọi các API nội bộ sau này
+    const finalToken = localRes?.access_token || authRes?.access_token;
+
+    if (finalToken) {
       return {
-        access_token: res.access_token,
+        access_token: finalToken,
         expires_in: 3600 * 24, // 24h
-        refresh_token: res.access_token,
+        refresh_token: finalToken,
         refresh_expires_in: 3600 * 24 * 7,
       };
     }
@@ -68,7 +92,18 @@ export const loginService = async (data: any): Promise<ITokenData> => {
   } catch (error: any) {
     // Xử lý lỗi trả về từ Axios
     if (error.response && error.response.data && error.response.data.message) {
-      throw new Error(error.response.data.message);
+      const serverMsg = error.response.data.message;
+      // Dịch các lỗi tiếng Anh từ Server Tổng sang tiếng Việt
+      if (typeof serverMsg === 'string') {
+        const msgLower = serverMsg.toLowerCase();
+        if (msgLower.includes("invalid computer")) {
+          throw new Error("Mã thiết bị (Computer ID) không trùng khớp với thiết bị đã đăng ký.");
+        }
+        if (msgLower.includes("invalid user credentials") || msgLower.includes("invalid credentials") || msgLower.includes("invalid username")) {
+          throw new Error("Tài khoản hoặc mật khẩu không chính xác.");
+        }
+      }
+      throw new Error(serverMsg);
     }
     if (error.response?.status === 401) {
       throw new Error("Tài khoản hoặc mật khẩu không chính xác.");

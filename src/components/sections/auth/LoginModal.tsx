@@ -27,7 +27,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
 
-        const isAdminLogin = username === 'admin' && password === 'admin@123';
+        const isAdminLogin = username === 'admin';
 
         if (!username || !password || (!computerId && !isAdminLogin)) {
             Notify({
