@@ -4,6 +4,7 @@ import { ITokenData } from "@/types/auth";
 import { IUser } from "@/types/user";
 import axiosBase from "@/lib/axiosBase";
 import axiosAuth from "@/lib/axiosAuth";
+import axios from "axios";
 
 export const refreshTokenService = async (
   refreshToken: string,
@@ -39,7 +40,14 @@ export const checkMeService = async (): Promise<IUser> => {
 
 export const loginService = async (data: any): Promise<ITokenData> => {
   try {
-    const res: any = await axiosBase.post("/user/login-device", data);
+    const authUrl = process.env.NEXT_PUBLIC_AUTH_API_URL;
+    const response = await axios.post(`${authUrl}/auth/login-tool`, data, {
+      headers: {
+        'Content-Type': 'application/json',
+      }
+    });
+    
+    const res = response.data;
 
     if (res && res.success === false) {
       throw new Error(
@@ -57,7 +65,14 @@ export const loginService = async (data: any): Promise<ITokenData> => {
     }
 
     throw new Error("Lỗi định dạng phản hồi từ máy chủ");
-  } catch (error) {
+  } catch (error: any) {
+    // Xử lý lỗi trả về từ Axios
+    if (error.response && error.response.data && error.response.data.message) {
+      throw new Error(error.response.data.message);
+    }
+    if (error.response?.status === 401) {
+      throw new Error("Tài khoản hoặc mật khẩu không chính xác.");
+    }
     if (error instanceof Error) {
       throw error;
     }
