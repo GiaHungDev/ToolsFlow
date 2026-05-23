@@ -6,8 +6,8 @@ const nextConfig = {
     // Allows production builds to complete even if ESLint errors are present
     ignoreDuringBuilds: true,
   },
-  serverExternalPackages: ["puppeteer-real-browser"],
   experimental: {
+    serverComponentsExternalPackages: ["puppeteer-real-browser"],
     outputFileTracingIncludes: {
       "/*": ["./src/lib/veo3-extension/**/*", "./node_modules/puppeteer-real-browser/**/*"]
     }

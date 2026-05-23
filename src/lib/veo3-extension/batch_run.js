@@ -214,6 +214,26 @@ async function startBatchProcess() {
 
     console.log(`\n✅ Đã đẩy toàn bộ Job vào hàng đợi (Pending Queue).`);
 
+    // TỰ ĐỘNG DỌN DẸP ZOMBIE CHROME BỊ KẸT
+    console.log(`[HỆ THỐNG] Đang kiểm tra và dọn dẹp các tiến trình Chrome bị kẹt từ lần chạy trước...`);
+    try {
+        const { execSync } = require('child_process');
+        const profilePath = path.join(account.profilePath, 'edge_data');
+        if (process.platform === 'win32') {
+            // Dùng Powershell tìm và chỉ diệt những Chrome nào đang dùng thư mục edge_data này
+            const psCmd = `powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process -Filter \\"Name='chrome.exe' OR Name='msedge.exe'\\" | Where-Object { $_.CommandLine -match '${profilePath.replace(/\\/g, '\\\\')}' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"`;
+            execSync(psCmd, { stdio: 'ignore' });
+        } else {
+            execSync(`pkill -f "${profilePath}"`, { stdio: 'ignore' });
+        }
+        
+        // Xóa file lock nếu có
+        const lockFile = path.join(profilePath, 'SingletonLock');
+        if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile);
+    } catch (e) {
+        // Bỏ qua lỗi nếu không tìm thấy tiến trình nào
+    }
+
     // BÂY GIỜ MỚI KHỞI ĐỘNG BROWSER
     await controller.start();
 
