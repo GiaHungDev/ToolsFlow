@@ -4,6 +4,7 @@ import CustomTable from "@/components/shared/CTable";
 import { TableColumn } from "@/components/shared/CTable/interface";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 import { useAppSelector } from "@/lib/redux/store";
 import { Notify } from "@/lib/Notify";
 import {
@@ -631,13 +632,13 @@ export default function AdminPage() {
           </p>
         </div>
 
-        <button
-          onClick={() => router.push("/flow-ai")}
+        <Link
+          href="/flow-ai"
           className="mt-4 sm:mt-0 inline-flex items-center space-x-2 px-4 py-2 border border-gray-200 rounded-xl text-sm font-medium text-gray-600 bg-white hover:bg-gray-50 transition shadow-sm"
         >
           <ArrowLeft className="h-4 w-4" />
           <span>Quay lại Dashboard</span>
-        </button>
+        </Link>
       </div>
 
       {/* Tabs list & search filter */}
@@ -752,7 +753,7 @@ export default function AdminPage() {
           }
           loading={loading}
           enableSelection={true}
-          onSelectionChange={(keys) => setSelectedKeys(keys)}
+          onSelectionChange={setSelectedKeys}
           enablePagination={false}
         />
       </div>

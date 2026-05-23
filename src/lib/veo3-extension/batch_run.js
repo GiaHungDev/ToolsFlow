@@ -43,10 +43,10 @@ const account = {
     twoFactorSecret: config.accountData ? config.accountData.twoFA : '',
     loginType: 'auto',
     headless: config.isHeadless !== undefined ? config.isHeadless : false,
-    profilePath: 'C:\\Profiles_BAS_Flow',
+    profilePath: process.platform === 'win32' ? 'C:\\Profiles_BAS_Flow' : '/app/profiles',
     outputDir: OUTPUT_DIR,
     cookies: config.cookieData ? (typeof config.cookieData === 'string' ? JSON.parse(config.cookieData) : config.cookieData) : null,
-    chromePath: config.chromePath,
+    chromePath: config.chromePath || (process.platform === 'win32' ? 'C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe' : '/usr/bin/chromium-browser'),
     loginMethod: config.loginMethod,
     toolAccount: config.toolAccount
 };

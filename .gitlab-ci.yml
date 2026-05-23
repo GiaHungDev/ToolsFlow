@@ -1,16 +1,35 @@
+image: electronuserland/builder:wine
+
 stages:
-  - prepare
-  - test
-  - tag
   - build
   - deploy
-  - release
 
-include:
-  - local: .gitlab/ci/rules.gitlab-ci.yml
-  - local: .gitlab/ci/stages/prepare.gitlab-ci.yml
-  - local: .gitlab/ci/stages/test.gitlab-ci.yml
-  - local: .gitlab/ci/stages/tag.gitlab-ci.yml
-  - local: .gitlab/ci/stages/build.gitlab-ci.yml
-  - local: .gitlab/ci/stages/deploy.gitlab-ci.yml
-  - local: .gitlab/ci/stages/release.gitlab-ci.yml
+build_windows_exe:
+  stage: build
+  script:
+    - echo "Đang cài đặt thư viện gốc..."
+    - npm install
+    - echo "Đang cài đặt thư viện extension..."
+    - npm run setup:ext
+    - echo "Đang đóng gói phần mềm Desktop (.exe)..."
+    - npm run build:electron
+  artifacts:
+    name: "Harumi-AI-App"
+    paths:
+      - dist_electron/*.exe
+      - dist_electron/latest.yml
+    expire_in: 30 days
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH # Chỉ build khi push lên nhánh chính (master/main)
+
+# (Tùy chọn) Gửi file lên Server Update
+deploy_to_server:
+  stage: deploy
+  dependencies:
+    - build_windows_exe
+  script:
+    - echo "Tại đây, bạn hãy viết lệnh scp hoặc rsync để copy file trong dist_electron/ lên Server harumi.vfast.pro/updates"
+    # - scp -r dist_electron/*.exe user@harumi.vfast.pro:/path/to/updates/
+    # - scp dist_electron/latest.yml user@harumi.vfast.pro:/path/to/updates/
+  rules:
+    - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

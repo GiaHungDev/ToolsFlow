@@ -2702,6 +2702,7 @@ class Veo3PipelineController {
           trigger_video: {
             type: "text",
             value: [
+              "Omni Flash",
               "Veo 3.1 - Lite [Lower Priority]",
               "Veo 3.1 - Lite",
               "Veo 3.1 - Fast",
