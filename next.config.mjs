@@ -7,6 +7,11 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   serverExternalPackages: ["puppeteer-real-browser"],
+  experimental: {
+    outputFileTracingIncludes: {
+      "/*": ["./src/lib/veo3-extension/**/*", "./node_modules/puppeteer-real-browser/**/*"]
+    }
+  }
 };
 
 export default nextConfig;

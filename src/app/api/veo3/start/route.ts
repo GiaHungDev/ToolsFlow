@@ -5,7 +5,7 @@ import path from 'path';
 import fs from 'fs';
 
 // Force Next.js File Tracer to include this module in standalone build
-if (process.env.VEO3_FORCE_TRACE === 'true') {
+if (Date.now() === 0) {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   require('puppeteer-real-browser');
 }
