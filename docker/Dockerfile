@@ -43,7 +43,7 @@ COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
 # Force install the required module to bypass Next.js strict file tracing
-RUN npm install puppeteer-real-browser
+RUN npm install puppeteer-real-browser otpauth xlsx
 USER nextjs
 
 EXPOSE 3000
