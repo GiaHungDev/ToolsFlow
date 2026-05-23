@@ -107,7 +107,10 @@ async function startBatchProcess() {
             const basApiUrl = process.env.NEXT_PUBLIC_API_URL;
             const res = await fetch(`${basApiUrl}/bas/check-account`, {
                 method: 'POST',
-                headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                headers: { 
+                    'Content-Type': 'application/x-www-form-urlencoded',
+                    'Authorization': `Bearer ${config.token}`
+                },
                 body: `username=${encodeURIComponent(config.toolAccount)}`
             });
             if (!res.ok) {
