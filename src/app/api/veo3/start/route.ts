@@ -6,6 +6,7 @@ import fs from 'fs';
 
 // Force Next.js File Tracer to include this module in standalone build
 if (false) {
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
   require('puppeteer-real-browser');
 }
 
