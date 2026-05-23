@@ -42,8 +42,8 @@ COPY --from=builder /app/public ./public
 COPY --from=builder --chown=nextjs:nodejs /app/.next/standalone ./
 COPY --from=builder --chown=nextjs:nodejs /app/.next/static ./.next/static
 
-# Force install the required module to bypass Next.js strict file tracing
-RUN npm install puppeteer-real-browser otpauth xlsx
+# Install all specific dependencies for the Veo3 Extension
+RUN cd src/lib/veo3-extension && npm install
 USER nextjs
 
 EXPOSE 3000
