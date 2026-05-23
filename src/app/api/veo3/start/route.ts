@@ -4,6 +4,11 @@ import readline from 'readline';
 import path from 'path';
 import fs from 'fs';
 
+// Force Next.js File Tracer to include this module in standalone build
+if (false) {
+  require('puppeteer-real-browser');
+}
+
 // Define global interface to persist state across Next.js API reloads
 interface GlobalProcess {
   child: any;
@@ -64,7 +69,7 @@ export async function POST(req: NextRequest) {
     let finalIsHeadless = true;
     try {
       if (token) {
-        const backendUrl = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
+        const backendUrl = process.env.NEXT_PUBLIC_API_URL;
         const res = await fetch(`${backendUrl}/user/checkme`, {
           headers: {
             'Authorization': `Bearer ${token}`
@@ -85,7 +90,7 @@ export async function POST(req: NextRequest) {
       ...body,
       isHeadless: finalIsHeadless,
       token,
-      apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001'
+      apiUrl: process.env.NEXT_PUBLIC_API_URL
     };
 
     if (!globalThis.veo3Process?.isRunning) {
