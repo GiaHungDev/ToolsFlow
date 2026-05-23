@@ -23,7 +23,13 @@ export const useLogin = () => {
       router.push("/");
     } catch (error: any) {
       console.error("Login error:", error);
-      const des = error?.message || "Không thể đăng nhập, vui lòng thử lại sau";
+      let des = error?.message || "Không thể đăng nhập, vui lòng thử lại sau";
+      
+      // Bắt lỗi liên quan đến thiết bị/computerID
+      const errorMessageLower = des.toLowerCase();
+      if (errorMessageLower.includes("computerid") || errorMessageLower.includes("computer id") || errorMessageLower.includes("device")) {
+        des = "Mã thiết bị (ComputerID) chưa được đăng kí trên hệ thống, Vui lòng liên hệ admin.";
+      }
 
       Notify({
         title: "Lỗi đăng nhập",

@@ -2,7 +2,7 @@
 
 import CustomTable from "@/components/shared/CTable";
 import { TableColumn } from "@/components/shared/CTable/interface";
-import { useEffect, useState } from "react";
+import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useAppSelector } from "@/lib/redux/store";
 import { Notify } from "@/lib/Notify";
@@ -57,6 +57,7 @@ export default function AdminPage() {
 
   // search/filter state
   const [searchTerm, setSearchTerm] = useState("");
+  const [selectedKeys, setSelectedKeys] = useState<any[]>([]);
 
   // flow account modal state
   const [isFlowModalOpen, setIsFlowModalOpen] = useState(false);
@@ -188,6 +189,63 @@ export default function AdminPage() {
       Notify({ title: "Cập nhật thành công", description: `Đã ${!currentVal ? "Bật" : "Tắt"} chạy ngầm.`, status: "success" });
     } catch (err) {
       Notify({ title: "Lỗi", description: "Không thể cập nhật trạng thái", status: "error" });
+    }
+  };
+
+  // Toggle role handler
+  const handleToggleRole = async (userId: string | number, currentRole: string) => {
+    if (user?.username !== 'admin') {
+       Notify({ title: "Từ chối", description: "Chỉ Admin cấp cao mới được đổi quyền.", status: "warning" });
+       return;
+    }
+
+    const targetUser = automationUsers.find(u => u.id === userId);
+    if (targetUser?.username === 'admin') {
+       Notify({ title: "Từ chối", description: "Không thể thay đổi quyền của tài khoản Admin gốc.", status: "warning" });
+       return;
+    }
+
+    const newRole = currentRole === 'ADMIN' ? 'USER' : 'ADMIN';
+    try {
+      await updateAutomationUser(Number(userId), { role: newRole });
+      setAutomationUsers(prev => 
+        prev.map(u => u.id === userId ? { ...u, role: newRole } : u)
+      );
+      Notify({ title: "Thành công", description: `Đã đổi quyền thành ${newRole}.`, status: "success" });
+    } catch (err) {
+      Notify({ title: "Lỗi", description: "Không thể đổi quyền.", status: "error" });
+    }
+  };
+
+  // Bulk delete handler
+  const handleBulkDelete = async () => {
+    if (selectedKeys.length === 0) return;
+    if (!window.confirm(`Bạn có chắc chắn muốn xóa ${selectedKeys.length} mục đã chọn?`)) return;
+
+    try {
+      setLoading(true);
+      if (activeTab === "flow") {
+        await Promise.all(selectedKeys.map(id => deleteFlowAccount(Number(id))));
+      } else if (activeTab === "bas") {
+        await Promise.all(selectedKeys.map(id => deleteBasAccount(Number(id))));
+      } else if (activeTab === "users") {
+        const hasAdmin = selectedKeys.some(id => {
+           const u = automationUsers.find(user => user.id === id);
+           return u?.username === 'admin';
+        });
+        if (hasAdmin) {
+           Notify({ title: "Từ chối", description: "Không thể xóa tài khoản Admin gốc trong danh sách chọn.", status: "warning" });
+           setLoading(false);
+           return;
+        }
+        await Promise.all(selectedKeys.map(id => deleteAutomationUser(Number(id))));
+      }
+      Notify({ title: "Thành công", description: `Đã xóa ${selectedKeys.length} mục.`, status: "success" });
+      setSelectedKeys([]);
+      loadData();
+    } catch (err) {
+      Notify({ title: "Lỗi xóa hàng loạt", description: "Có lỗi xảy ra khi xóa các mục đã chọn.", status: "error" });
+      setLoading(false);
     }
   };
 
@@ -325,6 +383,11 @@ export default function AdminPage() {
 
   // Trigger delete user
   const triggerDeleteUser = (id: string | number) => {
+    const targetUser = automationUsers.find(u => u.id === id);
+    if (targetUser?.username === 'admin') {
+       Notify({ title: "Từ chối", description: "Không thể xóa tài khoản Admin gốc.", status: "warning" });
+       return;
+    }
     setDeleteType("users");
     setDeleteId(id);
     setIsDeleteOpen(true);
@@ -356,28 +419,28 @@ export default function AdminPage() {
     }
   };
 
+  // Filtered lists (useMemo to prevent CTable from resetting selection on every render)
+  const filteredFlows = React.useMemo(() => flowAccounts.filter((acc) =>
+    acc.email.toLowerCase().includes(searchTerm.toLowerCase())
+  ), [flowAccounts, searchTerm]);
+
+  const filteredBases = React.useMemo(() => basAccounts.filter((acc) =>
+    acc.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    acc.flowAccount?.email.toLowerCase().includes(searchTerm.toLowerCase())
+  ), [basAccounts, searchTerm]);
+
+  const filteredUsers = React.useMemo(() => automationUsers.filter((u) =>
+    u.username.toLowerCase().includes(searchTerm.toLowerCase())
+  ), [automationUsers, searchTerm]);
+
   if (!user || user.role !== "ADMIN") {
     return (
       <div className="flex flex-col items-center justify-center min-screen h-[70vh] text-center px-4">
-        <Loader2 className="h-10 w-10 text-blue-600 animate-spin mb-4" />
+        <Loader2 className="h-10 w-10 text-emerald-600 animate-spin mb-4" />
         <p className="text-gray-500 font-medium">Đang kiểm tra quyền quản trị của bạn...</p>
       </div>
     );
   }
-
-  // Filtered lists
-  const filteredFlows = flowAccounts.filter((acc) =>
-    acc.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const filteredBases = basAccounts.filter((acc) =>
-    acc.username.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    acc.flowAccount?.email.toLowerCase().includes(searchTerm.toLowerCase())
-  );
-
-  const filteredUsers = automationUsers.filter((u) =>
-    u.username.toLowerCase().includes(searchTerm.toLowerCase())
-  );
 
   // Table Columns
   const flowColumns: TableColumn<IFlowAccount>[] = [
@@ -400,7 +463,7 @@ export default function AdminPage() {
             resetFlowForm(row);
             setIsFlowModalOpen(true);
           }}
-          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+          className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
           title="Sửa thông tin"
         >
           <Edit className="h-4 w-4" />
@@ -419,7 +482,29 @@ export default function AdminPage() {
   const userColumns: TableColumn<any>[] = [
     { key: "id", title: "ID User" },
     { key: "username", title: "Tên người dùng (Username)" },
-    { key: "computerId", title: "Thiết bị (Computer ID)", render: (_, row) => row.computerId || <span className="italic">Không có</span> },
+    { key: "computerId", title: "Thiết bị & IP (Anti-Sharing)", render: (_, row) => {
+      const hasDevices = row.knownDevices && Object.keys(row.knownDevices).length > 0;
+      return (
+        <div>
+          {!hasDevices && (
+            <div className="font-medium text-gray-700">
+              {row.computerId || <span className="italic text-gray-400">Không có</span>}
+            </div>
+          )}
+          
+          {hasDevices && (
+            <div className="flex flex-col gap-2">
+              {Object.entries(row.knownDevices).map(([deviceId, info]: any) => (
+                  <div key={deviceId} className="flex flex-col text-sm">
+                      <span className="text-gray-700 font-medium">PC: {deviceId}</span>
+                      <span className="text-emerald-600 mt-0.5">IP: {info.ip === '::1' ? '127.0.0.1 (Local)' : info.ip}</span>
+                  </div>
+              ))}
+            </div>
+          )}
+        </div>
+      );
+    } },
     { key: "isHeadless", title: "Chạy ngầm (Headless)", render: (_, row) => (
       <div className="text-center">
         <label className="relative inline-flex items-center cursor-pointer">
@@ -429,10 +514,38 @@ export default function AdminPage() {
             onChange={() => handleToggleHeadless(row.id, row.isHeadless)}
             className="sr-only peer"
           />
-          <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-blue-600"></div>
+          <div className="w-11 h-6 bg-gray-300 peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-gray-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-emerald-600"></div>
         </label>
       </div>
     ) },
+    { key: "role", title: "Vai trò", render: (_, row) => {
+      const isSuperAdmin = user?.username === 'admin';
+      const isCurrentAdmin = row.role === 'ADMIN';
+      const isRowSuperAdmin = row.username === 'admin';
+      
+      return (
+        <div className="flex bg-gray-100/80 rounded-lg p-1 w-fit border border-gray-200">
+          <button 
+            disabled={!isSuperAdmin || isRowSuperAdmin}
+            onClick={() => handleToggleRole(row.id, row.role)}
+            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+              !isCurrentAdmin ? 'bg-white text-gray-900 shadow-sm border border-gray-200/50' : 'text-gray-500 hover:text-gray-700'
+            } ${(!isSuperAdmin || isRowSuperAdmin) ? 'cursor-not-allowed opacity-60' : ''}`}
+          >
+            USER
+          </button>
+          <button 
+            disabled={!isSuperAdmin || isRowSuperAdmin}
+            onClick={() => handleToggleRole(row.id, row.role)}
+            className={`px-4 py-1.5 rounded-md text-xs font-bold transition-all ${
+              isCurrentAdmin ? 'bg-white text-red-600 shadow-sm border border-red-100' : 'text-gray-500 hover:text-gray-700'
+            } ${(!isSuperAdmin || isRowSuperAdmin) ? 'cursor-not-allowed opacity-60' : ''}`}
+          >
+            ADMIN
+          </button>
+        </div>
+      );
+    }},
     { key: "actions", title: "Hành động", render: (_, row) => (
       <div className="flex justify-end space-x-2">
         <button
@@ -440,7 +553,7 @@ export default function AdminPage() {
             resetUserForm(row);
             setIsUserModalOpen(true);
           }}
-          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+          className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
           title="Sửa"
         >
           <Edit className="h-4 w-4" />
@@ -464,7 +577,7 @@ export default function AdminPage() {
     ) },
     { key: "flowAccount", title: "Tài khoản Flow liên kết", render: (_, row) => row.flowAccount ? (
       <div className="flex flex-col">
-        <span className="text-sm font-medium text-blue-600 flex items-center gap-1">
+        <span className="text-sm font-medium text-emerald-600 flex items-center gap-1">
           {row.flowAccount.email}
           <ExternalLink className="h-3 w-3" />
         </span>
@@ -484,7 +597,7 @@ export default function AdminPage() {
             resetBasForm(row);
             setIsBasModalOpen(true);
           }}
-          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+          className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
           title="Sửa cấu hình"
         >
           <Edit className="h-4 w-4" />
@@ -506,7 +619,7 @@ export default function AdminPage() {
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 pb-6 border-b border-gray-100">
         <div>
           <div className="flex items-center space-x-3 mb-2">
-            <div className="p-2 bg-gradient-to-tr from-blue-600 to-indigo-600 rounded-xl shadow-lg">
+            <div className="p-2 bg-gradient-to-tr from-emerald-600 to-emerald-600 rounded-xl shadow-lg">
               <Shield className="h-6 w-6 text-white" />
             </div>
             <h1 className="text-3xl font-bold tracking-tight text-gray-900">
@@ -534,10 +647,11 @@ export default function AdminPage() {
             onClick={() => {
               setActiveTab("flow");
               setSearchTerm("");
+              setSelectedKeys([]);
             }}
             className={`flex items-center space-x-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === "flow"
-                ? "bg-white text-blue-600 shadow"
+                ? "bg-white text-emerald-600 shadow"
                 : "text-gray-500 hover:text-gray-900"
             }`}
           >
@@ -548,10 +662,11 @@ export default function AdminPage() {
             onClick={() => {
               setActiveTab("bas");
               setSearchTerm("");
+              setSelectedKeys([]);
             }}
             className={`flex items-center space-x-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === "bas"
-                ? "bg-white text-blue-600 shadow"
+                ? "bg-white text-emerald-600 shadow"
                 : "text-gray-500 hover:text-gray-900"
             }`}
           >
@@ -562,10 +677,11 @@ export default function AdminPage() {
             onClick={() => {
               setActiveTab("users");
               setSearchTerm("");
+              setSelectedKeys([]);
             }}
             className={`flex items-center space-x-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
               activeTab === "users"
-                ? "bg-white text-blue-600 shadow"
+                ? "bg-white text-emerald-600 shadow"
                 : "text-gray-500 hover:text-gray-900"
             }`}
           >
@@ -584,9 +700,20 @@ export default function AdminPage() {
               placeholder={activeTab === "flow" ? "Tìm email tài khoản Flow..." : activeTab === "bas" ? "Tìm tên hoặc email liên kết..." : "Tìm username người dùng..."}
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2.5 w-full bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+              className="pl-9 pr-4 py-2.5 w-full bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
             />
           </div>
+
+          <div className="flex items-center gap-2">
+            {selectedKeys.length > 0 && (
+              <button
+                onClick={handleBulkDelete}
+                className="inline-flex items-center space-x-2 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition shadow-sm"
+              >
+                <Trash2 className="h-4 w-4" />
+                <span className="hidden sm:inline">Xóa {selectedKeys.length}</span>
+              </button>
+            )}
 
             <button
               onClick={() => {
@@ -601,11 +728,12 @@ export default function AdminPage() {
                   setIsUserModalOpen(true);
                 }
               }}
-              className="inline-flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-xl text-sm font-semibold hover:from-blue-700 hover:to-indigo-700 shadow-md transition"
+              className="inline-flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-700 hover:to-emerald-700 shadow-md transition"
             >
               <Plus className="h-4 w-4" />
               <span>{activeTab === "flow" ? "Thêm tài khoản Flow" : activeTab === "bas" ? "Thêm tài khoản BAS" : "Thêm Người dùng"}</span>
             </button>
+          </div>
         </div>
       </div>
 
@@ -623,7 +751,8 @@ export default function AdminPage() {
             basColumns) as any
           }
           loading={loading}
-          enableSelection={false}
+          enableSelection={true}
+          onSelectionChange={(keys) => setSelectedKeys(keys)}
           enablePagination={false}
         />
       </div>
@@ -657,7 +786,7 @@ export default function AdminPage() {
                       value={flowEmail}
                       onChange={(e) => setFlowEmail(e.target.value)}
                       placeholder="vd: account@google.com"
-                      className="pl-9 pr-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                      className="pl-9 pr-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                       required
                     />
                   </div>
@@ -674,7 +803,7 @@ export default function AdminPage() {
                       value={flowPassword}
                       onChange={(e) => setFlowPassword(e.target.value)}
                       placeholder="Mật khẩu của tài khoản..."
-                      className="pl-9 pr-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                      className="pl-9 pr-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                     />
                   </div>
                 </div>
@@ -690,7 +819,7 @@ export default function AdminPage() {
                       value={flowTwoFa}
                       onChange={(e) => setFlowTwoFa(e.target.value)}
                       placeholder="Nhập Secret Key 2FA để tự động gen OTP..."
-                      className="pl-9 pr-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                      className="pl-9 pr-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                     />
                   </div>
                 </div>
@@ -707,7 +836,7 @@ export default function AdminPage() {
                     onChange={(e) => setFlowCookies(e.target.value)}
                     placeholder='{ "url": "https://labs.google", "cookies": [...] }'
                     rows={6}
-                    className="p-3 w-full border border-gray-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-gray-50/50"
+                    className="p-3 w-full border border-gray-200 rounded-xl text-xs font-mono focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-gray-50/50"
                   />
                 </div>
               </div>
@@ -722,7 +851,7 @@ export default function AdminPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow transition"
+                  className="px-5 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow transition"
                 >
                   Lưu cấu hình
                 </button>
@@ -761,7 +890,7 @@ export default function AdminPage() {
                       value={basUsername}
                       onChange={(e) => setBasUsername(e.target.value)}
                       placeholder="Username dùng đăng nhập Client BAS..."
-                      className="pl-9 pr-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                      className="pl-9 pr-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                       required
                     />
                   </div>
@@ -778,7 +907,7 @@ export default function AdminPage() {
                       value={basPassword}
                       onChange={(e) => setBasPassword(e.target.value)}
                       placeholder="Mật khẩu của tài khoản..."
-                      className="pl-9 pr-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                      className="pl-9 pr-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                       required
                     />
                   </div>
@@ -792,7 +921,7 @@ export default function AdminPage() {
                     onChange={(e) => setBasStaffCount(e.target.value === "" ? "" : Number(e.target.value))}
                     placeholder="Không nhập hoặc để trống = Không giới hạn luồng"
                     min={0}
-                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                   />
                 </div>
 
@@ -801,7 +930,7 @@ export default function AdminPage() {
                   <select
                     value={basFlowAccountId}
                     onChange={(e) => setBasFlowAccountId(e.target.value === "" ? "" : Number(e.target.value))}
-                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white"
+                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white"
                   >
                     <option value="">-- Chưa liên kết tài khoản nào --</option>
                     {flowAccounts.map((flow) => (
@@ -823,7 +952,7 @@ export default function AdminPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow transition"
+                  className="px-5 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow transition"
                 >
                   Lưu cấu hình
                 </button>
@@ -858,7 +987,7 @@ export default function AdminPage() {
                     value={userUsername}
                     onChange={(e) => setUserUsername(e.target.value)}
                     placeholder="Nhập username..."
-                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                     required
                   />
                 </div>
@@ -869,7 +998,7 @@ export default function AdminPage() {
                     value={userComputerId}
                     onChange={(e) => setUserComputerId(e.target.value)}
                     placeholder="Nhập Computer ID..."
-                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition"
+                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
                   />
                 </div>
                 <div>
@@ -877,7 +1006,7 @@ export default function AdminPage() {
                   <select
                     value={userRole}
                     onChange={(e) => setUserRole(e.target.value)}
-                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 transition bg-white"
+                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white"
                   >
                     <option value="user">User thường</option>
                     <option value="admin">Admin</option>
@@ -895,7 +1024,7 @@ export default function AdminPage() {
                 </button>
                 <button
                   type="submit"
-                  className="px-5 py-2 bg-blue-600 text-white rounded-xl text-sm font-semibold hover:bg-blue-700 shadow transition"
+                  className="px-5 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow transition"
                 >
                   Lưu
                 </button>

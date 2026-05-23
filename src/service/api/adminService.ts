@@ -61,6 +61,7 @@ export interface IAccountWeb {
   username: string;
   email: string;
   computerId?: string | null;
+  knownDevices?: Record<string, { ip: string, last_login: string }>;
   role: string;
   isHeadless: boolean;
   createdAt?: string;

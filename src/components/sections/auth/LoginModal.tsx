@@ -13,6 +13,7 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
     const [showPassword, setShowPassword] = useState(false);
     const [computerId, setComputerId] = useState('');
     const [showSuccessToast, setShowSuccessToast] = useState(false);
+    const [copySuccess, setCopySuccess] = useState(false);
 
     const { handleLogin, loading } = useLogin();
 
@@ -22,7 +23,34 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
             setUsername(localStorage.getItem('username') || '');
             setPassword(localStorage.getItem('saved_password') || '');
         }
+
+        const fetchMachineId = async () => {
+            if ((window as any).electronAPI && (window as any).electronAPI.getMachineId) {
+                const id = await (window as any).electronAPI.getMachineId();
+                if (id) {
+                    setComputerId(id.trim());
+                }
+            } else {
+                // Persistent Browser ID for Web Mode
+                let storedId = localStorage.getItem('harumi_browser_hwid');
+                if (!storedId) {
+                    const randomArray = new Uint8Array(16);
+                    crypto.getRandomValues(randomArray);
+                    const randomHex = Array.from(randomArray).map(b => b.toString(16).padStart(2, '0')).join('').toUpperCase();
+                    storedId = `WEB-${randomHex.substring(0, 8)}-${randomHex.substring(8, 12)}`;
+                    localStorage.setItem('harumi_browser_hwid', storedId);
+                }
+                setComputerId(storedId);
+            }
+        };
+        fetchMachineId();
     }, []);
+
+    const handleCopy = () => {
+        navigator.clipboard.writeText(computerId);
+        setCopySuccess(true);
+        setTimeout(() => setCopySuccess(false), 2000);
+    };
 
     const onSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -113,13 +141,22 @@ const LoginModal: React.FC<LoginModalProps> = ({ onClose }) => {
                     </div>
 
                     <div>
-                        <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-widest pl-1">Mã thiết bị / Computer ID</label>
+                        <label className="block text-xs font-bold text-gray-400 mb-1.5 uppercase tracking-widest pl-1 flex justify-between">
+                            <span>Mã thiết bị / Computer ID</span>
+                            <span
+                                onClick={handleCopy}
+                                className={`cursor-pointer ${copySuccess ? 'text-green-400' : 'text-red-400 hover:text-red-300'}`}
+                            >
+                                {copySuccess ? 'Đã Copy!' : 'Copy HWID'}
+                            </span>
+                        </label>
                         <input
                             type="text"
                             value={computerId}
-                            onChange={(e) => setComputerId(e.target.value)}
-                            placeholder="Nhập System ID của máy này..."
-                            className="w-full bg-blue-900/10 border border-blue-900/40 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-bold placeholder:text-white/50 uppercase tracking-widest text-sm"
+                            readOnly
+                            onClick={handleCopy}
+                            title="Click để copy mã thiết bị"
+                            className="w-full cursor-copy text-center bg-blue-900/10 border border-blue-900/40 rounded-xl px-4 py-3 text-white focus:outline-none focus:border-blue-500 focus:ring-1 focus:ring-blue-500 transition-all font-bold placeholder:text-white/50 uppercase tracking-widest text-sm"
                         />
                     </div>
 

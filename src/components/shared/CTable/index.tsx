@@ -245,7 +245,7 @@ const CustomTable = <T extends object>({
                       <Checkbox
                         checked={isAllCurrentPageSelected}
                         onCheckedChange={toggleSelectAll}
-                        className="data-[state=indeterminate]:bg-blue-600"
+                        className="data-[state=indeterminate]:bg-emerald-600"
                         disabled={loading}
                         {...(isSomeCurrentPageSelected
                           ? { "data-state": "indeterminate" }
@@ -369,7 +369,7 @@ const CustomTable = <T extends object>({
                         key={String(rowId)}
                         className={`border-b border-gray-200 hover:bg-gray-50 ${
                           isSelected
-                            ? "bg-blue-50"
+                            ? "bg-emerald-50"
                             : zebra
                             ? rowIndex % 2 === 0
                               ? "bg-white"
@@ -512,7 +512,7 @@ const CustomTable = <T extends object>({
                         disabled={loading}
                         className={`px-3 py-1 rounded text-sm min-w-[2rem] disabled:cursor-not-allowed ${
                           currentPage === page
-                            ? "bg-blue-600 text-white"
+                            ? "bg-emerald-600 text-white"
                             : "hover:bg-gray-200 text-gray-700"
                         }`}
                       >
@@ -603,7 +603,7 @@ const CustomTable = <T extends object>({
                           disabled={loading}
                           className={`px-2 py-1 rounded text-sm min-w-[2rem] disabled:cursor-not-allowed ${
                             currentPage === page
-                              ? "bg-blue-600 text-white"
+                              ? "bg-emerald-600 text-white"
                               : "hover:bg-gray-200 text-gray-700"
                           }`}
                         >
