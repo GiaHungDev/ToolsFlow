@@ -4,6 +4,7 @@ export interface ScenePrompt {
   scene_number: number;
   scene_title: string;
   prompt_text: string;
+  images?: any[];
 }
 
 export type Scene = ScenePrompt;

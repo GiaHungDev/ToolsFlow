@@ -9,6 +9,7 @@ export interface ScenePrompt {
   scene_number: number;
   scene_title: string;
   prompt_text: string;
+  images?: any[];
 }
 
 // The Scene type is now simplified, as video generation is handled externally.

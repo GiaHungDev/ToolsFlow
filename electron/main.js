@@ -51,11 +51,18 @@ async function startNextJSServer() {
     return url;
   } else {
     // In production, spawn the embedded standalone server
-    const serverPath = path.join(process.resourcesPath, '.next/standalone/server.js');
+    const standaloneDir = path.join(process.resourcesPath, '.next/standalone');
+    const serverPath = path.join(standaloneDir, 'server.js');
+    
+    const fs = require('fs');
+    const logPath = path.join(app.getPath('userData'), 'nextjs-server.log');
+    const logStream = fs.createWriteStream(logPath, { flags: 'a' });
     
     console.log('Starting Next.js Server at:', serverPath);
+    logStream.write(`\n\n--- Starting Next.js at ${new Date().toISOString()} ---\n`);
     
     nextProcess = spawn(process.execPath, [serverPath], {
+      cwd: standaloneDir,
       env: {
         ...process.env,
         ELECTRON_RUN_AS_NODE: '1',
@@ -63,12 +70,19 @@ async function startNextJSServer() {
         PORT: port.toString(),
         HOSTNAME: '127.0.0.1'
       },
-      stdio: 'inherit' // Helps with debugging
+      stdio: ['ignore', 'pipe', 'pipe']
     });
 
-    const isReady = await waitForServer(url);
+    nextProcess.stdout.pipe(logStream);
+    nextProcess.stderr.pipe(logStream);
+
+    const isReady = await waitForServer(url, 30000);
     if (!isReady) {
-      console.error('Next.js server failed to start within timeout');
+      dialog.showErrorBox(
+        'Lỗi Khởi Động',
+        `Server Next.js không thể khởi động sau 30 giây.\nVui lòng kiểm tra file log tại: ${logPath}`
+      );
+      app.quit();
     }
     return url;
   }

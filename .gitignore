@@ -35,3 +35,9 @@ yarn-error.log*
 *.tsbuildinfo
 next-env.d.ts
 .env
+
+# electron build
+dist_electron/
+
+# extension outputs
+src/lib/veo3-extension/outputs/

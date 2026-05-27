@@ -13,6 +13,7 @@
     "build:electron": "next build && node scripts/copy-standalone.js && electron-builder"
   },
   "build": {
+    "afterPack": "./scripts/afterPack.js",
     "appId": "com.vfast.harumiai",
     "productName": "Harumi AI",
     "directories": {
@@ -25,8 +26,9 @@
     },
     "publish": [
       {
-        "provider": "generic",
-        "url": "https://harumi.vfast.pro/updates"
+        "provider": "github",
+        "owner": "GiaHungDev",
+        "repo": "ToolsFlow"
       }
     ],
     "extraResources": [
@@ -66,6 +68,7 @@
     "@types/mime": "^3.0.4",
     "axios": "^1.11.0",
     "class-variance-authority": "^0.7.1",
+    "cloakbrowser": "^0.3.31",
     "clsx": "^2.1.1",
     "cmdk": "^1.1.1",
     "date-fns": "^4.1.0",

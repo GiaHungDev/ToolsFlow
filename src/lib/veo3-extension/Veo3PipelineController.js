@@ -891,8 +891,18 @@ class Veo3PipelineController {
       fs.mkdirSync(this.profilePath, { recursive: true });
     }
 
+    let windowPosition = "0,0";
+    if (this.accountData) {
+      const idx = parseInt(this.accountData.id || this.accountData.index || 0) || 0;
+      const x = (idx % 4) * 400; // Offset x
+      const y = (idx % 3) * 300; // Offset y
+      windowPosition = `${x},${y}`;
+    }
+
     let browserArgs = [
       "--start-maximized",
+      `--window-position=${windowPosition}`,
+      "--window-size=1920,1080",
       "--disable-infobars",
       "--profile-directory=Default",
       "--disable-features=IsolateOrigins,site-per-process,AutomationControlled,CalculateNativeWinOcclusion,IntensiveWakeUpThrottling",
@@ -937,10 +947,14 @@ class Veo3PipelineController {
     if (this.accountData && this.accountData.chromePath) {
       chromePath = this.accountData.chromePath;
     }
-    const useRealChrome = fs.existsSync(chromePath);
+    const useRealChrome = fs.existsSync(chromePath) && !isHeadless;
     if (useRealChrome) {
       this.log(
-        `✅ Phát hiện Chrome thật tại: ${chromePath}. Đang sử dụng Chrome chính chủ`,
+        `✅ Chạy chế độ hiển thị (Headed). Đang sử dụng Chrome chính chủ tại: ${chromePath}`,
+      );
+    } else if (isHeadless) {
+      this.log(
+        `👻 Chạy ngầm (Headless). Đang dùng Stealth Chromium của CloakBrowser để chống bot...`,
       );
     } else {
       this.log(
@@ -948,18 +962,16 @@ class Veo3PipelineController {
       );
     }
 
-    this.browser = await launchPersistentContext({
+    const contextOptions = {
       silent: true, // Tắt hiển thị log tải Chromium
       logger: false,
       userDataDir: this.profilePath,
       headless: isHeadless,
-      executablePath: useRealChrome ? chromePath : undefined,
       args: browserArgs,
-      viewport: null,
+      viewport: { width: 1920, height: 1080 },
       proxy: proxyOpt,
       humanize: true,
       launchOptions: {
-        executablePath: useRealChrome ? chromePath : undefined,
         ignoreDefaultArgs: [
           "--enable-automation",
           "--no-sandbox",
@@ -970,10 +982,28 @@ class Veo3PipelineController {
           log: () => {},
         },
       },
-    });
+    };
+
+    if (useRealChrome) {
+      contextOptions.executablePath = chromePath;
+      contextOptions.launchOptions.executablePath = chromePath;
+    }
+
+    this.browser = await launchPersistentContext(contextOptions);
 
     const pages = this.browser.pages();
     this.page = pages.length > 0 ? pages[0] : await this.browser.newPage();
+    
+    // Force Viewport size explicitly for headless mode to prevent small screen issues
+    try {
+      if (typeof this.page.setViewportSize === 'function') {
+        await this.page.setViewportSize({ width: 1920, height: 1080 });
+      } else {
+        await this.page.setViewport({ width: 1920, height: 1080 });
+      }
+    } catch (e) {}
+
+    
     await this.page.bringToFront();
 
     let cookieArr = null;
@@ -1080,8 +1110,11 @@ class Veo3PipelineController {
         while (this.workers.length < this.MAX_SLOTS && this.isRunning) {
           const isFirst = this.workers.length === 0;
 
-          const newPage = isFirst ? this.page : await this.browser.newPage();
-          if (!isFirst) {
+          let newPage;
+          if (isFirst && this.page && !this.page.isClosed()) {
+            newPage = this.page;
+          } else {
+            newPage = await this.browser.newPage();
             await newPage.bringToFront();
 
             await this.sleep(2000);
@@ -1143,9 +1176,17 @@ class Veo3PipelineController {
                   `[Worker ${worker.id}] Lỗi liên tiếp 3 lần. Đóng tab này và GIẢM 1 luồng xử lý trong 3 phút...`,
                   "error",
                 );
+                let currentPages = [];
+                try {
+                  currentPages = this.browser.pages();
+                } catch (e) {}
+                if (currentPages.length <= 1) {
+                  // Mở 1 tab trống dự phòng để giữ mạng sống cho browser
+                  this.page = await this.browser.newPage().catch(() => this.page);
+                }
                 await worker.page.close().catch(() => {});
                 this.workers = this.workers.filter((w) => w.id !== worker.id);
-                this.MAX_SLOTS--;
+                this.MAX_SLOTS = Math.max(0, this.MAX_SLOTS - 1);
 
                 setTimeout(() => {
                   this.MAX_SLOTS++;
@@ -1230,9 +1271,17 @@ class Veo3PipelineController {
                   `[Worker ${worker.id}] Lỗi liên tiếp 3 lần. Đóng tab này và GIẢM 1 luồng xử lý trong 3 phút...`,
                   "error",
                 );
+                let currentPages = [];
+                try {
+                  currentPages = this.browser.pages();
+                } catch (e) {}
+                if (currentPages.length <= 1) {
+                  // Mở 1 tab trống dự phòng để giữ mạng sống cho browser
+                  this.page = await this.browser.newPage().catch(() => this.page);
+                }
                 await worker.page.close().catch(() => {});
                 this.workers = this.workers.filter((w) => w.id !== worker.id);
-                this.MAX_SLOTS--;
+                this.MAX_SLOTS = Math.max(0, this.MAX_SLOTS - 1);
 
                 setTimeout(() => {
                   this.MAX_SLOTS++;
@@ -1313,8 +1362,6 @@ class Veo3PipelineController {
         };
 
         for (const el of document.querySelectorAll("*")) {
-          if (!isVisible(el) && el.tagName !== "BODY") continue;
-
           let directText = "";
           for (let i = 0; i < el.childNodes.length; i++) {
             if (el.childNodes[i].nodeType === Node.TEXT_NODE) {
@@ -1324,7 +1371,9 @@ class Veo3PipelineController {
           directText = directText.trim().toLowerCase();
 
           if (directText && lowerTexts.includes(directText)) {
-            textMatches.push(el);
+            if (el.tagName === "BODY" || isVisible(el)) {
+              textMatches.push(el);
+            }
           }
         }
 
@@ -1332,10 +1381,9 @@ class Veo3PipelineController {
           for (const icon of document.querySelectorAll(
             'i.google-symbols, i[class*="google-symbols"]',
           )) {
-            if (!isVisible(icon)) continue;
             const iconText = (icon.textContent || "").trim().toLowerCase();
             if (iconText && lowerTexts.includes(iconText)) {
-              textMatches.push(icon);
+              if (isVisible(icon)) textMatches.push(icon);
             }
           }
         }
@@ -1343,10 +1391,9 @@ class Veo3PipelineController {
         if (textMatches.length === 0) {
           const all = Array.from(document.querySelectorAll(CLICKABLE));
           for (const el of all) {
-            if (!isVisible(el)) continue;
-            const t = (el.innerText || "").trim().toLowerCase();
+            const t = (el.textContent || "").trim().toLowerCase();
             if (t && lowerTexts.includes(t)) {
-              textMatches.push(el);
+              if (isVisible(el)) textMatches.push(el);
             }
           }
         }
@@ -2301,27 +2348,26 @@ class Veo3PipelineController {
                 await this.humanClick(page, imgCoords.x, imgCoords.y);
                 await this.sleep(1000);
                 
-                // Bấm nút Add to Prompt
-                let addPromptCoords = await page.evaluate(() => {
-                   const btns = Array.from(document.querySelectorAll('button'));
-                   for (let btn of btns) {
-                      const text = (btn.innerText || btn.textContent || "").toLowerCase();
-                      if (text.includes("add to prompt") || text.includes("thêm vào") || text.includes("lời nhắc")) {
-                         const r = btn.getBoundingClientRect();
-                         if (r.width > 0 && r.height > 0) {
-                            return { x: r.x + r.width / 2, y: r.y + r.height / 2 };
-                         }
-                      }
-                   }
-                   return null;
-                });
+                // Bấm nút Add to Prompt (Chờ tối đa 2s để menu mở ra, vì có thể Google Labs giao diện mới click ảnh là ăn luôn)
+                let addPromptCoords = null;
+                for (let k = 0; k < 2; k++) {
+                   addPromptCoords = await this.findNodeByTextExact(page, [
+                      "add to prompt",
+                      "thêm vào câu lệnh",
+                      "thêm vào lời nhắc",
+                      "thêm vào",
+                      "lời nhắc"
+                   ]);
+                   if (addPromptCoords) break;
+                   await this.sleep(1000);
+                }
                 
                 if (addPromptCoords) {
                    await this.humanClick(page, addPromptCoords.x, addPromptCoords.y);
-                   this.log(`✅ Đã thêm ảnh '${filename}' vào prompt.`);
+                   this.log(`✅ Đã thêm ảnh '${filename}' vào prompt (Qua nút Thêm vào câu lệnh).`);
                    await this.sleep(1500); // Chờ menu đóng lại
                 } else {
-                   this.log(`⚠️ Lỗi: Không tìm thấy nút 'Add to Prompt' cho ảnh '${filename}'.`);
+                   this.log(`✅ Đã thêm ảnh '${filename}' vào prompt (Bấm trực tiếp vào tên file).`);
                 }
              } else {
                 this.log(`⚠️ Lỗi: Không tìm thấy ảnh '${filename}' trong thư viện.`);
@@ -2505,9 +2551,27 @@ class Veo3PipelineController {
             );
           }
         } else {
-          this.log(
-            `[Worker ${worker.id} - BƯỚC 0/5] Đang ở sẵn giao diện Project Flow, tiếp tục nạp lệnh...`,
-          );
+          if (job.retries && job.retries > 0) {
+            this.log(
+              `[Worker ${worker.id} - BƯỚC 0/5] Đang ở sẵn giao diện Project Flow nhưng Job này từng bị lỗi. Tiến hành tải lại trang (F5) để tránh kẹt UI...`,
+            );
+            await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 }).catch(() => {});
+            await this.sleep(4000 + Math.floor(Math.random() * 2000));
+            
+            this.log(`[Worker ${worker.id}] Thực hiện các thao tác ngẫu nhiên sau khi F5...`);
+            await this.humanScroll(page);
+            for (let i = 0; i < Math.floor(Math.random() * 2) + 2; i++) {
+              const rx = Math.floor(Math.random() * 600) + 100;
+              const ry = Math.floor(Math.random() * 400) + 100;
+              await page.mouse.move(rx, ry, { steps: Math.floor(Math.random() * 10) + 5 }).catch(()=>{});
+              await this.sleep(200 + Math.floor(Math.random() * 500));
+            }
+            await page.mouse.click(Math.floor(Math.random() * 50) + 10, Math.floor(Math.random() * 300) + 100).catch(()=>{});
+          } else {
+            this.log(
+              `[Worker ${worker.id} - BƯỚC 0/5] Đang ở sẵn giao diện Project Flow, tiếp tục nạp lệnh...`,
+            );
+          }
         }
       } else {
         // Chưa có Project URL -> Tạo mới
@@ -2604,8 +2668,9 @@ class Veo3PipelineController {
         }
 
         targetUrl = currentUrl;
+        worker.projectUrl = currentUrl; // Ghi nhớ Project URL ngay lập tức để tái sử dụng nếu bị lỗi ở các bước sau
         this.log(
-          `[Worker ${worker.id}] Đã tạo thành công Project mới: ${targetUrl}`,
+          `[Worker ${worker.id}] Đã tạo thành công Project mới`,
         );
       }
 
@@ -2636,7 +2701,7 @@ class Veo3PipelineController {
           trigger_create_menu: {
             type: "selector",
             value:
-              'button[aria-haspopup="menu"]:has(div[data-type="button-overlay"]):not(:has(span))',
+              'button[aria-haspopup="menu"], button[aria-haspopup="dialog"]',
           },
         },
         subModes: {
@@ -2790,12 +2855,80 @@ class Veo3PipelineController {
       const currentSettings = isImg
         ? settings.imgSettings
         : settings.videoSettings;
+
+      // Tắt nút Tác nhân (nếu đang bật) trước khi mở menu
+      this.log(`[BƯỚC 1/5] Kiểm tra và tắt chế độ "Tác nhân"...`);
+      try {
+        await page.evaluate(() => {
+          const btns = Array.from(document.querySelectorAll('button[aria-pressed="true"]'));
+          for (const btn of btns) {
+            const text = (btn.textContent || "").toLowerCase();
+            if (text.includes('tác nhân') || text.includes('agent')) {
+              btn.click();
+              break;
+            }
+          }
+        });
+        await this.sleep(500);
+      } catch (e) { }
+
       // Mở Create Menu
       this.log(`[BƯỚC 1/5] Bắt đầu cấu hình Job - Mở menu cấu hình...`);
       await clickDynamicNode(coords.modes, "trigger_create_menu");
       await this.sleep(1000 + Math.floor(Math.random() * 1000));
 
-      if (coords.modes[TYPE_VIDEO]) {
+      const isAlreadyConfigured = await page.evaluate(({ isImg, typeVideo, settings }) => {
+        try {
+          const isVideoTab = !!document.querySelector('button[aria-controls$="-content-VIDEO"][aria-selected="true"]');
+          const isImageTab = !!document.querySelector('button[aria-controls$="-content-IMAGE"][aria-selected="true"]');
+          if (isImg && !isImageTab) return false;
+          if (!isImg && !isVideoTab) return false;
+
+          if (typeVideo === "IN2V" || typeVideo === "I2V") {
+            const isIngredients = !!document.querySelector('button[aria-controls$="-content-VIDEO_REFERENCES"][aria-selected="true"]');
+            if (!isIngredients) return false;
+          }
+
+          if (settings && settings.ratio) {
+            let tr = settings.ratio;
+            if (tr === "16:9" || tr === "Ngang") {
+              if (!document.querySelector('button[aria-controls$="-content-LANDSCAPE"][aria-selected="true"]')) return false;
+            }
+            if (tr === "9:16" || tr === "Dọc") {
+              if (!document.querySelector('button[aria-controls$="-content-PORTRAIT"][aria-selected="true"]')) return false;
+            }
+          }
+
+          if (settings && settings.count) {
+             const countBtn = document.querySelector(`button[aria-controls$="-content-${settings.count}"][aria-selected="true"]`);
+             if (!countBtn) return false;
+          }
+
+          if (!isImg) {
+             const is8s = !!document.querySelector('button[aria-controls$="-content-8"][aria-selected="true"]');
+             if (!is8s) return false;
+          }
+
+          if (settings && settings.model) {
+             const modelBtn = document.querySelector('button[aria-haspopup="menu"]');
+             if (!modelBtn || !modelBtn.textContent.includes(settings.model)) return false;
+          }
+
+          return true;
+        } catch (e) {
+          return false;
+        }
+      }, { isImg, typeVideo: TYPE_VIDEO, settings: currentSettings });
+
+      if (isAlreadyConfigured) {
+        this.log(`✅ Cấu hình hiện tại đã khớp yêu cầu. Bỏ qua các bước click cấu hình để tiết kiệm thời gian...`);
+        // Bấm vào nút Model Dropdown mở ra đóng lại như user yêu cầu
+        await page.evaluate(() => {
+          const modelBtn = document.querySelector('button[aria-haspopup="menu"]');
+          if (modelBtn) modelBtn.click();
+        });
+        await this.sleep(400);
+      } else if (coords.modes[TYPE_VIDEO]) {
         this.log(`[BƯỚC 2/5] Đang chọn chế độ: ${TYPE_VIDEO}`);
         const clickedMode = await clickDynamicNode(coords.modes, TYPE_VIDEO);
         if (!clickedMode) {
@@ -2964,7 +3097,7 @@ class Veo3PipelineController {
           .trim() + trackingSignature;
 
       this.log(
-        `[Worker ${worker.id} - BƯỚC 5/5] Chuẩn bị Paste câu lệnh (Prompt) và Submit... (Length: ${cleanPrompt.length})`,
+        `[Worker ${worker.id} - BƯỚC 5/5] Chuẩn bị Paste câu lệnh`,
       );
 
       // Đảm bảo editor được focus (nếu click trước đó bị overlay nuốt)
@@ -3003,24 +3136,72 @@ class Veo3PipelineController {
       // Đánh dấu thời điểm submit của Tab này để các Tab khác biết đường né
       this.lastSubmitTime = Date.now();
 
-      // Giả lập hành vi người dùng: cuộn trang và click tab ngẫu nhiên trước khi submit
-      this.log(
-        `[Worker ${worker.id} - BƯỚC 5b/5] Giả lập hành vi người dùng: Cuộn trang và click an toàn trước khi bấm Submit...`,
-      );
       await this.humanScroll(page);
+
+      // Thêm chuỗi thao tác rê chuột ngẫu nhiên để tránh bị nhận diện bot
+      for (let i = 0; i < Math.floor(Math.random() * 3) + 2; i++) {
+        const rx = Math.floor(Math.random() * 600) + 100;
+        const ry = Math.floor(Math.random() * 400) + 100;
+        await page.mouse.move(rx, ry, { steps: Math.floor(Math.random() * 10) + 5 }).catch(()=>{});
+        await this.sleep(200 + Math.floor(Math.random() * 500));
+      }
+
       await this.sleep(800 + Math.floor(Math.random() * 1000));
-      // Click ra một khoảng trống an toàn (góc trên bên trái, header) để tránh kẹt focus
-      await page.mouse.click(
-        Math.floor(Math.random() * 150) + 10,
-        Math.floor(Math.random() * 50) + 10,
-      );
+      
+      // Click ra một khoảng trống an toàn (lề trái ở giữa màn hình) để tránh kẹt focus
+      // Thêm một chút xê dịch vị trí click ngẫu nhiên
+      const safeX = Math.floor(Math.random() * 40) + 10;
+      const safeY = Math.floor(Math.random() * 300) + 200;
+      await page.mouse.click(safeX, safeY).catch(() => {});
       await this.sleep(500 + Math.floor(Math.random() * 1000));
+
+      // Kiểm tra an toàn: Đảm bảo thao tác click ngẫu nhiên không vô tình bấm trúng link chuyển trang
+      if (!page.url().includes(targetUrl)) {
+        this.log(`⚠️ Phát hiện URL bị thay đổi do thao tác click nhầm. Đang điều hướng lại về đúng Project để Submit: ${targetUrl}`);
+        await page.goto(targetUrl, { waitUntil: "domcontentloaded", timeout: 30000 }).catch(() => {});
+        await this.sleep(4000);
+        
+        // Đánh thức lại nút Submit sau khi tải trang
+        await page.focus('[data-slate-editor="true"]').catch(() => {});
+        await page.keyboard.press("Space");
+        await this.sleep(100);
+        await page.keyboard.press("Backspace");
+        await this.sleep(500);
+      }
+
+      this.log(`[SUBMIT] Chờ nút Submit (arrow_forward) sẵn sàng...`);
+      let isSubmitReady = false;
+      for (let w = 0; w < 10; w++) {
+        const btnState = await page.evaluate(() => {
+           const icons = Array.from(document.querySelectorAll('i.google-symbols, i[class*="google-symbols"]'));
+           for (let icon of icons) {
+              if ((icon.textContent || "").trim().toLowerCase() === "arrow_forward") {
+                 const btn = icon.closest('button, [role="button"]');
+                 if (btn) {
+                    return btn.getAttribute("aria-disabled") !== "true" && !btn.disabled;
+                 }
+              }
+           }
+           return false;
+        });
+        if (btnState) {
+           isSubmitReady = true;
+           break;
+        }
+        await this.sleep(500);
+      }
+
+      if (!isSubmitReady) {
+         this.log(`⚠️ Nút Submit vẫn đang khóa sau 5s chờ!`);
+      }
 
       this.log(`[SUBMIT] Bấm Submit...`);
       let clicked = await clickDynamicNode(coords, "submitBtn");
-      if (!clicked) {
+      
+      // Khắc phục lỗi: Nếu click trúng nút đang khóa, ép hệ thống dùng Fallback Enter
+      if (!clicked || !isSubmitReady) {
         this.log("Fallback: Bấm Enter...");
-        await page.focus('[data-slate-editor="true"]');
+        await page.focus('[data-slate-editor="true"]').catch(()=>{});
         await page.keyboard.press("Enter");
       }
 
@@ -3120,7 +3301,7 @@ class Veo3PipelineController {
         await page.screenshot({ path: errPic, fullPage: true }).catch(() => {});
 
         throw new Error(
-          `Job không thể Submit (Nút Generate không hoạt động hoặc Tool bị kẹt). Xem ảnh: ${errPic}`,
+          `Job không thể Submit. Xem ảnh: ${errPic}`,
         );
       }
 
@@ -3130,7 +3311,7 @@ class Veo3PipelineController {
       this.log(`Submit Job ${job.id} hoàn tất! Tab sẽ đi nạp Job khác.`);
       return targetUrl;
     } catch (e) {
-      this.log(`UI Error during submit: ${e.message}`);
+      this.log(`Lỗi giao diện người dùng: ${e.message}`);
       throw e;
     }
   }
@@ -3159,7 +3340,10 @@ class Veo3PipelineController {
           const text = (allDivs[i].textContent || allDivs[i].innerText || "")
             .trim()
             .toLowerCase();
-          if (text.includes("we noticed some unusual activity")) {
+          if (
+            text.includes("we noticed some unusual activity") ||
+            text.includes("chúng tôi nhận thấy có hoạt động bất thường nào đó")
+          ) {
             return { status: "unusual_activity" };
           }
         }
@@ -3341,6 +3525,10 @@ class Veo3PipelineController {
             `[Worker ${worker.id}] Đã hết lỗi Unusual Activity, đang ở trong Project. Đợi 5s và xoay chuột...`,
           );
 
+          this.log("Thực hiện F5 trang để tránh kẹt trạng thái...");
+          await page.reload({ waitUntil: "domcontentloaded", timeout: 30000 }).catch(() => {});
+          await this.sleep(2000);
+
           let editorCoords = null;
           for (let i = 0; i < 10; i++) {
             editorCoords = await this.findNodeBySelector(
@@ -3389,7 +3577,7 @@ class Veo3PipelineController {
           await client.detach();
           await this.sleep(1000);
 
-          this.log(`Bấm Submit lại (arrow_forward)...`);
+          this.log(`Bấm Submit lại...`);
           let submitCoords = await this.findNodeByTextExact(page, [
             "arrow_forward",
           ]);
@@ -3477,6 +3665,22 @@ class Veo3PipelineController {
             this.log(
               `[Worker ${worker.id}] Job ${job.id} đang chờ hệ thống xếp hàng (chưa thấy tiến trình)...`,
             );
+            if (!worker.screenshotWaitingTaken) {
+              worker.screenshotWaitingTaken = true;
+              try {
+                const fs = require('fs');
+                const path = require('path');
+                const screenshotDir = this.master.outputDir || process.cwd();
+                if (!fs.existsSync(screenshotDir)) {
+                   fs.mkdirSync(screenshotDir, { recursive: true });
+                }
+                const screenshotPath = path.join(screenshotDir, `screenshot_job_${job.id}.png`);
+                await page.screenshot({ path: screenshotPath });
+                this.log(`📸 Đã chụp màn hình hàng chờ và lưu tại: ${screenshotPath}`);
+              } catch (e) {
+                this.log(`⚠️ Lỗi chụp màn hình: ${e.message}`);
+              }
+            }
             return false;
           }
         } else {

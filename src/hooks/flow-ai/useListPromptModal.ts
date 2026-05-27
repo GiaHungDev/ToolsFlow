@@ -59,11 +59,28 @@ export const useListPromptModal = () => {
       const hasImages = images && images.length > 0;
 
       // Đóng gói mảng scenes
-      const batchScenes = scenes.map((scene) => ({
-        prompt: scene.prompt_text,
-        sceneNumber: scene.scene_number,
-        typeI2V: hasImages ? "Ingredients to Video" : "Text to Video",
-      }));
+      const batchScenes = scenes.map((scene) => {
+        const hasSceneImages = scene.images && scene.images.length > 0;
+        let imagePathsObj: Record<string, string> | undefined = undefined;
+        
+        if (hasSceneImages) {
+          imagePathsObj = {};
+          let counter = 1;
+          scene.images!.forEach((img) => {
+            if (img && img.path) {
+              imagePathsObj![`Image${counter}`] = img.path;
+              counter++;
+            }
+          });
+        }
+
+        return {
+          prompt: scene.prompt_text,
+          sceneNumber: scene.scene_number,
+          typeI2V: hasSceneImages ? "Ingredients to Video" : "Text to Video",
+          ...(hasSceneImages ? { imagePaths: imagePathsObj } : {}),
+        };
+      });
 
       // Gửi 1 request duy nhất
       await createFlowBatchService(batchScenes, ownerId, images, projectName);

@@ -29,7 +29,7 @@ deploy_to_server:
     - build_windows_exe
   script:
     - echo "Tại đây, bạn hãy viết lệnh scp hoặc rsync để copy file trong dist_electron/ lên Server harumi.vfast.pro/updates"
-    # - scp -r dist_electron/*.exe user@harumi.vfast.pro:/path/to/updates/
-    # - scp dist_electron/latest.yml user@harumi.vfast.pro:/path/to/updates/
+    - scp -r dist_electron/*.exe user@harumi.vfast.pro:/path/to/updates/
+    - scp dist_electron/latest.yml user@harumi.vfast.pro:/path/to/updates/
   rules:
     - if: $CI_COMMIT_BRANCH == $CI_DEFAULT_BRANCH

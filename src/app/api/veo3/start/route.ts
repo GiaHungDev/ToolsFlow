@@ -102,8 +102,17 @@ export async function POST(req: NextRequest) {
       const scriptPath = path.join(process.cwd(), 'src', 'lib', 'veo3-extension', 'batch_run.js');
       const processCwd = path.join(process.cwd(), 'src', 'lib', 'veo3-extension');
 
-      const child = spawn('node', [scriptPath, JSON.stringify(config)], {
-        cwd: processCwd
+      const child = spawn(process.execPath, [scriptPath, JSON.stringify(config)], {
+        cwd: processCwd,
+        env: {
+          ...process.env,
+          ELECTRON_RUN_AS_NODE: '1'
+        }
+      });
+
+      child.on('error', (err) => {
+        logHandler(`[LỖI HỆ THỐNG] Không thể khởi chạy tiến trình: ${err.message}`);
+        logHandler('[DONE]');
       });
 
       globalThis.veo3Process!.child = child;

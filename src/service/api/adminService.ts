@@ -82,3 +82,7 @@ export const updateAutomationUser = async (id: number, data: Partial<IAccountWeb
 export const deleteAutomationUser = async (id: number): Promise<any> => {
   return await axiosClient.delete<any>(`/user/${id}`);
 };
+
+export const getUserStats = async (id: number): Promise<{ total: number; completed: number; failed: number; processing: number }> => {
+  return await axiosClient.get(`/user/${id}/stats`);
+};

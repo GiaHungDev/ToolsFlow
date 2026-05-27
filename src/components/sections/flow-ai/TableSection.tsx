@@ -208,7 +208,8 @@ const TableSection: React.FC<TableSectionProp> = ({
               {imageStrs.map((imageStr, idx) => {
                 let finalUrl = "";
                 if (imageStr.includes(":\\") || imageStr.startsWith("file://")) {
-                  finalUrl = `${baseUrl}/flow/veo3/local-image?path=${encodeURIComponent(imageStr)}`;
+                  // Use local Next.js API route to read local files, since the remote backend cannot read from local machine
+                  finalUrl = `/api/local-image?path=${encodeURIComponent(imageStr)}`;
                 } else if (imageStr.startsWith("http")) {
                   finalUrl = imageStr;
                 } else if (imageStr.startsWith("uploads/")) {

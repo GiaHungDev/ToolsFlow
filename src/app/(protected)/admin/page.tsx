@@ -20,6 +20,7 @@ import {
   createAutomationUser,
   updateAutomationUser,
   deleteAutomationUser,
+  getUserStats,
   IFlowAccount,
   IBasAccount,
   IAccountWeb,
@@ -41,6 +42,7 @@ import {
   Loader2,
   ExternalLink,
   MonitorPlay,
+  BarChart2,
 } from "lucide-react";
 
 export default function AdminPage() {
@@ -84,10 +86,15 @@ export default function AdminPage() {
   const [userComputerId, setUserComputerId] = useState("");
   const [userRole, setUserRole] = useState("user");
 
-  // delete confirmation state
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteType, setDeleteType] = useState<"flow" | "bas" | "users" | null>(null);
   const [deleteId, setDeleteId] = useState<any>(null);
+
+  // stats modal state
+  const [isStatsModalOpen, setIsStatsModalOpen] = useState(false);
+  const [statsUser, setStatsUser] = useState<any>(null);
+  const [statsData, setStatsData] = useState<{ total: number; completed: number; failed: number; processing: number } | null>(null);
+  const [isStatsLoading, setIsStatsLoading] = useState(false);
 
   // Load all data
   const loadData = async () => {
@@ -420,6 +427,26 @@ export default function AdminPage() {
     }
   };
 
+  // Open Stats Modal
+  const handleOpenStats = async (userRecord: any) => {
+    setStatsUser(userRecord);
+    setIsStatsModalOpen(true);
+    setIsStatsLoading(true);
+    try {
+      const res = await getUserStats(userRecord.id);
+      setStatsData(res);
+    } catch (error: any) {
+      Notify({
+        title: "Lỗi",
+        description: "Không thể lấy dữ liệu thống kê",
+        status: "error"
+      });
+      setIsStatsModalOpen(false);
+    } finally {
+      setIsStatsLoading(false);
+    }
+  };
+
   // Filtered lists (useMemo to prevent CTable from resetting selection on every render)
   const filteredFlows = React.useMemo(() => flowAccounts.filter((acc) =>
     acc.email.toLowerCase().includes(searchTerm.toLowerCase())
@@ -549,6 +576,13 @@ export default function AdminPage() {
     }},
     { key: "actions", title: "Hành động", render: (_, row) => (
       <div className="flex justify-end space-x-2">
+        <button
+          onClick={() => handleOpenStats(row)}
+          className="p-1.5 text-blue-600 hover:bg-blue-50 rounded-lg transition"
+          title="Thống kê"
+        >
+          <BarChart2 className="h-4 w-4" />
+        </button>
         <button
           onClick={() => {
             resetUserForm(row);
@@ -1068,6 +1102,95 @@ export default function AdminPage() {
           </div>
         </div>
       )}
+
+      {/* STATS MODAL */}
+      {isStatsModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden border border-gray-100 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900 flex items-center gap-2">
+                <BarChart2 className="h-5 w-5 text-blue-600" />
+                Thống kê hoạt động
+              </h2>
+              <button
+                onClick={() => {
+                  setIsStatsModalOpen(false);
+                  setStatsData(null);
+                }}
+                className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            
+            <div className="p-6">
+              <div className="mb-6 flex items-center gap-3 bg-gray-50 p-4 rounded-xl border border-gray-100">
+                <div className="h-12 w-12 rounded-full bg-blue-100 flex items-center justify-center text-blue-600 font-bold text-lg">
+                  {statsUser?.username?.charAt(0).toUpperCase()}
+                </div>
+                <div>
+                  <h3 className="font-semibold text-gray-900">{statsUser?.username}</h3>
+                  <p className="text-sm text-gray-500">ID: {statsUser?.id} • Vai trò: {statsUser?.role}</p>
+                </div>
+              </div>
+
+              {isStatsLoading ? (
+                <div className="py-8 flex flex-col items-center justify-center text-gray-500">
+                  <Loader2 className="h-8 w-8 animate-spin text-blue-600 mb-3" />
+                  <p>Đang phân tích dữ liệu...</p>
+                </div>
+              ) : statsData ? (
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="col-span-2 bg-gradient-to-r from-blue-50 to-indigo-50 p-4 rounded-xl border border-blue-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-blue-600 font-medium">Tổng số Video</p>
+                      <h4 className="text-3xl font-bold text-blue-900 mt-1">{statsData.total}</h4>
+                    </div>
+                    <div className="h-12 w-12 bg-blue-200/50 rounded-full flex items-center justify-center">
+                      <Database className="h-6 w-6 text-blue-700" />
+                    </div>
+                  </div>
+                  
+                  <div className="bg-emerald-50 p-4 rounded-xl border border-emerald-100">
+                    <p className="text-sm text-emerald-600 font-medium">Thành công</p>
+                    <h4 className="text-2xl font-bold text-emerald-700 mt-1">{statsData.completed}</h4>
+                  </div>
+                  
+                  <div className="bg-red-50 p-4 rounded-xl border border-red-100">
+                    <p className="text-sm text-red-600 font-medium">Thất bại</p>
+                    <h4 className="text-2xl font-bold text-red-700 mt-1">{statsData.failed}</h4>
+                  </div>
+                  
+                  <div className="col-span-2 bg-amber-50 p-4 rounded-xl border border-amber-100 flex items-center justify-between">
+                    <div>
+                      <p className="text-sm text-amber-600 font-medium">Đang chờ / Đang xử lý</p>
+                      <h4 className="text-2xl font-bold text-amber-700 mt-1">{statsData.processing}</h4>
+                    </div>
+                    <div className="h-10 w-10 bg-amber-200/50 rounded-full flex items-center justify-center">
+                      <Loader2 className="h-5 w-5 text-amber-700" />
+                    </div>
+                  </div>
+                </div>
+              ) : (
+                <div className="py-8 text-center text-gray-500">Không có dữ liệu.</div>
+              )}
+            </div>
+            
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end">
+              <button
+                onClick={() => {
+                  setIsStatsModalOpen(false);
+                  setStatsData(null);
+                }}
+                className="px-4 py-2 border border-gray-200 text-gray-700 rounded-xl hover:bg-gray-100 transition font-medium"
+              >
+                Đóng
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 }

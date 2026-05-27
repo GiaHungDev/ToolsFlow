@@ -10,7 +10,7 @@
   "license": "ISC",
   "description": "",
   "dependencies": {
-    "cloakbrowser": "^0.3.28",
+    "cloakbrowser": "^0.3.31",
     "otpauth": "^9.5.1",
     "playwright-core": "^1.60.0",
     "puppeteer-core": "^24.43.1",

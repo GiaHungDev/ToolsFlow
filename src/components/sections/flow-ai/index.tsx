@@ -76,22 +76,23 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
           throw new Error("File Excel rỗng");
         }
 
-        const newScenes: Scene[] = data.map((row: any, index: number) => ({
-          scene_number: index + 1,
-          scene_title: row.JOB_ID ? String(row.JOB_ID) : `Scene ${index + 1}`,
-          prompt_text: row.PROMPT ? String(row.PROMPT) : "",
-        }));
+        const newScenes: Scene[] = data.map((row: any, index: number) => {
+          const mappedRowImages: any[] = [];
+          const path1 = row.IMAGE_PATH ? String(row.IMAGE_PATH) : "";
+          const path2 = row.IMAGE_PATH_2 ? String(row.IMAGE_PATH_2) : "";
+          const path3 = row.IMAGE_PATH_3 ? String(row.IMAGE_PATH_3) : "";
 
-        const firstRow = data[0];
-        const mappedImages: any[] = [];
-        
-        const path1 = firstRow.IMAGE_PATH ? String(firstRow.IMAGE_PATH) : "";
-        const path2 = firstRow.IMAGE_PATH_2 ? String(firstRow.IMAGE_PATH_2) : "";
-        const path3 = firstRow.IMAGE_PATH_3 ? String(firstRow.IMAGE_PATH_3) : "";
+          if (path1) mappedRowImages.push({ path: path1, name: path1.split('\\').pop() || path1, mimeType: "image/jpeg", base64: "" });
+          if (path2) mappedRowImages.push({ path: path2, name: path2.split('\\').pop() || path2, mimeType: "image/jpeg", base64: "" });
+          if (path3) mappedRowImages.push({ path: path3, name: path3.split('\\').pop() || path3, mimeType: "image/jpeg", base64: "" });
 
-        if (path1) mappedImages.push({ path: path1, name: path1.split('\\').pop() || path1, mimeType: "image/jpeg", base64: "" });
-        if (path2) mappedImages.push({ path: path2, name: path2.split('\\').pop() || path2, mimeType: "image/jpeg", base64: "" });
-        if (path3) mappedImages.push({ path: path3, name: path3.split('\\').pop() || path3, mimeType: "image/jpeg", base64: "" });
+          return {
+            scene_number: index + 1,
+            scene_title: row.JOB_ID ? String(row.JOB_ID) : `Scene ${index + 1}`,
+            prompt_text: row.PROMPT ? String(row.PROMPT) : "",
+            images: mappedRowImages,
+          };
+        });
 
         const dummyFormData: FormData = {
           idea: "",
@@ -111,15 +112,11 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
           characterConsistency: true,
           characterCount: 1,
           temperature: 0.3,
-          uploadedImages: [
-             path1 ? { path: path1, name: path1.split('\\').pop() || path1, mimeType: "image/jpeg", base64: "" } : null,
-             path2 ? { path: path2, name: path2.split('\\').pop() || path2, mimeType: "image/jpeg", base64: "" } : null,
-             path3 ? { path: path3, name: path3.split('\\').pop() || path3, mimeType: "image/jpeg", base64: "" } : null,
-          ]
+          uploadedImages: [null, null, null]
         };
 
         setProjectName(file.name.replace(".xlsx", ""));
-        handleGenerationComplete(newScenes, dummyFormData, mappedImages);
+        handleGenerationComplete(newScenes, dummyFormData, []);
         
         Notify({
           title: "Thành công",

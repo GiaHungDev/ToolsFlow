@@ -440,7 +440,7 @@ const Veo3Section = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-stone-700 mb-2">
-                  {loginMethod === "account" ? "Thông tin đăng nhập" : loginMethod === "tool" ? "Tài khoản BAS" : "Cách nhập dữ liệu"}
+                  {loginMethod === "account" ? "Thông tin đăng nhập" : loginMethod === "tool" ? "Tài khoản Tools" : "Cách nhập dữ liệu"}
                 </label>
                 {loginMethod === "cookie" && (
                   <div className="flex items-center gap-4 mb-3">
@@ -455,7 +455,7 @@ const Veo3Section = () => {
                   <div className="space-y-3">
                     <input
                       type="text"
-                      placeholder="Tài khoản tools BAS"
+                      placeholder="Tài khoản Tools"
                       value={toolAccount}
                       onChange={(e) => handleToolAccountChange(e.target.value)}
                       disabled={isRunning || isConfigSaved}
