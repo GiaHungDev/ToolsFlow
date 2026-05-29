@@ -4,10 +4,18 @@ import readline from 'readline';
 import path from 'path';
 import fs from 'fs';
 
-// Force Next.js File Tracer to include this module in standalone build
+// Force Next.js File Tracer to include these modules in standalone build
 if (Date.now() === 0) {
   // eslint-disable-next-line @typescript-eslint/no-require-imports
   require('puppeteer-real-browser');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('otpauth');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  import('cloakbrowser');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('playwright-core');
+  // eslint-disable-next-line @typescript-eslint/no-require-imports
+  require('puppeteer-core');
 }
 
 // Define global interface to persist state across Next.js API reloads

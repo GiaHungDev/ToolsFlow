@@ -7,9 +7,22 @@ const nextConfig = {
     ignoreDuringBuilds: true,
   },
   experimental: {
-    serverComponentsExternalPackages: ["puppeteer-real-browser"],
+    serverComponentsExternalPackages: [
+      "puppeteer-real-browser",
+      "otpauth",
+      "cloakbrowser",
+      "playwright-core",
+      "puppeteer-core"
+    ],
     outputFileTracingIncludes: {
-      "/*": ["./src/lib/veo3-extension/**/*", "./node_modules/puppeteer-real-browser/**/*"]
+      "/*": [
+        "./src/lib/veo3-extension/**/*",
+        "./node_modules/puppeteer-real-browser/**/*",
+        "./node_modules/otpauth/**/*",
+        "./node_modules/cloakbrowser/**/*",
+        "./node_modules/playwright-core/**/*",
+        "./node_modules/puppeteer-core/**/*"
+      ]
     }
   }
 };
