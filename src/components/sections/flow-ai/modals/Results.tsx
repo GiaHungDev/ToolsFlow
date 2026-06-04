@@ -24,7 +24,7 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene }) => {
   return (
     <div className="scene-card glass-card rounded-lg p-4 border border-white/20 shadow-md flex flex-col w-full">
       <h3 className="font-bold text-sm text-black mb-2 shrink-0">
-        🎬 Scene {scene.scene_number}: {scene.scene_title}
+        🎬 Scene {scene.scene_number}
       </h3>
 
       <div className="w-full">

@@ -1,14 +1,15 @@
 "use client";
 
 import React, { useState, useEffect, useRef } from "react";
-import { Play, Pause, Server, FileText, MonitorPlay, Key, FileUp, ListRestart, Minus, Plus, Settings, Save } from "lucide-react";
+import { Play, Pause, Server, FileText, MonitorPlay, Key, FileUp, ListRestart, Minus, Plus, Settings, Save, Info } from "lucide-react";
 import { Notify } from "@/lib/Notify";
 import { useAppSelector } from "@/lib/redux/store";
 
 const Veo3Section = () => {
   const { user } = useAppSelector((state) => state.auth);
   const [threadCount, setThreadCount] = useState<number>(1);
-  const [loginMethod, setLoginMethod] = useState<"account" | "cookie" | "tool">("cookie");
+  const [videoQuality, setVideoQuality] = useState<"1080p" | "720p">("1080p");
+  const [loginMethod, setLoginMethod] = useState<"account" | "cookie" | "tool">("account");
   const [importMethod, setImportMethod] = useState<"text" | "file">("text");
   const [accountData, setAccountData] = useState({ email: "", password: "", twoFA: "" });
   const [cookieData, setCookieData] = useState("");
@@ -19,6 +20,7 @@ const Veo3Section = () => {
   const [logs, setLogs] = useState<string[]>([]);
   const [jobProgress, setJobProgress] = useState<Record<string, number>>({});
   const logEndRef = useRef<HTMLDivElement>(null);
+  const [config, setConfig] = useState<any>(null);
 
   useEffect(() => {
     if (logEndRef.current) {
@@ -56,13 +58,9 @@ const Veo3Section = () => {
 
     const savedLoginMethod = localStorage.getItem(`veo3_${userId}_login_method`) as "account" | "cookie" | "tool";
     if (savedLoginMethod) {
-      if (savedLoginMethod === "account") {
-        setLoginMethod("cookie"); // Default to cookie if account is temporarily disabled
-      } else {
-        setLoginMethod(savedLoginMethod);
-      }
+      setLoginMethod(savedLoginMethod === "cookie" ? "account" : savedLoginMethod);
     } else {
-      setLoginMethod("cookie");
+      setLoginMethod("account");
     }
 
     const savedThreadCount = localStorage.getItem(`veo3_${userId}_thread_count`);
@@ -71,13 +69,25 @@ const Veo3Section = () => {
     } else {
       setThreadCount(1);
     }
+
+    const savedVideoQuality = localStorage.getItem(`veo3_${userId}_video_quality`) as "1080p" | "720p";
+    if (savedVideoQuality) {
+      setVideoQuality(savedVideoQuality);
+    } else {
+      setVideoQuality("1080p");
+    }
+
+    setConfig({
+      apiUrl: process.env.NEXT_PUBLIC_API_URL,
+      token: typeof window !== "undefined" ? (localStorage.getItem("access_token") || localStorage.getItem("token")) : null
+    });
   }, [user?.id]);
 
   // Tự động kiểm tra trạng thái chạy ngầm khi tải trang
   useEffect(() => {
     const checkRunningStatus = async () => {
       try {
-        const response = await fetch('/api/veo3/start', {
+        const response = await fetch('http://localhost:52424/api/veo3/start', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ action: 'status' })
@@ -92,6 +102,75 @@ const Veo3Section = () => {
     };
     setTimeout(checkRunningStatus, 300);
   }, []);
+
+  // Background watcher: auto reset failed jobs every minute
+  useEffect(() => {
+    if (!config || !config.apiUrl || !config.token) return;
+
+    const autoResetFailedJobs = async (cfg: any) => {
+      let resetJobIds: string[] = [];
+      const backendUrl = cfg.apiUrl;
+      let jobs: any[] = [];
+      try {
+        let currentPage = 1;
+        let hasMore = true;
+        const limit = 100;
+        while (hasMore) {
+          const res = await fetch(`${backendUrl}/flow/veo3?page=${currentPage}&limit=${limit}`, {
+            headers: { "Authorization": `Bearer ${cfg.token}` }
+          });
+          const data = await res.json();
+          let pageJobs = Array.isArray(data) ? data : (data.data && Array.isArray(data.data) ? data.data : (data.data?.data && Array.isArray(data.data.data) ? data.data.data : []));
+          if (pageJobs.length > 0) {
+            jobs = jobs.concat(pageJobs);
+            currentPage++;
+            if (pageJobs.length < limit) hasMore = false;
+          } else {
+            hasMore = false;
+          }
+        }
+      } catch (e) { return resetJobIds; }
+
+      const now = Date.now();
+      const waitTime = 5 * 60 * 1000;
+      for (const j of jobs) {
+        const status = String(j.status).toLowerCase();
+        if (status === "failed" || status === "error") {
+          const updatedTime = new Date(j.updatedAt || j.updated_at || j.createdAt || j.created_at || now).getTime();
+          if (now - updatedTime > waitTime) {
+            try {
+              const res = await fetch(`${backendUrl}/flow/veo3/${j.id}/status`, {
+                method: "PUT",
+                headers: { "Content-Type": "application/json", "Authorization": `Bearer ${cfg.token}` },
+                body: JSON.stringify({ status: "pending" })
+              });
+              if (res.ok) {
+                resetJobIds.push(j.id);
+              }
+            } catch (err) {}
+          }
+        }
+      }
+      return resetJobIds;
+    };
+
+    const interval = setInterval(() => {
+      autoResetFailedJobs(config).then((resetJobIds) => {
+        if (resetJobIds && resetJobIds.length > 0) {
+          resetJobIds.forEach(id => {
+            Notify({
+              title: "Tự động phục hồi",
+              description: `Job ${id} đã được tạo lại do lỗi quá 10 phút.`,
+              status: "success"
+            });
+            // Also append to logs
+            setLogs(prev => [...prev, `✅ Job ID ${id} đã trở về trạng thái pending...`]);
+          });
+        }
+      }).catch(err => console.log("Lỗi auto reset", err));
+    }, 60000);
+    return () => clearInterval(interval);
+  }, [config]);
 
   const handleAccountChange = (field: keyof typeof accountData, value: string) => {
     const newData = { ...accountData, [field]: value };
@@ -127,12 +206,8 @@ const Veo3Section = () => {
   };
 
   const handleSaveConfig = () => {
-    if (!chromePath.trim()) {
-      Notify({ title: "Thiếu thông tin", description: "Đường dẫn Chrome là bắt buộc!", status: "warning" });
-      return;
-    }
-    if (loginMethod === "account" && importMethod === "text" && (!accountData.email || !accountData.password || !accountData.twoFA)) {
-      Notify({ title: "Thiếu thông tin", description: "Vui lòng nhập đầy đủ Email, Mật khẩu và Mã 2FA!", status: "warning" });
+    if (loginMethod === "account" && importMethod === "text" && (!accountData.email || !accountData.password)) {
+      Notify({ title: "Thiếu thông tin", description: "Vui lòng nhập đầy đủ Email và Mật khẩu!", status: "warning" });
       return;
     }
     if (loginMethod === "cookie" && importMethod === "text" && !cookieData.trim()) {
@@ -168,7 +243,7 @@ const Veo3Section = () => {
     }
 
     try {
-      const response = await fetch('/api/veo3/start', {
+      const response = await fetch('http://localhost:52424/api/veo3/start', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
@@ -183,86 +258,87 @@ const Veo3Section = () => {
           chromePath,
           userId: user?.id,
           username: user?.username,
+          isHeadless: [1, '1', true].includes(user?.isHeadless as any),
+          apiUrl: process.env.NEXT_PUBLIC_API_URL,
           isReconnecting,
+          videoQuality,
         }),
       });
 
-      if (!response.body) {
-        addLog("[LỖI] Không thể kết nối đến luồng log server.");
+      const resData = await response.json();
+      if (!response.ok || !resData.success) {
+        addLog(`[LỖI] Không thể khởi động tiến trình: ${resData.error || resData.message || 'Lỗi không xác định'}`);
         setIsRunning(false);
         return;
       }
-
-      const reader = response.body.getReader();
-      const decoder = new TextDecoder("utf-8");
 
       // Nếu khởi chạy mới hoàn toàn thì clear logs cũ
       if (!isReconnecting) {
         setLogs([]);
       }
 
-      while (true) {
-        const { value, done } = await reader.read();
-        if (done) {
+      // Mở luồng SSE bằng EventSource (đảm bảo luôn live stream mượt mà)
+      const eventSource = new EventSource('http://localhost:52424/api/veo3/logs');
+
+      eventSource.onmessage = (event) => {
+        if (event.data === "[DONE]") {
           setIsRunning(false);
-          break;
+          eventSource.close();
+          return;
         }
 
-        const chunk = decoder.decode(value, { stream: true });
-        const lines = chunk.split("\n\n");
+        try {
+          const dataObj = JSON.parse(event.data);
+          if (dataObj.log) {
+            const logText = dataObj.log;
+            
+            // Lọc những log rác không có giá trị
+            if (logText.includes("Ignoring extra certs") || logText.includes("PEM routines::ASN1 lib")) return;
+            if (logText.includes("[Master][Account") && logText.endsWith("Pipeline")) return;
+            if (logText.replace(/^\[.*?\]\s*/, '').trim() === '') return; 
+            if (logText.includes("Đang kiểm tra tiến độ Job")) return; 
+            if (logText.includes("chuyển sang: Rendering")) return; 
 
-        for (const line of lines) {
-          if (line.startsWith("data: ")) {
-            const dataStr = line.replace("data: ", "");
-            if (dataStr === "[DONE]") {
-              setIsRunning(false);
-              break;
+            const progressMatch = logText.match(/Tiến trình Job (.*?):\s*(\d+)%/);
+            if (progressMatch) {
+              const jobId = progressMatch[1];
+              const percent = parseInt(progressMatch[2], 10);
+              setJobProgress((prev) => ({ ...prev, [jobId]: percent }));
+              return; 
             }
-            try {
-              const dataObj = JSON.parse(dataStr);
-              if (dataObj.log) {
-                const logText = dataObj.log;
-                // Lọc những log rác không có giá trị
-                if (logText.includes("Ignoring extra certs") || logText.includes("PEM routines::ASN1 lib")) continue;
-                if (logText.includes("[Master][Account") && logText.endsWith("Pipeline")) continue;
-                if (logText.replace(/^\[.*?\]\s*/, '').trim() === '') continue; 
-                if (logText.includes("Đang kiểm tra tiến độ Job")) continue; 
-                if (logText.includes("chuyển sang: Rendering")) continue; 
 
-              
-                const progressMatch = logText.match(/Tiến trình Job (.*?):\s*(\d+)%/);
-                if (progressMatch) {
-                  const jobId = progressMatch[1];
-                  const percent = parseInt(progressMatch[2], 10);
-                  setJobProgress((prev) => ({ ...prev, [jobId]: percent }));
-                  continue; 
-                }
+            const statusMatch = logText.match(/\[TRẠNG THÁI\] Job (.*?) chuyển sang: (Completed|Failed)/);
+            if (statusMatch) {
+              const jobId = statusMatch[1];
+              const status = statusMatch[2];
 
-                const statusMatch = logText.match(/\[TRẠNG THÁI\] Job (.*?) chuyển sang: (Completed|Failed)/);
-                if (statusMatch) {
-                  const jobId = statusMatch[1];
-                  const status = statusMatch[2];
+              setJobProgress((prev) => {
+                const newProg = { ...prev };
+                delete newProg[jobId];
+                return newProg;
+              });
 
-                  setJobProgress((prev) => {
-                    const newProg = { ...prev };
-                    delete newProg[jobId];
-                    return newProg;
-                  });
-
-                  if (status === "Completed") {
-                    setLogs((prev) => [...prev, `✅ [HOÀN THÀNH] Job ${jobId} đã render và tạo thành công!`]);
-                  } else {
-                    setLogs((prev) => [...prev, `❌ [THẤT BẠI] Job ${jobId} đã xảy ra lỗi.`]);
-                  }
-                  continue;
-                }
-
-                setLogs((prev) => [...prev, logText]);
+              if (status === "Completed") {
+                setLogs((prev) => [...prev, `✅ [HOÀN THÀNH] Job ${jobId} đã render và tạo thành công!`]);
+              } else {
+                setLogs((prev) => [...prev, `❌ [THẤT BẠI] Job ${jobId} đã xảy ra lỗi.`]);
               }
-            } catch (e) { }
+              return;
+            }
+
+            setLogs((prev) => [...prev, logText]);
           }
+        } catch (e) {
+          // Bỏ qua lỗi parse JSON
         }
-      }
+      };
+
+      eventSource.onerror = () => {
+        // addLog(`[LỖI] Luồng stream log bị ngắt kết nối.`);
+        eventSource.close();
+        setIsRunning(false);
+      };
+
     } catch (error: any) {
       addLog(`[LỖI] Lỗi kết nối Server: ${error.message}`);
       setIsRunning(false);
@@ -273,7 +349,7 @@ const Veo3Section = () => {
     setIsRunning(false);
     addLog("Đang yêu cầu dừng tiến trình chạy ngầm...");
     try {
-      await fetch('/api/veo3/start', {
+      await fetch('http://localhost:52424/api/veo3/start', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ action: 'stop' })
@@ -296,6 +372,26 @@ const Veo3Section = () => {
     }
   };
 
+  const renderLogContent = (text: string) => {
+    const parts = text.split(/(Luồng \d+|worker_\d+)/g);
+    return parts.map((part, i) => {
+      if (part.match(/Luồng \d+|worker_\d+/)) {
+        const numMatch = part.match(/\d+/);
+        const num = numMatch ? parseInt(numMatch[0]) : 0;
+        const colors = [
+          "bg-blue-600 text-white",
+          "bg-purple-600 text-white",
+          "bg-pink-600 text-white",
+          "bg-orange-600 text-white",
+          "bg-yellow-600 text-black",
+        ];
+        const colorClass = colors[(num - 1) % colors.length] || "bg-stone-700 text-white";
+        return <span key={i} className={`px-1.5 py-0.5 rounded font-bold mx-0.5 shadow-sm inline-block leading-none ${colorClass}`}>{part}</span>;
+      }
+      return <span key={i}>{part}</span>;
+    });
+  };
+
   return (
     <div className="h-full w-full overflow-y-auto custom-scrollbar">
       <div className="w-full max-w-[1500px] mx-auto p-4 md:px-8 space-y-6">
@@ -303,9 +399,9 @@ const Veo3Section = () => {
           <div>
             <h2 className="text-2xl font-bold text-stone-800 flex items-center gap-2">
               <MonitorPlay className="w-6 h-6 text-emerald-500" />
-              Veo3 Automation
+              Tạo video
             </h2>
-            <p className="text-sm text-stone-500 mt-1">Cấu hình và chạy tự động trình duyệt Chrome thật cho tác vụ Veo3</p>
+            <p className="text-sm text-stone-500 mt-1">Cấu hình và chạy tự động trình duyệt để tạo video</p>
           </div>
           <div className="flex items-center gap-3">
             {!isRunning ? (
@@ -377,13 +473,13 @@ const Veo3Section = () => {
                   <button
                     type="button"
                     onClick={() => setThreadCount((prev) => {
-                      const val = Math.min(loginMethod === "cookie" ? 3 : 5, prev + 1);
+                      const val = Math.min(loginMethod === "account" ? 3 : 5, prev + 1);
                       if (user?.id) {
                         localStorage.setItem(`veo3_${user.id}_thread_count`, val.toString());
                       }
                       return val;
                     })}
-                    disabled={isRunning || isConfigSaved || threadCount >= (loginMethod === "cookie" ? 3 : 5)}
+                    disabled={isRunning || isConfigSaved || threadCount >= (loginMethod === "account" ? 3 : 5)}
                     className="p-3 text-stone-500 hover:bg-stone-200 hover:text-stone-700 transition disabled:opacity-50 disabled:cursor-not-allowed"
                   >
                     <Plus className="w-5 h-5" />
@@ -392,38 +488,53 @@ const Veo3Section = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-stone-700 mb-2">Đường dẫn Chrome <span className="text-red-500">*</span></label>
-                <input
-                  type="text"
-                  placeholder="Chuột phải vào GG Chrome -> Properties -> Target"
-                  value={chromePath}
-                  onChange={(e) => handleChromePathChange(e.target.value)}
-                  disabled={isRunning || isConfigSaved}
-                  className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all disabled:opacity-50 text-sm font-mono"
-                />
+                <label className="block text-sm font-semibold text-stone-700 mb-2">Chất lượng Video</label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <label className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${videoQuality === "1080p" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
+                    <input type="radio" name="videoQuality" value="1080p" checked={videoQuality === "1080p"} onChange={() => {
+                      setVideoQuality("1080p");
+                      if (user?.id) {
+                        localStorage.setItem(`veo3_${user.id}_video_quality`, "1080p");
+                      }
+                    }} disabled={isRunning || isConfigSaved} className="hidden" />
+                    <span className="font-medium text-sm">1080p</span>
+                  </label>
+                  <label className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${videoQuality === "720p" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
+                    <input type="radio" name="videoQuality" value="720p" checked={videoQuality === "720p"} onChange={() => {
+                      setVideoQuality("720p");
+                      if (user?.id) {
+                        localStorage.setItem(`veo3_${user.id}_video_quality`, "720p");
+                      }
+                    }} disabled={isRunning || isConfigSaved} className="hidden" />
+                    <span className="font-medium text-sm">720p</span>
+                  </label>
+                </div>
+                <div className="flex items-center gap-1.5 mt-2 text-stone-500 text-xs font-medium">
+                  <Info className="w-4 h-4 text-emerald-500" />
+                  <p>
+                    {videoQuality === "1080p" 
+                      ? "Chọn 1080p thì 1 video khoảng 2p15s" 
+                      : "Chọn 720p thì 1 video khoảng 1p30s"}
+                  </p>
+                </div>
               </div>
 
               <div>
                 <label className="block text-sm font-semibold text-stone-700 mb-2">Phương thức đăng nhập</label>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  {/* <label className={`flex items-center gap-2 p-3 border rounded-xl transition flex-1 opacity-40 bg-stone-50 border-stone-200 cursor-not-allowed`}>
-                    <input type="radio" name="loginMethod" value="account" checked={loginMethod === "account"} disabled={true} className="hidden" />
-                    <Key className="w-5 h-5 text-stone-400" />
-                    <span className="font-medium text-sm text-stone-400">Tài khoản Google (Bảo trì)</span>
-                  </label> */}
-                  <label className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${loginMethod === "cookie" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
-                    <input type="radio" name="loginMethod" value="cookie" checked={loginMethod === "cookie"} onChange={() => {
-                      setLoginMethod("cookie");
+                  <label className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${loginMethod === "account" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
+                    <input type="radio" name="loginMethod" value="account" checked={loginMethod === "account"} onChange={() => {
+                      setLoginMethod("account");
                       if (user?.id) {
-                        localStorage.setItem(`veo3_${user.id}_login_method`, "cookie");
+                        localStorage.setItem(`veo3_${user.id}_login_method`, "account");
                         if (threadCount > 3) {
                           setThreadCount(3);
                           localStorage.setItem(`veo3_${user.id}_thread_count`, "3");
                         }
                       }
                     }} disabled={isRunning || isConfigSaved} className="hidden" />
-                    <FileText className="w-5 h-5" />
-                    <span className="font-medium text-sm">Cookies</span>
+                    <Key className="w-5 h-5" />
+                    <span className="font-medium text-sm">Tài khoản GG</span>
                   </label>
                   <label className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${loginMethod === "tool" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
                     <input type="radio" name="loginMethod" value="tool" checked={loginMethod === "tool"} onChange={() => {
@@ -517,8 +628,11 @@ const Veo3Section = () => {
                 <Server className="w-4 h-4 text-emerald-400" />
                 <span className="text-sm font-bold text-stone-200">Theo dõi quá trình tại đây</span>
               </div>
-              <button onClick={handleClearLogs} className="text-stone-400 hover:text-stone-200 p-1 transition" title="Xóa logs">
-                <ListRestart className="w-4 h-4" />
+              <button 
+                onClick={handleClearLogs} 
+                className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg text-xs font-bold transition border border-stone-700 shadow-sm"
+              >
+                Clear
               </button>
             </div>
 
@@ -529,14 +643,14 @@ const Veo3Section = () => {
                 <div className="text-stone-600 italic h-full flex items-center justify-center">Chưa có logs nào...</div>
               ) : (
                 logs.map((log, idx) => (
-                  <div key={idx} className="break-words">
+                  <div key={idx} className="break-words leading-relaxed py-0.5">
                     {log.match(/^\[.*?\]/) ? (
                       <>
                         <span className="text-emerald-500 mr-2">{log.match(/^\[.*?\]/)?.[0]}</span>
-                        {log.replace(/^\[.*?\]\s*/, '')}
+                        {renderLogContent(log.replace(/^\[.*?\]\s*/, ''))}
                       </>
                     ) : (
-                      <span>{log}</span>
+                      renderLogContent(log)
                     )}
                   </div>
                 ))

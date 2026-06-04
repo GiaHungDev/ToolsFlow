@@ -3,6 +3,7 @@ const { autoUpdater } = require('electron-updater');
 const path = require('path');
 const { spawn } = require('child_process');
 const http = require('http');
+const { startLocalApi } = require('./api');
 
 let mainWindow;
 let nextProcess = null;
@@ -73,8 +74,8 @@ async function startNextJSServer() {
       stdio: ['ignore', 'pipe', 'pipe']
     });
 
-    nextProcess.stdout.pipe(logStream);
-    nextProcess.stderr.pipe(logStream);
+    nextProcess.stdout.pipe(logStream, { end: false });
+    nextProcess.stderr.pipe(logStream, { end: false });
 
     const isReady = await waitForServer(url, 30000);
     if (!isReady) {
@@ -110,7 +111,24 @@ async function createWindow() {
 }
 
 app.on('ready', () => {
+  const userDataPath = app.getPath('userData');
+  process.env.USER_DATA_PATH = userDataPath;
+  
+  // Xóa ghi đè CACHE_DIR để nó dùng chung bộ nhớ đệm toàn hệ thống (đã được tải bởi veo3auto trước đó)
+
+  // Khởi động server nội bộ ngay lập tức để UI không bị lỗi kết nối
+  startLocalApi();
   createWindow();
+
+  // Chạy tải trình duyệt ngầm (không dùng await để tránh treo quá trình khởi động)
+  import('cloakbrowser').then(cloak => {
+    cloak.ensureBinary().then(() => {
+      console.log('CloakBrowser binary is ready.');
+    });
+  }).catch(e => {
+    console.error('Lỗi tải browser ngầm:', e);
+  });
+
   if (!isDev) {
     autoUpdater.checkForUpdatesAndNotify();
   }

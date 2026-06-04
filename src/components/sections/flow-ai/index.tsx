@@ -13,6 +13,17 @@ import TableSection from "./TableSection";
 import Results from "./modals/Results";
 import Veo3Section from "./Veo3Section";
 import { Notify } from "@/lib/Notify";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 interface FlowAIProp {
   formVideo: ReturnType<typeof useFormVideo>;
@@ -25,10 +36,14 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [activeApiKey, setActiveApiKey] = useState<ApiKey | null>(null);
   const [presets, setPresets] = useState<Preset[]>([]);
-  const [feedback, setFeedback] = useState<{
-    type: "error" | "success" | "info";
-    message: string;
-  } | null>(null);
+  const handleFeedback = (fb: { type: "error" | "success" | "info"; message: string } | null) => {
+    if (!fb) return;
+    Notify({
+      title: fb.type === "error" ? "Lỗi" : fb.type === "success" ? "Thành công" : "Thông báo",
+      description: fb.message,
+      status: fb.type,
+    });
+  };
 
   const handleSavePresets = (newPresets: Preset[]) => {
     setPresets(newPresets);
@@ -160,127 +175,145 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
 
   return (
     <div className="flex flex-col h-full max-h-full relative">
-      {/* Top Left Actions */}
-      <div className="absolute left-4 top-4 md:left-8 md:top-6 z-10 flex items-center gap-3">
-        {step > 1 && (
-          <button
-            onClick={() => setStep(step - 1)}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-stone-500 bg-white/80 backdrop-blur-sm hover:bg-white hover:text-stone-700 rounded-xl transition border border-stone-200 shadow-sm"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
-            </svg>
-            Quay lại {step === 2 ? "Chọn Khóa" : step === 3 ? "Kịch Bản" : "Storyboard"}
-          </button>
+      {/* Header Container Wrapper */}
+      <div className="relative w-full mt-4 md:mt-6 mb-6 flex-shrink-0 flex items-center justify-center min-h-[44px]">
+        
+        {/* Top Left Actions */}
+        <div className="absolute left-4 md:left-8 top-1/2 -translate-y-1/2 z-10 flex items-center gap-3">
+          {step > 1 && (
+            <button
+              onClick={() => setStep(step - 1)}
+              className="flex items-center gap-2 px-3 py-2 text-sm font-bold text-stone-500 bg-white/80 backdrop-blur-sm hover:bg-white hover:text-stone-700 rounded-xl transition border border-stone-200 shadow-sm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M10.5 19.5 3 12m0 0 7.5-7.5M3 12h18" />
+              </svg>
+              <span className="hidden sm:inline">Quay lại</span>
+            </button>
+          )}
+          {step === 3 && (
+            <input
+              type="text"
+              placeholder="Nhập tên dự án..."
+              value={projectName}
+              onChange={(e) => setProjectName(e.target.value)}
+              className="px-3 py-2 text-sm font-medium border-2 border-emerald-500/50 bg-white/90 backdrop-blur-sm rounded-xl outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 shadow-sm transition-all w-24 sm:w-32 lg:w-36 2xl:w-48"
+            />
+          )}
+        </div>
+
+        {/* Upload Excel Button for Step 2 (Kịch bản) */}
+        {step === 2 && (
+          <div className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-10 flex items-center gap-3">
+            <input 
+              type="file" 
+              accept=".xlsx" 
+              ref={fileInputRef} 
+              onChange={handleExcelUpload} 
+              className="hidden" 
+            />
+            <button
+              type="button"
+              onClick={() => {
+                fileInputRef.current?.click();
+              }}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-emerald-600 bg-white hover:bg-emerald-50 rounded-xl transition border-2 border-emerald-600 shadow-sm"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
+              </svg>
+              <span className="hidden sm:inline">Upload Excel</span>
+            </button>
+          </div>
         )}
 
+        {/* Save Button for Step 3 */}
+        {step === 3 && (
+          <div className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-10 flex items-center gap-2 md:gap-3">
+            <AlertDialog>
+              <AlertDialogTrigger asChild>
+                <button
+                  type="button"
+                  className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-rose-500 bg-white hover:bg-rose-50 rounded-xl transition border-2 border-rose-500 shadow-sm whitespace-nowrap"
+                >
+                  <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M14.74 9l-.346 9m-4.788 0L9.26 9m9.968-3.21c.342.052.682.107 1.022.166m-1.022-.165L18.16 19.673a2.25 2.25 0 01-2.244 2.077H8.084a2.25 2.25 0 01-2.244-2.077L4.772 5.79m14.456 0a48.108 48.108 0 00-3.478-.397m-12 .562c.34-.059.68-.114 1.022-.165m0 0a48.11 48.11 0 013.478-.397m7.5 0v-.916c0-1.18-.91-2.164-2.09-2.201a51.964 51.964 0 00-3.32 0c-1.18.037-2.09 1.022-2.09 2.201v.916m7.5 0a48.667 48.667 0 00-7.5 0" />
+                  </svg>
+                  Xóa <span className="hidden 2xl:inline">{generatedScenes.length} cảnh</span>
+                </button>
+              </AlertDialogTrigger>
+              <AlertDialogContent>
+                <AlertDialogHeader>
+                  <AlertDialogTitle>Xác nhận xóa kịch bản</AlertDialogTitle>
+                  <AlertDialogDescription>
+                    Bạn có chắc chắn muốn xóa toàn bộ kịch bản hiện tại để chọn file khác không?
+                  </AlertDialogDescription>
+                </AlertDialogHeader>
+                <AlertDialogFooter>
+                  <AlertDialogCancel>Hủy</AlertDialogCancel>
+                  <AlertDialogAction
+                    onClick={() => {
+                      setGeneratedScenes([]);
+                      setTopicFormData(null);
+                      setValidImages([]);
+                      setProjectName("");
+                      setStep(2);
+                    }}
+                    className="bg-rose-600 hover:bg-rose-700 text-white"
+                  >
+                    Đồng ý
+                  </AlertDialogAction>
+                </AlertDialogFooter>
+              </AlertDialogContent>
+            </AlertDialog>
 
-      </div>
+            <button
+              type="button"
+              onClick={async (e) => {
+                e.preventDefault();
+                if (!projectName.trim()) {
+                  Notify({
+                    title: "Lỗi",
+                    description: "Vui lòng nhập tên dự án.",
+                    status: "error",
+                  });
+                  return;
+                }
+                if (!ownerId || !topicFormData) {
+                  handleFeedback({
+                    type: "error",
+                    message: "Thiếu dữ liệu hoặc chưa đăng nhập.",
+                  });
+                  return;
+                }
+                await createVideosFromScenes(generatedScenes, ownerId, validImages, projectName.trim());
+                handleGenerateSuccess(generatedScenes, topicFormData);
+                setGeneratedScenes([]);
+                setTopicFormData(null);
+                setValidImages([]);
+                setProjectName("");
+              }}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl transition border border-emerald-600 shadow-sm whitespace-nowrap"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+              </svg>
+              Lưu <span className="hidden 2xl:inline">{generatedScenes.length} cảnh và theo dõi</span>
+            </button>
+          </div>
+        )}
 
-      {/* Upload Excel Button for Step 2 (Kịch bản) */}
-      {step === 2 && (
-        <div className="absolute right-4 top-4 md:right-8 md:top-6 z-10 flex items-center gap-3">
-          <input 
-            type="file" 
-            accept=".xlsx" 
-            ref={fileInputRef} 
-            onChange={handleExcelUpload} 
-            className="hidden" 
-          />
-          <button
-            type="button"
-            onClick={() => {
-              fileInputRef.current?.click();
-            }}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-emerald-600 bg-white hover:bg-emerald-50 rounded-xl transition border-2 border-emerald-600 shadow-sm"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5v2.25A2.25 2.25 0 0 0 5.25 21h13.5A2.25 2.25 0 0 0 21 18.75V16.5m-13.5-9L12 3m0 0 4.5 4.5M12 3v13.5" />
-            </svg>
-            Upload Excel
-          </button>
-        </div>
-      )}
+        {/* Dynamic Action Container for Step 4+ */}
+        <div id="step-right-actions" className="absolute right-4 md:right-8 top-1/2 -translate-y-1/2 z-10 flex items-center gap-2"></div>
 
-      {/* Save Button for Step 3 */}
-      {step === 3 && (
-        <div className="absolute right-4 top-4 md:right-8 md:top-6 z-10 flex items-center gap-3">
-          <input
-            type="text"
-            placeholder="Nhập tên dự án..."
-            value={projectName}
-            onChange={(e) => setProjectName(e.target.value)}
-            className="px-4 py-2 text-sm font-medium border-2 border-emerald-500/50 bg-white/90 backdrop-blur-sm rounded-xl outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 shadow-sm transition-all w-48 md:w-64"
-          />
-          <button
-            type="button"
-            onClick={async (e) => {
-              e.preventDefault();
-              if (!projectName.trim()) {
-                Notify({
-                  title: "Lỗi",
-                  description: "Vui lòng nhập tên dự án.",
-                  status: "error",
-                });
-                return;
-              }
-              if (!ownerId || !topicFormData) {
-                setFeedback({
-                  type: "error",
-                  message: "Thiếu dữ liệu hoặc chưa đăng nhập.",
-                });
-                return;
-              }
-              await createVideosFromScenes(generatedScenes, ownerId, validImages, projectName.trim());
-              handleGenerateSuccess(generatedScenes, topicFormData);
-              // Clear storyboard states to prevent overwriting next time
-              setGeneratedScenes([]);
-              setTopicFormData(null);
-              setValidImages([]);
-              setProjectName("");
-            }}
-            className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-white bg-emerald-500 hover:bg-emerald-600 rounded-xl transition border border-emerald-600 shadow-sm"
-          >
-            <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={3} stroke="currentColor" className="w-4 h-4">
-              <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
-            </svg>
-            Lưu {generatedScenes.length} cảnh và theo dõi
-          </button>
-        </div>
-      )}
-
-
-      {/* Dynamic Action Container for Step 4+ */}
-      <div id="step-right-actions" className="absolute right-4 top-4 md:right-8 md:top-6 z-10 flex items-center gap-2"></div>
-
-      {feedback && (
-        <div
-          className={`fixed top-5 right-5 z-50 p-4 rounded-xl shadow-2xl border-2 animate-in slide-in-from-right duration-300 flex items-center gap-3 ${feedback.type === "error"
-              ? "bg-red-50 border-red-200 text-red-600"
-              : feedback.type === "success"
-                ? "bg-emerald-50 border-emerald-200 text-emerald-600"
-                : "bg-blue-50 border-blue-200 text-blue-600"
-            }`}
-        >
-          <span className="font-bold text-sm">{feedback.message}</span>
-          <button
-            onClick={() => setFeedback(null)}
-            className="text-xl leading-none hover:opacity-70"
-          >
-            ×
-          </button>
-        </div>
-      )}
-
-      {/* Stepper Header */}
-      <div className="flex items-center justify-center pt-4 md:pt-6 mb-6 flex-shrink-0 relative">
-        <div className="flex items-center bg-white rounded-full px-6 py-2 shadow-sm border border-stone-200">
+        {/* Stepper Center */}
+        <div className="flex items-center bg-white rounded-full px-2 sm:px-4 md:px-6 py-2 shadow-sm border border-stone-200">
           {[
             { num: 1, title: "API Key", icon: "Key" },
             { num: 2, title: "Kịch Bản", icon: "FileText" },
-            { num: 3, title: "Storyboard", icon: "Layout" },
+            { num: 3, title: "Phân cảnh", icon: "Layout" },
             { num: 4, title: "Video", icon: "Film" },
-            { num: 5, title: "Veo3", icon: "MonitorPlay" },
+            { num: 5, title: "Play", icon: "MonitorPlay" },
           ].map((s, idx) => {
             const isActive = step === s.num;
             const isPast = step > s.num;
@@ -294,6 +327,14 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
                         : "text-stone-400 hover:text-stone-600 cursor-pointer"
                     }`}
                   onClick={() => {
+                    if (s.num === 3 && generatedScenes.length === 0) {
+                      Notify({
+                        title: "Chưa có dữ liệu",
+                        description: "Vui lòng nhập kịch bản hoặc tải lên file Excel trước.",
+                        status: "info",
+                      });
+                      return;
+                    }
                     setStep(s.num);
                   }}
                 >
@@ -327,8 +368,8 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
               </React.Fragment>
             );
           })}
+          </div>
         </div>
-      </div>
 
       {/* Content Area */}
       <div className="flex-1 min-h-0 relative">
@@ -353,7 +394,7 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
             onSavePresets={handleSavePresets}
             onGenerateSuccess={handleGenerateSuccess}
             onGenerationComplete={handleGenerationComplete}
-            onFeedback={setFeedback}
+            onFeedback={handleFeedback}
             onCancel={() => setStep(1)}
           />
         )}
