@@ -7,6 +7,16 @@ const app = express();
 app.use(cors());
 app.use(express.json());
 
+app.post('/api/app/update', (req, res) => {
+    try {
+        const { autoUpdater } = require('electron-updater');
+        autoUpdater.quitAndInstall();
+        res.json({ success: true });
+    } catch (e) {
+        if (!res.headersSent) res.status(500).json({ error: e.message });
+    }
+});
+
 app.post('/api/veo3/start', async (req, res) => {
     try {
         const body = req.body;

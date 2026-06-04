@@ -11,16 +11,9 @@ let nextProcess = null;
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
 autoUpdater.on('update-downloaded', (info) => {
-  dialog.showMessageBox({
-    type: 'info',
-    title: 'Cập nhật phần mềm',
-    message: 'Phiên bản mới của Harumi AI đã được tải xuống tự động. Bạn có muốn khởi động lại ứng dụng để áp dụng ngay không?',
-    buttons: ['Cập nhật ngay', 'Để sau']
-  }).then((buttonIndex) => {
-    if (buttonIndex.response === 0) {
-      autoUpdater.quitAndInstall();
-    }
-  });
+  if (mainWindow) {
+    mainWindow.webContents.executeJavaScript('window.dispatchEvent(new CustomEvent("update-downloaded"))').catch(console.error);
+  }
 });
 
 async function waitForServer(url, timeout = 30000) {
