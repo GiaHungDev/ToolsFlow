@@ -33,7 +33,8 @@ if (!configStr) {
 }
 const config = JSON.parse(configStr);
 
-const OUTPUT_DIR = path.join(__dirname, 'outputs');
+const userDataPath = process.env.USER_DATA_PATH || (process.platform === 'win32' ? 'C:\\' : '/app');
+const OUTPUT_DIR = path.join(userDataPath, 'outputs');
 if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
 
 const account = {

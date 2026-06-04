@@ -61,10 +61,9 @@ async function startAutomation(config) {
 }
 
 async function runBackground(config) {
-    const OUTPUT_DIR = path.join(__dirname, 'outputs');
-    if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-
     const userDataPath = process.env.USER_DATA_PATH || (process.platform === 'win32' ? 'C:\\' : '/app');
+    const OUTPUT_DIR = path.join(userDataPath, 'outputs');
+    if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     const defaultProfilePath = 'Profiles_BAS_Flow'; // Chá»‰ Ä‘á»ƒ tĂªn thÆ° má»¥c, worker.js sáº½ tá»± ná»‘i vá»›i USER_DATA_PATH
 
     const headlessValue = config.isHeadless !== undefined ? config.isHeadless : false;
@@ -237,9 +236,61 @@ async function runBackground(config) {
     }
 
     let jobIndex = 0;
+    let isFetchingMore = false;
+
+    async function fetchMoreJobs() {
+        if (isFetchingMore) {
+            while (isFetchingMore && globalState.isRunning) {
+                await new Promise(r => setTimeout(r, 1000));
+            }
+            return pendingJobs.length - jobIndex;
+        }
+        isFetchingMore = true;
+        try {
+            const backendUrl = config.apiUrl;
+            let jobs = [];
+            let currentPage = 1;
+            let hasMore = true;
+            const limit = 100;
+            while (hasMore) {
+                const res = await fetch(`${backendUrl}/flow/veo3?page=${currentPage}&limit=${limit}`, {
+                    headers: { 'Authorization': `Bearer ${config.token}` }
+                });
+                const data = await res.json();
+                let pageJobs = Array.isArray(data) ? data : (data.data && Array.isArray(data.data) ? data.data : (data.data?.data && Array.isArray(data.data.data) ? data.data.data : []));
+                if (pageJobs.length > 0) {
+                    jobs = jobs.concat(pageJobs);
+                    currentPage++;
+                    if (pageJobs.length < limit) hasMore = false;
+                } else {
+                    hasMore = false;
+                }
+            }
+            await autoResetFailedJobs(config, jobs);
+            const newPending = jobs.filter(j => (j.status === 'pending' || j.status === 'processing' || j.status === 'uploaded' || j.status === 1) && !pendingJobs.some(existing => existing.id === j.id));
+            if (newPending.length > 0) {
+                pendingJobs.push(...newPending);
+                globalState.addLog(`Phát hiện thêm ${newPending.length} jobs pending mới từ API.`);
+            }
+            return newPending.length;
+        } catch (e) {
+            return 0;
+        } finally {
+            isFetchingMore = false;
+        }
+    }
 
     async function processWorker(worker) {
-        while (jobIndex < pendingJobs.length && globalState.isRunning) {
+        while (globalState.isRunning) {
+            if (jobIndex >= pendingJobs.length) {
+                globalState.addLog(`Đang kiểm tra thêm job mới từ API...`);
+                const newJobsCount = await fetchMoreJobs();
+                if (newJobsCount <= 0 && jobIndex >= pendingJobs.length) {
+                    break;
+                }
+            }
+            if (jobIndex >= pendingJobs.length) continue;
+            
             const currentIndex = jobIndex++;
             const row = pendingJobs[currentIndex];
             globalState.addLog(`\n>>> Bắt đầu xử lý Job ${currentIndex+1}/${pendingJobs.length} (ID: ${row.id}) trên luồng ${worker.id.replace('worker_', '')} <<<`);
@@ -377,16 +428,16 @@ async function autoResetFailedJobs(config, fetchedJobs = null) {
     if (!jobs) return resetJobIds;
     
     const now = Date.now();
-    const tenMins = 10 * 60 * 1000;
+    const waitTime = 5 * 60 * 1000;
     for (const j of jobs) {
         const status = String(j.status).toLowerCase();
         if (status === "failed" || status === "error") {
             const updatedTime = new Date(j.updatedAt || j.updated_at || j.createdAt || j.created_at || now).getTime();
-            if (now - updatedTime > tenMins) {
-                globalState.addLog(`Tự động phục hồi Job ID ${j.id} (Failed > 10p) về trạng thái chờ...`);
+            if (now - updatedTime > waitTime) {
+                globalState.addLog(`Tự động phục hồi Job ID ${j.id} (Failed > 5p) về trạng thái chờ...`);
                 try {
                     await fetch(`${backendUrl}/flow/veo3/${j.id}/status`, {
-                        method: "PUT",
+                        method: "PATCH",
                         headers: { "Content-Type": "application/json", "Authorization": `Bearer ${config.token}` },
                         body: JSON.stringify({ status: "pending" })
                     });

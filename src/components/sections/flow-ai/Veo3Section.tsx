@@ -140,7 +140,7 @@ const Veo3Section = () => {
           if (now - updatedTime > waitTime) {
             try {
               const res = await fetch(`${backendUrl}/flow/veo3/${j.id}/status`, {
-                method: "PUT",
+                method: "PATCH",
                 headers: { "Content-Type": "application/json", "Authorization": `Bearer ${cfg.token}` },
                 body: JSON.stringify({ status: "pending" })
               });
@@ -160,7 +160,7 @@ const Veo3Section = () => {
           resetJobIds.forEach(id => {
             Notify({
               title: "Tự động phục hồi",
-              description: `Job ${id} đã được tạo lại do lỗi quá 10 phút.`,
+              description: `Job ${id} đã được tạo lại do lỗi quá 5 phút.`,
               status: "success"
             });
             // Also append to logs

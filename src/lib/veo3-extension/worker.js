@@ -5783,14 +5783,15 @@ class AutomationWorker {
 
                 if (hasError) {
                     this.log(`[STEP 9b] Error detected: ${currentErrorReason}`);
+                    this.log(`[STEP 9b] Phát hiện lỗi: ${currentErrorReason}`);
                     break;
                 }
 
                 // --- Session expiry check ---
                 if (await this.checkAndRecoverSession()) {
-                    this.log('[STEP 9b] Session dropped mid-render. Throwing...');
+                    this.log('[STEP 9b] Phiên làm việc bị ngắt giữa chừng. Đang hủy bỏ...');
                     await page.reload({ waitUntil: 'domcontentloaded' });
-                    throw new Error('SESSION_DROPPED: Google session expired mid-render.');
+                    throw new Error('SESSION_DROPPED: Phiên làm việc Google hết hạn giữa chừng.');
                 }
 
                 // --- Tile status: check NEWEST tile, veto errors if any tile has %/queue ---
