@@ -10,6 +10,7 @@ let nextProcess = null;
 
 const isDev = process.env.NODE_ENV === 'development' || !app.isPackaged;
 
+autoUpdater.removeAllListeners('update-downloaded');
 autoUpdater.on('update-downloaded', (info) => {
   if (mainWindow) {
     mainWindow.webContents.executeJavaScript('window.dispatchEvent(new CustomEvent("update-downloaded"))').catch(console.error);
@@ -124,7 +125,7 @@ app.on('ready', () => {
   });
 
   if (!isDev) {
-    autoUpdater.checkForUpdatesAndNotify();
+    autoUpdater.checkForUpdates();
   }
 });
 
