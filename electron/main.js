@@ -85,6 +85,7 @@ async function startNextJSServer() {
 async function createWindow() {
   const url = await startNextJSServer();
 
+  const packageJson = require('../package.json');
   mainWindow = new BrowserWindow({
     width: 1440,
     height: 900,
@@ -93,7 +94,7 @@ async function createWindow() {
       contextIsolation: true
     },
     autoHideMenuBar: true,
-    title: "Harumi AI Automation"
+    title: `Harumi AI v${packageJson.version}`
   });
 
   mainWindow.loadURL(url);

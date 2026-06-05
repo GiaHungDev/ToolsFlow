@@ -61,9 +61,16 @@ async function startAutomation(config) {
 }
 
 async function runBackground(config) {
-    const userDataPath = process.env.USER_DATA_PATH || (process.platform === 'win32' ? 'C:\\' : '/app');
-    const OUTPUT_DIR = path.join(userDataPath, 'outputs');
-    if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+    let userDataPath = process.env.USER_DATA_PATH || (process.platform === 'win32' ? 'C:\\' : '/app');
+    let OUTPUT_DIR = path.join(userDataPath, 'outputs');
+    try {
+        if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+    } catch (err) {
+        const os = require('os');
+        OUTPUT_DIR = path.join(os.tmpdir(), 'harumi-outputs');
+        if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
+        globalState.addLog(`⚠️ Cảnh báo: Lỗi đường dẫn (ENOTDIR/EPERM). Đã tự động chuyển nơi lưu video sang: ${OUTPUT_DIR}`);
+    }
     const defaultProfilePath = 'Profiles_BAS_Flow'; // Chá»‰ Ä‘á»ƒ tĂªn thÆ° má»¥c, worker.js sáº½ tá»± ná»‘i vá»›i USER_DATA_PATH
 
     const headlessValue = config.isHeadless !== undefined ? config.isHeadless : false;

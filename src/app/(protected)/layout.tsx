@@ -2,8 +2,10 @@ import Header from "@/components/layout/Header";
 import AuthWrapper from "@/components/sections/auth-wrapper";
 import type { Metadata } from "next";
 
+import packageJson from "../../../package.json";
+
 export const metadata: Metadata = {
-  title: "Harumi AI – Dashboard",
+  title: `Harumi AI v${packageJson.version} – Dashboard`,
   description: "Khu vực sử dụng đã đăng nhập",
 };
 

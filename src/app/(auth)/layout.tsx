@@ -1,7 +1,9 @@
 import type { Metadata } from "next";
 
+import packageJson from "../../../package.json";
+
 export const metadata: Metadata = {
-  title: "Harumi AI – Dashboard",
+  title: `Harumi AI v${packageJson.version} – Dashboard`,
   description: "Landing page giới thiệu web",
 };
 

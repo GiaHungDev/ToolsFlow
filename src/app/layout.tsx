@@ -12,8 +12,10 @@ const inter = Inter({
   weight: ["100", "200", "300", "400", "500", "600", "700", "800", "900"],
 });
 
+import packageJson from "../../package.json";
+
 export const metadata: Metadata = {
-  title: "Harumi AI",
+  title: `Harumi AI v${packageJson.version}`,
   description: "AI-powered creative platform",
   icons: {
     icon: "/favicon.png",
