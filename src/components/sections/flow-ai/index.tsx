@@ -387,7 +387,7 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
           </div>
         )}
 
-        {step === 2 && (
+        <div className="h-full w-full" style={{ display: step === 2 ? 'block' : 'none' }}>
           <CreateTopicT2VContent
             activeApiKey={activeApiKey}
             presets={presets}
@@ -397,7 +397,7 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
             onFeedback={handleFeedback}
             onCancel={() => setStep(1)}
           />
-        )}
+        </div>
 
         {step === 3 && (
           <div className="h-full w-full overflow-y-auto custom-scrollbar">

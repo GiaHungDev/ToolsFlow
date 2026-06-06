@@ -72,13 +72,24 @@ export const useListPromptModal = () => {
               counter++;
             }
           });
+        } else if (hasImages) {
+          imagePathsObj = {};
+          let counter = 1;
+          images.forEach((img) => {
+            if (img && img.path) {
+              imagePathsObj![`Image${counter}`] = img.path;
+              counter++;
+            }
+          });
         }
+
+        const finalHasImages = hasSceneImages || hasImages;
 
         return {
           prompt: scene.prompt_text,
           sceneNumber: scene.scene_number,
-          typeI2V: hasSceneImages ? "Ingredients to Video" : "Text to Video",
-          ...(hasSceneImages ? { imagePaths: imagePathsObj } : {}),
+          typeI2V: finalHasImages ? "Ingredients to Video" : "Text to Video",
+          ...(finalHasImages ? { imagePaths: imagePathsObj } : {}),
         };
       });
 

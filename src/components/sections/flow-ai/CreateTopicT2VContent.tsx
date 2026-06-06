@@ -654,7 +654,10 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                             type="text"
                             value={formData.uploadedImages?.[idx]?.path || ""}
                             onChange={(e) => {
-                              const val = e.target.value;
+                              let val = e.target.value;
+                              // Xoá dấu ngoặc kép hoặc ngoặc đơn ở đầu và cuối chuỗi nếu có
+                              val = val.replace(/^["']|["']$/g, '').trim();
+
                               setFormData((prev: any) => {
                                 const updated = [...(prev.uploadedImages || [null, null, null])];
                                 if (val) {
