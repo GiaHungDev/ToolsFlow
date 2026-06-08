@@ -21,9 +21,17 @@ import {
   updateAutomationUser,
   deleteAutomationUser,
   getUserStats,
+  getGroups,
+  createGroup,
+  updateGroup,
+  deleteGroup,
+  assignUserToGroup,
+  getAdminStats,
+  exportAdminStats,
   IFlowAccount,
   IBasAccount,
   IAccountWeb,
+  IUserGroup,
 } from "@/service/api/adminService";
 import {
   Shield,
@@ -49,13 +57,14 @@ export default function AdminPage() {
   const router = useRouter();
   const { user } = useAppSelector((state) => state.auth);
 
-  // tab state: 'flow' or 'bas' or 'users'
-  const [activeTab, setActiveTab] = useState<"flow" | "bas" | "users">("flow");
+  // tab state: 'flow' or 'bas' or 'users' or 'groups' or 'stats'
+  const [activeTab, setActiveTab] = useState<"flow" | "bas" | "users" | "groups" | "stats">("flow");
 
   // data states
   const [flowAccounts, setFlowAccounts] = useState<IFlowAccount[]>([]);
   const [basAccounts, setBasAccounts] = useState<IBasAccount[]>([]);
   const [automationUsers, setAutomationUsers] = useState<IAccountWeb[]>([]);
+  const [groups, setGroups] = useState<IUserGroup[]>([]);
   const [loading, setLoading] = useState(true);
 
   // search/filter state
@@ -85,9 +94,16 @@ export default function AdminPage() {
   const [userUsername, setUserUsername] = useState("");
   const [userComputerId, setUserComputerId] = useState("");
   const [userRole, setUserRole] = useState("user");
+  const [userGroupId, setUserGroupId] = useState<string | number>("");
+
+  // group modal state
+  const [isGroupModalOpen, setIsGroupModalOpen] = useState(false);
+  const [editingGroup, setEditingGroup] = useState<IUserGroup | null>(null);
+  const [groupName, setGroupName] = useState("");
+  const [groupDescription, setGroupDescription] = useState("");
 
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
-  const [deleteType, setDeleteType] = useState<"flow" | "bas" | "users" | null>(null);
+  const [deleteType, setDeleteType] = useState<"flow" | "bas" | "users" | "groups" | null>(null);
   const [deleteId, setDeleteId] = useState<any>(null);
 
   // stats modal state
@@ -100,14 +116,16 @@ export default function AdminPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [flows, bases, usersResp] = await Promise.all([
+      const [flows, bases, usersResp, groupsResp] = await Promise.all([
         getFlowAccounts(),
         getBasAccounts(),
         getAutomationUsers(),
+        getGroups(),
       ]);
       setFlowAccounts(flows || []);
       setBasAccounts(bases || []);
       setAutomationUsers(usersResp || []);
+      setGroups(groupsResp || []);
     } catch (error: any) {
       console.error("Error loading admin data:", error);
       Notify({
@@ -119,6 +137,63 @@ export default function AdminPage() {
       setLoading(false);
     }
   };
+
+  // Admin stats page state
+  const [statsStartDate, setStatsStartDate] = useState("");
+  const [statsEndDate, setStatsEndDate] = useState("");
+  const [statsGroupId, setStatsGroupId] = useState<string | number>("");
+  const [statsPeriod, setStatsPeriod] = useState<'day' | 'week' | 'month'>("day");
+  const [adminStatsData, setAdminStatsData] = useState<any>(null);
+  const [isAdminStatsLoading, setIsAdminStatsLoading] = useState(false);
+  const [isExporting, setIsExporting] = useState(false);
+
+  const fetchAdminStats = async () => {
+    try {
+      setIsAdminStatsLoading(true);
+      const res = await getAdminStats({
+        startDate: statsStartDate || undefined,
+        endDate: statsEndDate || undefined,
+        groupId: statsGroupId ? Number(statsGroupId) : undefined,
+      });
+      setAdminStatsData(res);
+    } catch (err) {
+      console.error(err);
+      Notify({ title: "Lỗi", description: "Không thể tải số liệu thống kê", status: "error" });
+    } finally {
+      setIsAdminStatsLoading(false);
+    }
+  };
+
+  const handleExportExcel = async () => {
+    try {
+      setIsExporting(true);
+      const blob = await exportAdminStats({
+        startDate: statsStartDate || undefined,
+        endDate: statsEndDate || undefined,
+        groupId: statsGroupId ? Number(statsGroupId) : undefined,
+        period: statsPeriod,
+      });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = url;
+      link.setAttribute("download", `thong_ke_${statsPeriod}_${new Date().toISOString().split("T")[0]}.xlsx`);
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      Notify({ title: "Thành công", description: "Tải báo cáo Excel thành công!", status: "success" });
+    } catch (err) {
+      console.error(err);
+      Notify({ title: "Lỗi", description: "Không thể xuất file Excel", status: "error" });
+    } finally {
+      setIsExporting(false);
+    }
+  };
+
+  useEffect(() => {
+    if (activeTab === "stats") {
+      fetchAdminStats();
+    }
+  }, [activeTab, statsStartDate, statsEndDate, statsGroupId]);
 
   useEffect(() => {
     // Nếu chưa có user (chưa tải xong state hoặc vừa đăng xuất) thì không làm gì cả
@@ -178,12 +253,14 @@ export default function AdminPage() {
       setUserUsername(item.username || "");
       setUserComputerId(item.computerId || "");
       setUserRole(item.role || "user");
+      setUserGroupId(item.groupId !== null && item.groupId !== undefined ? String(item.groupId) : "");
     } else {
       setEditingUser(null);
       setFormUserId("");
       setUserUsername("");
       setUserComputerId("");
       setUserRole("user");
+      setUserGroupId("");
     }
   };
 
@@ -348,15 +425,16 @@ export default function AdminPage() {
     }
 
     try {
+      let savedUser;
       if (editingUser) {
-        await updateAutomationUser(editingUser.id, {
+        savedUser = await updateAutomationUser(editingUser.id, {
           username: userUsername.trim(),
           computerId: userComputerId.trim(),
           role: userRole
         });
         Notify({ title: "Thành công", description: "Cập nhật thông tin người dùng thành công!", status: "success" });
       } else {
-        await createAutomationUser({
+        savedUser = await createAutomationUser({
           username: userUsername.trim(),
           computerId: userComputerId.trim(),
           role: userRole,
@@ -364,6 +442,12 @@ export default function AdminPage() {
         });
         Notify({ title: "Thành công", description: "Thêm người dùng mới thành công!", status: "success" });
       }
+
+      const targetUserId = editingUser ? editingUser.id : (savedUser as any).id;
+      if (targetUserId) {
+        await assignUserToGroup(targetUserId, userGroupId ? Number(userGroupId) : null);
+      }
+      
       setIsUserModalOpen(false);
       loadData();
     } catch (error: any) {
@@ -373,6 +457,39 @@ export default function AdminPage() {
         status: "error",
       });
     }
+  };
+
+  // Save Group
+  const handleSaveGroup = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!groupName.trim()) {
+      Notify({ title: "Lỗi biểu mẫu", description: "Tên nhóm không được để trống", status: "warning" });
+      return;
+    }
+    try {
+      if (editingGroup) {
+        await updateGroup(editingGroup.id, { name: groupName.trim(), description: groupDescription.trim() });
+        Notify({ title: "Thành công", description: "Cập nhật nhóm thành công!", status: "success" });
+      } else {
+        await createGroup({ name: groupName.trim(), description: groupDescription.trim() });
+        Notify({ title: "Thành công", description: "Tạo nhóm mới thành công!", status: "success" });
+      }
+      setIsGroupModalOpen(false);
+      loadData();
+    } catch (error: any) {
+      Notify({
+        title: "Lỗi xử lý",
+        description: error?.response?.data?.message || "Đã xảy ra lỗi khi lưu thông tin nhóm.",
+        status: "error",
+      });
+    }
+  };
+
+  // Trigger delete group
+  const triggerDeleteGroup = (id: number) => {
+    setDeleteType("groups");
+    setDeleteId(id);
+    setIsDeleteOpen(true);
   };
 
   // Trigger delete flow
@@ -415,6 +532,9 @@ export default function AdminPage() {
       } else if (deleteType === "users") {
         await deleteAutomationUser(Number(deleteId));
         Notify({ title: "Xóa thành công", description: "Đã xóa người dùng khỏi hệ thống.", status: "success" });
+      } else if (deleteType === "groups") {
+        await deleteGroup(deleteId);
+        Notify({ title: "Xóa thành công", description: "Đã xóa nhóm khỏi hệ thống.", status: "success" });
       }
       setIsDeleteOpen(false);
       loadData();
@@ -460,6 +580,10 @@ export default function AdminPage() {
   const filteredUsers = React.useMemo(() => automationUsers.filter((u) =>
     u.username.toLowerCase().includes(searchTerm.toLowerCase())
   ), [automationUsers, searchTerm]);
+
+  const filteredGroups = React.useMemo(() => groups.filter((g) =>
+    g.name.toLowerCase().includes(searchTerm.toLowerCase())
+  ), [groups, searchTerm]);
 
   if (!user || user.role !== "ADMIN") {
     return (
@@ -510,6 +634,7 @@ export default function AdminPage() {
   const userColumns: TableColumn<any>[] = [
     { key: "id", title: "ID User" },
     { key: "username", title: "Tên người dùng (Username)" },
+    { key: "group", title: "Nhóm (Group)", render: (_, row) => row.group?.name || <span className="italic text-gray-400">Chưa vào nhóm</span> },
     { key: "computerId", title: "Thiết bị & IP (Anti-Sharing)", render: (_, row) => {
       const hasDevices = row.knownDevices && Object.keys(row.knownDevices).length > 0;
       return (
@@ -648,8 +773,38 @@ export default function AdminPage() {
     ) }
   ];
 
+  const groupColumns: TableColumn<IUserGroup>[] = [
+    { key: "id", title: "ID Nhóm" },
+    { key: "name", title: "Tên Nhóm" },
+    { key: "description", title: "Mô tả", render: (_, row) => row.description || <span className="italic text-gray-300">Không có</span> },
+    { key: "membersCount", title: "Số thành viên", render: (_, row) => row._count?.users || 0 },
+    { key: "actions", title: "Hành động", render: (_, row) => (
+      <div className="flex justify-end space-x-2">
+        <button
+          onClick={() => {
+            setEditingGroup(row);
+            setGroupName(row.name);
+            setGroupDescription(row.description || "");
+            setIsGroupModalOpen(true);
+          }}
+          className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition"
+          title="Sửa"
+        >
+          <Edit className="h-4 w-4" />
+        </button>
+        <button
+          onClick={() => triggerDeleteGroup(row.id)}
+          className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition"
+          title="Xóa"
+        >
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    ) }
+  ];
+
   return (
-    <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-16 text-gray-900">
+    <div className="max-w-[95%] mx-auto px-4 sm:px-6 lg:px-8 py-8 mt-16 text-gray-900">
       {/* Top bar & Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between mb-8 pb-6 border-b border-gray-100">
         <div>
@@ -676,15 +831,15 @@ export default function AdminPage() {
       </div>
 
       {/* Tabs list & search filter */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-6">
-        <div className="flex p-1 bg-gray-100 rounded-xl space-x-1 w-full md:w-auto">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
+        <div className="flex p-1 bg-gray-100 rounded-xl space-x-1 overflow-x-auto lg:overflow-visible max-w-full">
           <button
             onClick={() => {
               setActiveTab("flow");
               setSearchTerm("");
               setSelectedKeys([]);
             }}
-            className={`flex items-center space-x-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === "flow"
                 ? "bg-white text-emerald-600 shadow"
                 : "text-gray-500 hover:text-gray-900"
@@ -699,7 +854,7 @@ export default function AdminPage() {
               setSearchTerm("");
               setSelectedKeys([]);
             }}
-            className={`flex items-center space-x-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === "bas"
                 ? "bg-white text-emerald-600 shadow"
                 : "text-gray-500 hover:text-gray-900"
@@ -714,7 +869,7 @@ export default function AdminPage() {
               setSearchTerm("");
               setSelectedKeys([]);
             }}
-            className={`flex items-center space-x-2 px-6 py-2.5 rounded-lg text-sm font-medium transition-all ${
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === "users"
                 ? "bg-white text-emerald-600 shadow"
                 : "text-gray-500 hover:text-gray-900"
@@ -723,73 +878,259 @@ export default function AdminPage() {
             <MonitorPlay className="h-4 w-4" />
             <span>Người dùng ({automationUsers.length})</span>
           </button>
+          <button
+            onClick={() => {
+              setActiveTab("groups");
+              setSearchTerm("");
+              setSelectedKeys([]);
+            }}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+              activeTab === "groups"
+                ? "bg-white text-emerald-600 shadow"
+                : "text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            <Users className="h-4 w-4 text-indigo-500" />
+            <span>Nhóm ({groups.length})</span>
+          </button>
+          <button
+            onClick={() => {
+              setActiveTab("stats");
+              setSearchTerm("");
+              setSelectedKeys([]);
+            }}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+              activeTab === "stats"
+                ? "bg-white text-emerald-600 shadow"
+                : "text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            <BarChart2 className="h-4 w-4 text-blue-500" />
+            <span>Thống kê & Excel</span>
+          </button>
         </div>
 
-        <div className="flex items-center gap-3 w-full md:w-auto">
-          <div className="relative flex-1 md:w-64">
-            <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-              <Search className="h-4 w-4" />
-            </span>
-            <input
-              type="text"
-              placeholder={activeTab === "flow" ? "Tìm email tài khoản Flow..." : activeTab === "bas" ? "Tìm tên hoặc email liên kết..." : "Tìm username người dùng..."}
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-9 pr-4 py-2.5 w-full bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-            />
-          </div>
-
-          <div className="flex items-center gap-2">
-            {selectedKeys.length > 0 && (
-              <button
-                onClick={handleBulkDelete}
-                className="inline-flex items-center space-x-2 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition shadow-sm"
-              >
-                <Trash2 className="h-4 w-4" />
-                <span className="hidden sm:inline">Xóa {selectedKeys.length}</span>
-              </button>
-            )}
-
-            <button
-              onClick={() => {
-                if (activeTab === "flow") {
-                  resetFlowForm();
-                  setIsFlowModalOpen(true);
-                } else if (activeTab === "bas") {
-                  resetBasForm();
-                  setIsBasModalOpen(true);
-                } else {
-                  resetUserForm();
-                  setIsUserModalOpen(true);
+        {activeTab !== "stats" && (
+          <div className="flex items-center gap-3 w-full lg:w-auto">
+            <div className="relative flex-1 lg:w-64">
+              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                <Search className="h-4 w-4" />
+              </span>
+              <input
+                type="text"
+                placeholder={
+                  activeTab === "flow" ? "Tìm email tài khoản Flow..." :
+                  activeTab === "bas" ? "Tìm tên hoặc email liên kết..." :
+                  activeTab === "users" ? "Tìm username người dùng..." :
+                  activeTab === "groups" ? "Tìm tên nhóm..." :
+                  "Tìm kiếm..."
                 }
-              }}
-              className="inline-flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-700 hover:to-emerald-700 shadow-md transition"
-            >
-              <Plus className="h-4 w-4" />
-              <span>{activeTab === "flow" ? "Thêm tài khoản Flow" : activeTab === "bas" ? "Thêm tài khoản BAS" : "Thêm Người dùng"}</span>
-            </button>
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="pl-9 pr-4 py-2.5 w-full bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+              />
+            </div>
+
+            <div className="flex items-center gap-2">
+              {selectedKeys.length > 0 && (
+                <button
+                  onClick={handleBulkDelete}
+                  className="inline-flex items-center space-x-2 px-4 py-2.5 bg-red-50 text-red-600 border border-red-200 rounded-xl text-sm font-semibold hover:bg-red-100 transition shadow-sm"
+                >
+                  <Trash2 className="h-4 w-4" />
+                  <span className="hidden sm:inline">Xóa {selectedKeys.length}</span>
+                </button>
+              )}
+
+              <button
+                onClick={() => {
+                  if (activeTab === "flow") {
+                    resetFlowForm();
+                    setIsFlowModalOpen(true);
+                  } else if (activeTab === "bas") {
+                    resetBasForm();
+                    setIsBasModalOpen(true);
+                  } else if (activeTab === "groups") {
+                    setEditingGroup(null);
+                    setGroupName("");
+                    setGroupDescription("");
+                    setIsGroupModalOpen(true);
+                  } else {
+                    resetUserForm();
+                    setIsUserModalOpen(true);
+                  }
+                }}
+                className="inline-flex items-center space-x-2 px-4 py-2.5 bg-gradient-to-r from-emerald-600 to-emerald-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-700 hover:to-emerald-700 shadow-md transition whitespace-nowrap"
+              >
+                <Plus className="h-4 w-4" />
+                <span>
+                  {activeTab === "flow" ? "Thêm tài khoản Flow" :
+                   activeTab === "bas" ? "Thêm tài khoản BAS" :
+                   activeTab === "groups" ? "Thêm Nhóm" :
+                   "Thêm Người dùng"}
+                </span>
+              </button>
+            </div>
           </div>
-        </div>
+        )}
       </div>
 
       {/* Main content table */}
       <div className="mb-8">
-        <CustomTable<any>
-          data={
-            activeTab === "flow" ? filteredFlows :
-            activeTab === "users" ? filteredUsers :
-            filteredBases
-          }
-          columns={
-            (activeTab === "flow" ? flowColumns :
-            activeTab === "users" ? userColumns :
-            basColumns) as any
-          }
-          loading={loading}
-          enableSelection={true}
-          onSelectionChange={setSelectedKeys}
-          enablePagination={false}
-        />
+        {activeTab === "stats" ? (
+          <div className="space-y-6">
+            {/* Filter Panel */}
+            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Từ ngày</label>
+                <input
+                  type="date"
+                  value={statsStartDate}
+                  onChange={(e) => setStatsStartDate(e.target.value)}
+                  className="px-4 py-2.5 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Đến ngày</label>
+                <input
+                  type="date"
+                  value={statsEndDate}
+                  onChange={(e) => setStatsEndDate(e.target.value)}
+                  className="px-4 py-2.5 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                />
+              </div>
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nhóm</label>
+                <select
+                  value={statsGroupId}
+                  onChange={(e) => setStatsGroupId(e.target.value)}
+                  className="px-4 py-2.5 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white text-gray-700"
+                >
+                  <option value="">-- Tất cả nhóm --</option>
+                  {groups.map(g => (
+                    <option key={g.id} value={g.id}>{g.name}</option>
+                  ))}
+                </select>
+              </div>
+              <div className="flex gap-2">
+                <div className="flex-1">
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Chu kỳ (Excel)</label>
+                  <select
+                    value={statsPeriod}
+                    onChange={(e) => setStatsPeriod(e.target.value as any)}
+                    className="px-4 py-2.5 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white text-gray-700"
+                  >
+                    <option value="day">Theo Ngày</option>
+                    <option value="week">Theo Tuần</option>
+                    <option value="month">Theo Tháng</option>
+                  </select>
+                </div>
+                <button
+                  onClick={handleExportExcel}
+                  disabled={isExporting}
+                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow transition flex items-center gap-2 disabled:opacity-60 h-10 align-middle"
+                >
+                  {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+                  <span>Xuất Excel</span>
+                </button>
+              </div>
+            </div>
+
+            {/* Stats Dashboard View */}
+            {isAdminStatsLoading ? (
+              <div className="py-12 flex flex-col items-center justify-center text-gray-500 bg-white rounded-2xl border border-gray-200">
+                <Loader2 className="h-10 w-10 animate-spin text-emerald-600 mb-4" />
+                <p className="font-medium">Đang phân tích số liệu hệ thống...</p>
+              </div>
+            ) : adminStatsData ? (
+              <div className="space-y-6">
+                {/* Summary Cards */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
+                    <p className="text-sm text-gray-500 font-medium">Tổng số Video</p>
+                    <h3 className="text-3xl font-bold text-gray-900 mt-2">{adminStatsData.summary.total}</h3>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between border-l-4 border-l-emerald-500">
+                    <p className="text-sm text-emerald-600 font-medium">Thành công</p>
+                    <h3 className="text-3xl font-bold text-emerald-700 mt-2">{adminStatsData.summary.completed}</h3>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between border-l-4 border-l-red-500">
+                    <p className="text-sm text-red-600 font-medium">Thất bại</p>
+                    <h3 className="text-3xl font-bold text-red-700 mt-2">{adminStatsData.summary.failed}</h3>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between border-l-4 border-l-amber-500">
+                    <p className="text-sm text-amber-600 font-medium">Đang xử lý</p>
+                    <h3 className="text-3xl font-bold text-amber-700 mt-2">{adminStatsData.summary.processing}</h3>
+                  </div>
+                  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between bg-gradient-to-tr from-indigo-50 to-blue-50 border-l-4 border-l-indigo-500">
+                    <p className="text-sm text-indigo-600 font-medium">Tỷ lệ thành công</p>
+                    <h3 className="text-3xl font-bold text-indigo-700 mt-2">{adminStatsData.summary.successRate}</h3>
+                  </div>
+                </div>
+
+                {/* Group stats table */}
+                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 font-semibold text-gray-900">
+                    Thống kê chi tiết theo Nhóm
+                  </div>
+                  <div className="overflow-x-auto">
+                    <table className="w-full text-left text-sm text-gray-500">
+                      <thead className="bg-gray-100/50 text-gray-700 uppercase font-semibold text-xs border-b border-gray-200">
+                        <tr>
+                          <th className="px-6 py-3">Tên Nhóm</th>
+                          <th className="px-6 py-3">Thành công</th>
+                          <th className="px-6 py-3">Đang xử lý</th>
+                          <th className="px-6 py-3">Thất bại</th>
+                          <th className="px-6 py-3">Tổng cộng</th>
+                          <th className="px-6 py-3">Tỉ lệ thành công</th>
+                        </tr>
+                      </thead>
+                      <tbody className="divide-y divide-gray-100">
+                        {adminStatsData.groups.map((g: any, index: number) => {
+                          const resolved = g.completed + g.failed;
+                          const rate = resolved > 0 ? ((g.completed / resolved) * 100).toFixed(2) + '%' : '0%';
+                          return (
+                            <tr key={index} className="hover:bg-gray-50">
+                              <td className="px-6 py-4 font-medium text-gray-900">{g.name}</td>
+                              <td className="px-6 py-4 text-emerald-600 font-semibold">{g.completed}</td>
+                              <td className="px-6 py-4 text-amber-600">{g.processing}</td>
+                              <td className="px-6 py-4 text-red-600">{g.failed}</td>
+                              <td className="px-6 py-4 font-semibold">{g.total}</td>
+                              <td className="px-6 py-4 font-semibold text-indigo-600">{rate}</td>
+                            </tr>
+                          );
+                        })}
+                      </tbody>
+                    </table>
+                  </div>
+                </div>
+              </div>
+            ) : (
+              <div className="py-12 text-center text-gray-500 bg-white rounded-2xl border border-gray-200">
+                Không có dữ liệu thống kê cho khoảng thời gian này.
+              </div>
+            )}
+          </div>
+        ) : (
+          <CustomTable<any>
+            data={
+              activeTab === "flow" ? filteredFlows :
+              activeTab === "users" ? filteredUsers :
+              activeTab === "groups" ? filteredGroups :
+              filteredBases
+            }
+            columns={
+              (activeTab === "flow" ? flowColumns :
+              activeTab === "users" ? userColumns :
+              activeTab === "groups" ? groupColumns :
+              basColumns) as any
+            }
+            loading={loading}
+            enableSelection={activeTab !== "groups"}
+            onSelectionChange={setSelectedKeys}
+            enablePagination={false}
+          />
+        )}
       </div>
 
       {/* FLOW ACCOUNT MODAL */}
@@ -1047,12 +1388,88 @@ export default function AdminPage() {
                     <option value="admin">Admin</option>
                   </select>
                 </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nhóm (Group)</label>
+                  <select
+                    value={userGroupId}
+                    onChange={(e) => setUserGroupId(e.target.value)}
+                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white text-gray-700"
+                  >
+                    <option value="">-- Chưa vào nhóm --</option>
+                    {groups.map((g) => (
+                      <option key={g.id} value={g.id}>
+                        {g.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
               </div>
 
               <div className="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
                 <button
                   type="button"
                   onClick={() => setIsUserModalOpen(false)}
+                  className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-100 transition"
+                >
+                  Hủy bỏ
+                </button>
+                <button
+                  type="submit"
+                  className="px-5 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow transition"
+                >
+                  Lưu
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* USER GROUP MODAL */}
+      {isGroupModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-lg w-full overflow-hidden border border-gray-100 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900">
+                {editingGroup ? "Sửa nhóm người dùng" : "Thêm nhóm người dùng"}
+              </h2>
+              <button
+                onClick={() => setIsGroupModalOpen(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveGroup}>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tên nhóm</label>
+                  <input
+                    type="text"
+                    value={groupName}
+                    onChange={(e) => setGroupName(e.target.value)}
+                    placeholder="Nhập tên nhóm..."
+                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                    required
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Mô tả nhóm</label>
+                  <input
+                    type="text"
+                    value={groupDescription}
+                    onChange={(e) => setGroupDescription(e.target.value)}
+                    placeholder="Mô tả cho nhóm này..."
+                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                  />
+                </div>
+              </div>
+
+              <div className="flex items-center justify-end gap-3 px-6 py-4 bg-gray-50 border-t border-gray-100">
+                <button
+                  type="button"
+                  onClick={() => setIsGroupModalOpen(false)}
                   className="px-4 py-2 border border-gray-200 text-gray-600 rounded-xl text-sm font-semibold hover:bg-gray-100 transition"
                 >
                   Hủy bỏ

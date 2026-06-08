@@ -86,3 +86,47 @@ export const deleteAutomationUser = async (id: number): Promise<any> => {
 export const getUserStats = async (id: number): Promise<{ total: number; completed: number; failed: number; processing: number }> => {
   return await axiosClient.get(`/user/${id}/stats`);
 };
+
+// UserGroup CRUD
+export interface IUserGroup {
+  id: number;
+  name: string;
+  description?: string;
+  createdAt?: string;
+  _count?: {
+    users: number;
+  };
+}
+
+export const getGroups = async (): Promise<IUserGroup[]> => {
+  return await axiosClient.get<IUserGroup[]>("/group");
+};
+
+export const createGroup = async (data: Partial<IUserGroup>): Promise<IUserGroup> => {
+  return await axiosClient.post<IUserGroup>("/group", data);
+};
+
+export const updateGroup = async (id: number, data: Partial<IUserGroup>): Promise<IUserGroup> => {
+  return await axiosClient.patch<IUserGroup>(`/group/${id}`, data);
+};
+
+export const deleteGroup = async (id: number): Promise<any> => {
+  return await axiosClient.delete<any>(`/group/${id}`);
+};
+
+export const assignUserToGroup = async (userId: number, groupId: number | null): Promise<any> => {
+  return await axiosClient.post<any>("/group/assign", { userId, groupId });
+};
+
+export const getAdminStats = async (params: { startDate?: string; endDate?: string; groupId?: number }): Promise<any> => {
+  return await axiosClient.get("/admin/stats", { params });
+};
+
+export const exportAdminStats = async (params: { startDate?: string; endDate?: string; groupId?: number; period?: 'day' | 'week' | 'month' }): Promise<Blob> => {
+  return await axiosClient.get("/admin/stats/export", {
+    params,
+    responseType: "blob"
+  });
+};
+
+
