@@ -1,5 +1,6 @@
 "use client";
 
+import { DatePicker } from "react-rainbow-components";
 import CustomTable from "@/components/shared/CTable";
 import { TableColumn } from "@/components/shared/CTable/interface";
 import React, { useEffect, useState } from "react";
@@ -51,11 +52,99 @@ import {
   ExternalLink,
   MonitorPlay,
   BarChart2,
+  FileSpreadsheet,
+  RefreshCw,
 } from "lucide-react";
+
+function getDatesFromWeekString(weekStr: string): { startDate: string; endDate: string } | null {
+  if (!weekStr) return null;
+  const match = weekStr.match(/^(\d{4})-W(\d{2})$/);
+  if (!match) return null;
+  const year = parseInt(match[1], 10);
+  const week = parseInt(match[2], 10);
+  
+  const jan1 = new Date(year, 0, 1);
+  const day = jan1.getDay();
+  const jan1Monday = new Date(year, 0, 1 + (day <= 4 ? 1 - day : 8 - day));
+  
+  const startDate = new Date(jan1Monday.getTime() + (week - 1) * 7 * 24 * 60 * 60 * 1000);
+  const endDate = new Date(startDate.getTime() + 6 * 24 * 60 * 60 * 1000);
+  
+  return {
+    startDate: startDate.toISOString().split("T")[0],
+    endDate: endDate.toISOString().split("T")[0],
+  };
+}
+
+function getDatesFromMonthString(monthStr: string): { startDate: string; endDate: string } | null {
+  if (!monthStr) return null;
+  const match = monthStr.match(/^(\d{4})-(\d{2})$/);
+  if (!match) return null;
+  const year = parseInt(match[1], 10);
+  const month = parseInt(match[2], 10);
+  
+  const startDate = new Date(year, month - 1, 1);
+  const endDate = new Date(year, month, 0);
+  
+  return {
+    startDate: startDate.toISOString().split("T")[0],
+    endDate: endDate.toISOString().split("T")[0],
+  };
+}
+
+function getWeeksList(year: number) {
+  const weeks = [];
+  const jan1 = new Date(year, 0, 1);
+  const day = jan1.getDay();
+  const jan1Monday = new Date(year, 0, 1 + (day <= 4 ? 1 - day : 8 - day));
+  
+  for (let w = 1; w <= 53; w++) {
+    const start = new Date(jan1Monday.getTime() + (w - 1) * 7 * 24 * 60 * 60 * 1000);
+    if (start.getFullYear() > year) {
+      break;
+    }
+    const end = new Date(start.getTime() + 6 * 24 * 60 * 60 * 1000);
+    
+    const startStr = `${String(start.getDate()).padStart(2, '0')}/${String(start.getMonth() + 1).padStart(2, '0')}`;
+    const endStr = `${String(end.getDate()).padStart(2, '0')}/${String(end.getMonth() + 1).padStart(2, '0')}`;
+    
+    weeks.push({
+      value: `${year}-W${String(w).padStart(2, '0')}`,
+      label: `Tuần ${w} (${startStr} - ${endStr})`,
+    });
+  }
+  return weeks.reverse();
+}
+
+function getMonthsList(year: number) {
+  const months = [];
+  for (let m = 12; m >= 1; m--) {
+    months.push({
+      value: `${year}-${String(m).padStart(2, '0')}`,
+      label: `Tháng ${m}/${year}`,
+    });
+  }
+  return months;
+}
 
 export default function AdminPage() {
   const router = useRouter();
   const { user } = useAppSelector((state) => state.auth);
+
+  const currentYear = new Date().getFullYear();
+  const weeksList = React.useMemo(() => {
+    return [
+      ...getWeeksList(currentYear),
+      ...getWeeksList(currentYear - 1)
+    ];
+  }, [currentYear]);
+
+  const monthsList = React.useMemo(() => {
+    return [
+      ...getMonthsList(currentYear),
+      ...getMonthsList(currentYear - 1)
+    ];
+  }, [currentYear]);
 
   // tab state: 'flow' or 'bas' or 'users' or 'groups' or 'stats'
   const [activeTab, setActiveTab] = useState<"flow" | "bas" | "users" | "groups" | "stats">("flow");
@@ -70,6 +159,7 @@ export default function AdminPage() {
   // search/filter state
   const [searchTerm, setSearchTerm] = useState("");
   const [selectedKeys, setSelectedKeys] = useState<any[]>([]);
+  const [filterGroupId, setFilterGroupId] = useState<string>("");
 
   // flow account modal state
   const [isFlowModalOpen, setIsFlowModalOpen] = useState(false);
@@ -150,9 +240,25 @@ export default function AdminPage() {
   const fetchAdminStats = async () => {
     try {
       setIsAdminStatsLoading(true);
+      
+      let startDate = statsStartDate || undefined;
+      let endDate = statsEndDate || undefined;
+      
+      if (statsPeriod === "week") {
+        const boundsStart = getDatesFromWeekString(statsStartDate);
+        const boundsEnd = getDatesFromWeekString(statsEndDate);
+        startDate = boundsStart?.startDate || undefined;
+        endDate = boundsEnd?.endDate || undefined;
+      } else if (statsPeriod === "month") {
+        const boundsStart = getDatesFromMonthString(statsStartDate);
+        const boundsEnd = getDatesFromMonthString(statsEndDate);
+        startDate = boundsStart?.startDate || undefined;
+        endDate = boundsEnd?.endDate || undefined;
+      }
+
       const res = await getAdminStats({
-        startDate: statsStartDate || undefined,
-        endDate: statsEndDate || undefined,
+        startDate,
+        endDate,
         groupId: statsGroupId ? Number(statsGroupId) : undefined,
       });
       setAdminStatsData(res);
@@ -167,9 +273,25 @@ export default function AdminPage() {
   const handleExportExcel = async () => {
     try {
       setIsExporting(true);
+      
+      let startDate = statsStartDate || undefined;
+      let endDate = statsEndDate || undefined;
+      
+      if (statsPeriod === "week") {
+        const boundsStart = getDatesFromWeekString(statsStartDate);
+        const boundsEnd = getDatesFromWeekString(statsEndDate);
+        startDate = boundsStart?.startDate || undefined;
+        endDate = boundsEnd?.endDate || undefined;
+      } else if (statsPeriod === "month") {
+        const boundsStart = getDatesFromMonthString(statsStartDate);
+        const boundsEnd = getDatesFromMonthString(statsEndDate);
+        startDate = boundsStart?.startDate || undefined;
+        endDate = boundsEnd?.endDate || undefined;
+      }
+
       const blob = await exportAdminStats({
-        startDate: statsStartDate || undefined,
-        endDate: statsEndDate || undefined,
+        startDate,
+        endDate,
         groupId: statsGroupId ? Number(statsGroupId) : undefined,
         period: statsPeriod,
       });
@@ -194,6 +316,11 @@ export default function AdminPage() {
       fetchAdminStats();
     }
   }, [activeTab, statsStartDate, statsEndDate, statsGroupId]);
+
+  useEffect(() => {
+    setStatsStartDate("");
+    setStatsEndDate("");
+  }, [statsPeriod]);
 
   useEffect(() => {
     // Nếu chưa có user (chưa tải xong state hoặc vừa đăng xuất) thì không làm gì cả
@@ -302,6 +429,29 @@ export default function AdminPage() {
     }
   };
 
+  // Clear WEB- devices
+  const handleClearWebDevices = async (userId: string | number, currentDevices: any) => {
+    if (!window.confirm("Bạn có chắc chắn muốn dọn dẹp các mã thiết bị rác (WEB-)? Hành động này sẽ giữ lại mã UUID vật lý gốc.")) return;
+    try {
+      const newDevices: any = {};
+      if (currentDevices) {
+         Object.entries(currentDevices).forEach(([deviceId, info]) => {
+             if (!deviceId.startsWith('WEB-')) {
+                 newDevices[deviceId] = info;
+             }
+         });
+      }
+
+      await updateAutomationUser(Number(userId), { knownDevices: newDevices } as any);
+      setAutomationUsers(prev => 
+        prev.map(u => u.id === userId ? { ...u, knownDevices: newDevices } : u)
+      );
+      Notify({ title: "Thành công", description: `Đã dọn dẹp thiết bị rác.`, status: "success" });
+    } catch (err) {
+      Notify({ title: "Lỗi", description: "Không thể dọn dẹp", status: "error" });
+    }
+  };
+
   // Bulk delete handler
   const handleBulkDelete = async () => {
     if (selectedKeys.length === 0) return;
@@ -324,6 +474,8 @@ export default function AdminPage() {
            return;
         }
         await Promise.all(selectedKeys.map(id => deleteAutomationUser(Number(id))));
+      } else if (activeTab === "groups") {
+        await Promise.all(selectedKeys.map(id => deleteGroup(Number(id))));
       }
       Notify({ title: "Thành công", description: `Đã xóa ${selectedKeys.length} mục.`, status: "success" });
       setSelectedKeys([]);
@@ -577,9 +729,17 @@ export default function AdminPage() {
     acc.flowAccount?.email.toLowerCase().includes(searchTerm.toLowerCase())
   ), [basAccounts, searchTerm]);
 
-  const filteredUsers = React.useMemo(() => automationUsers.filter((u) =>
-    u.username.toLowerCase().includes(searchTerm.toLowerCase())
-  ), [automationUsers, searchTerm]);
+  const filteredUsers = React.useMemo(() => {
+    return automationUsers.filter((u) => {
+      const matchSearch = u.username.toLowerCase().includes(searchTerm.toLowerCase());
+      const matchGroup = filterGroupId === ""
+        ? true
+        : filterGroupId === "none"
+          ? !u.groupId && !u.group?.id
+          : u.groupId === Number(filterGroupId) || u.group?.id === Number(filterGroupId);
+      return matchSearch && matchGroup;
+    });
+  }, [automationUsers, searchTerm, filterGroupId]);
 
   const filteredGroups = React.useMemo(() => groups.filter((g) =>
     g.name.toLowerCase().includes(searchTerm.toLowerCase())
@@ -608,7 +768,7 @@ export default function AdminPage() {
         Không có
       </span>
     ) },
-    { key: "actions", title: "Hành động", render: (_, row) => (
+    { key: "actions", title: "Hành động", className: "text-right", render: (_, row) => (
       <div className="flex justify-end space-x-2">
         <button
           onClick={() => {
@@ -653,6 +813,16 @@ export default function AdminPage() {
                       <span className="text-emerald-600 mt-0.5">IP: {info.ip === '::1' ? '127.0.0.1 (Local)' : info.ip}</span>
                   </div>
               ))}
+              
+              {/* Button to clear WEB- garbage devices */}
+              {Object.keys(row.knownDevices).some(id => id.startsWith('WEB-')) && (
+                <button
+                   onClick={() => handleClearWebDevices(row.id, row.knownDevices)}
+                   className="mt-1 text-xs text-red-500 hover:text-red-700 underline text-left w-fit transition-colors"
+                >
+                   Dọn dẹp mã WEB-
+                </button>
+              )}
             </div>
           )}
         </div>
@@ -699,7 +869,7 @@ export default function AdminPage() {
         </div>
       );
     }},
-    { key: "actions", title: "Hành động", render: (_, row) => (
+    { key: "actions", title: "Hành động", className: "text-right", render: (_, row) => (
       <div className="flex justify-end space-x-2">
         <button
           onClick={() => handleOpenStats(row)}
@@ -750,7 +920,7 @@ export default function AdminPage() {
         Chưa liên kết
       </span>
     ) },
-    { key: "actions", title: "Hành động", render: (_, row) => (
+    { key: "actions", title: "Hành động", className: "text-right", render: (_, row) => (
       <div className="flex justify-end space-x-2">
         <button
           onClick={() => {
@@ -777,8 +947,19 @@ export default function AdminPage() {
     { key: "id", title: "ID Nhóm" },
     { key: "name", title: "Tên Nhóm" },
     { key: "description", title: "Mô tả", render: (_, row) => row.description || <span className="italic text-gray-300">Không có</span> },
-    { key: "membersCount", title: "Số thành viên", render: (_, row) => row._count?.users || 0 },
-    { key: "actions", title: "Hành động", render: (_, row) => (
+    { key: "membersCount", title: "Số thành viên", render: (_, row) => {
+      const count = row._count?.users || 0;
+      return count > 0 ? (
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-emerald-600 text-white shadow-sm">
+           {count}
+        </span>
+      ) : (
+        <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-bold bg-orange-500 text-white shadow-sm">
+          {count}
+        </span>
+      );
+    } },
+    { key: "actions", title: "Hành động", className: "text-right", render: (_, row) => (
       <div className="flex justify-end space-x-2">
         <button
           onClick={() => {
@@ -838,6 +1019,7 @@ export default function AdminPage() {
               setActiveTab("flow");
               setSearchTerm("");
               setSelectedKeys([]);
+              setFilterGroupId("");
             }}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === "flow"
@@ -853,6 +1035,7 @@ export default function AdminPage() {
               setActiveTab("bas");
               setSearchTerm("");
               setSelectedKeys([]);
+              setFilterGroupId("");
             }}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === "bas"
@@ -868,6 +1051,7 @@ export default function AdminPage() {
               setActiveTab("users");
               setSearchTerm("");
               setSelectedKeys([]);
+              setFilterGroupId("");
             }}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === "users"
@@ -883,6 +1067,7 @@ export default function AdminPage() {
               setActiveTab("groups");
               setSearchTerm("");
               setSelectedKeys([]);
+              setFilterGroupId("");
             }}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === "groups"
@@ -898,6 +1083,7 @@ export default function AdminPage() {
               setActiveTab("stats");
               setSearchTerm("");
               setSelectedKeys([]);
+              setFilterGroupId("");
             }}
             className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
               activeTab === "stats"
@@ -910,8 +1096,55 @@ export default function AdminPage() {
           </button>
         </div>
 
-        {activeTab !== "stats" && (
-          <div className="flex items-center gap-3 w-full lg:w-auto">
+        {activeTab === "stats" ? (
+          <div className="flex items-center gap-2">
+            <button
+              onClick={() => {
+                setStatsStartDate("");
+                setStatsEndDate("");
+                setStatsGroupId("");
+                setStatsPeriod("day");
+                Notify({ title: "Đã xóa bộ lọc", description: "Các điều kiện lọc đã được thiết lập lại.", status: "success" });
+              }}
+              className="inline-flex items-center space-x-2 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition shadow-sm h-10 disabled:opacity-60 shrink-0"
+              title="Xóa bộ lọc"
+            >
+              <X className="h-4 w-4" />
+              <span>Xóa lọc</span>
+            </button>
+            <button
+              onClick={async () => {
+                await Promise.all([
+                  loadData(),
+                  fetchAdminStats()
+                ]);
+                Notify({ title: "Đã tải lại", description: "Dữ liệu mới nhất đã được cập nhật.", status: "success" });
+              }}
+              disabled={loading || isAdminStatsLoading}
+              className="inline-flex items-center space-x-2 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition shadow-sm h-10 disabled:opacity-60 shrink-0 self-end"
+              title="Tải lại dữ liệu"
+            >
+              <RefreshCw className={`h-4 w-4 ${(loading || isAdminStatsLoading) ? "animate-spin" : ""}`} />
+              <span>Tải lại</span>
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+            {activeTab === "users" && (
+              <select
+                value={filterGroupId}
+                onChange={(e) => setFilterGroupId(e.target.value)}
+                className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition text-gray-700 min-w-[150px]"
+              >
+                <option value=""> Tất cả nhóm </option>
+                <option value="none">Chưa vào nhóm</option>
+                {groups.map((g) => (
+                  <option key={g.id} value={g.id}>
+                    {g.name}
+                  </option>
+                ))}
+              </select>
+            )}
             <div className="relative flex-1 lg:w-64">
               <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
                 <Search className="h-4 w-4" />
@@ -941,6 +1174,19 @@ export default function AdminPage() {
                   <span className="hidden sm:inline">Xóa {selectedKeys.length}</span>
                 </button>
               )}
+
+              <button
+                onClick={async () => {
+                  await loadData();
+                  Notify({ title: "Đã tải lại", description: "Dữ liệu mới nhất đã được cập nhật.", status: "success" });
+                }}
+                disabled={loading}
+                className="inline-flex items-center space-x-2 px-3 py-2 bg-white border border-gray-200 rounded-xl text-sm font-semibold text-gray-600 hover:bg-gray-50 transition shadow-sm h-10 disabled:opacity-60 shrink-0"
+                title="Tải lại dữ liệu"
+              >
+                <RefreshCw className={`h-4 w-4 ${loading ? "animate-spin" : ""}`} />
+                <span>Tải lại</span>
+              </button>
 
               <button
                 onClick={() => {
@@ -983,20 +1229,36 @@ export default function AdminPage() {
             <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Từ ngày</label>
-                <input
-                  type="date"
-                  value={statsStartDate}
-                  onChange={(e) => setStatsStartDate(e.target.value)}
-                  className="px-4 py-2.5 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                <DatePicker
+                  value={statsStartDate ? new Date(statsStartDate) : null}
+                  onChange={(date: Date | null) => {
+                    if (date) {
+                      const offset = date.getTimezoneOffset();
+                      const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+                      setStatsStartDate(localDate.toISOString().split("T")[0]);
+                    } else {
+                      setStatsStartDate("");
+                    }
+                  }}
+                  className="w-full text-gray-700"
+                  placeholder="Chọn ngày"
                 />
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Đến ngày</label>
-                <input
-                  type="date"
-                  value={statsEndDate}
-                  onChange={(e) => setStatsEndDate(e.target.value)}
-                  className="px-4 py-2.5 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                <DatePicker
+                  value={statsEndDate ? new Date(statsEndDate) : null}
+                  onChange={(date: Date | null) => {
+                    if (date) {
+                      const offset = date.getTimezoneOffset();
+                      const localDate = new Date(date.getTime() - (offset * 60 * 1000));
+                      setStatsEndDate(localDate.toISOString().split("T")[0]);
+                    } else {
+                      setStatsEndDate("");
+                    }
+                  }}
+                  className="w-full text-gray-700"
+                  placeholder="Chọn ngày"
                 />
               </div>
               <div>
@@ -1006,31 +1268,19 @@ export default function AdminPage() {
                   onChange={(e) => setStatsGroupId(e.target.value)}
                   className="px-4 py-2.5 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white text-gray-700"
                 >
-                  <option value="">-- Tất cả nhóm --</option>
+                  <option value=""> Tất cả nhóm </option>
                   {groups.map(g => (
                     <option key={g.id} value={g.id}>{g.name}</option>
                   ))}
                 </select>
               </div>
-              <div className="flex gap-2">
-                <div className="flex-1">
-                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Chu kỳ (Excel)</label>
-                  <select
-                    value={statsPeriod}
-                    onChange={(e) => setStatsPeriod(e.target.value as any)}
-                    className="px-4 py-2.5 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white text-gray-700"
-                  >
-                    <option value="day">Theo Ngày</option>
-                    <option value="week">Theo Tuần</option>
-                    <option value="month">Theo Tháng</option>
-                  </select>
-                </div>
+              <div>
                 <button
                   onClick={handleExportExcel}
                   disabled={isExporting}
-                  className="px-5 py-2.5 bg-indigo-600 text-white rounded-xl text-sm font-semibold hover:bg-indigo-700 shadow transition flex items-center gap-2 disabled:opacity-60 h-10 align-middle"
+                  className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow transition flex items-center justify-center gap-2 disabled:opacity-60 h-10 w-full"
                 >
-                  {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <Database className="h-4 w-4" />}
+                  {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
                   <span>Xuất Excel</span>
                 </button>
               </div>
@@ -1126,7 +1376,7 @@ export default function AdminPage() {
               basColumns) as any
             }
             loading={loading}
-            enableSelection={activeTab !== "groups"}
+            enableSelection={true}
             onSelectionChange={setSelectedKeys}
             enablePagination={false}
           />

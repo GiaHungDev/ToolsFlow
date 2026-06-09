@@ -55,7 +55,6 @@ export const deleteBasAccount = async (id: number): Promise<any> => {
   return await axiosClient.delete<any>(`/bas/${id}`);
 };
 
-// Automation User CRUD (AccountWeb)
 export interface IAccountWeb {
   id: number;
   username: string;
@@ -65,6 +64,8 @@ export interface IAccountWeb {
   role: string;
   isHeadless: boolean;
   createdAt?: string;
+  groupId?: number | null;
+  group?: { id: number; name: string; description?: string } | null;
 }
 
 export const getAutomationUsers = async (): Promise<IAccountWeb[]> => {

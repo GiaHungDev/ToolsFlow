@@ -1,7 +1,8 @@
-const { app, BrowserWindow, dialog } = require('electron');
+const { app, BrowserWindow, dialog, ipcMain } = require('electron');
 const { autoUpdater } = require('electron-updater');
 const path = require('path');
-const { spawn } = require('child_process');
+const { spawn, execSync } = require('child_process');
+const os = require('os');
 const http = require('http');
 const { startLocalApi } = require('./api');
 
@@ -92,7 +93,8 @@ async function createWindow() {
     height: 900,
     webPreferences: {
       nodeIntegration: false,
-      contextIsolation: true
+      contextIsolation: true,
+      preload: path.join(__dirname, 'preload.js')
     },
     autoHideMenuBar: true,
     title: `Harumi AI v${packageJson.version}`
@@ -104,6 +106,41 @@ async function createWindow() {
     mainWindow = null;
   });
 }
+
+ipcMain.handle('get-machine-id', () => {
+    try {
+        let command;
+        switch (os.platform()) {
+            case 'win32':
+                command = 'wmic csproduct get uuid';
+                break;
+            case 'darwin':
+                command = 'ioreg -rd1 -c IOPlatformExpertDevice';
+                break;
+            case 'linux':
+                command = 'cat /etc/machine-id';
+                break;
+            default:
+                return 'UNKNOWN-MACHINE-ID';
+        }
+        const output = execSync(command, { encoding: 'utf8' }).toString();
+        if (os.platform() === 'win32') {
+            const lines = output.split('\n');
+            if (lines.length > 1) {
+                return lines[1].trim();
+            }
+        } else if (os.platform() === 'darwin') {
+            const match = output.match(/IOPlatformUUID"\s*=\s*"([^"]+)"/);
+            if (match) return match[1];
+        } else if (os.platform() === 'linux') {
+            return output.trim();
+        }
+    } catch (e) {
+        console.error('Error getting Machine ID:', e);
+    }
+    const crypto = require('crypto');
+    return crypto.createHash('sha256').update(os.hostname() + os.userInfo().username).digest('hex').substring(0, 16).toUpperCase();
+});
 
 app.on('ready', () => {
   const userDataPath = app.getPath('userData');
