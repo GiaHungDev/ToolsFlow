@@ -17,6 +17,30 @@ app.post('/api/app/update', (req, res) => {
     }
 });
 
+const fs = require('fs');
+
+app.post('/api/check-folder', (req, res) => {
+    try {
+        const folderPath = req.body.path;
+        if (!folderPath) return res.json({ exists: false });
+        const exists = fs.existsSync(folderPath);
+        res.json({ exists });
+    } catch (e) {
+        res.json({ exists: false, error: e.message });
+    }
+});
+
+app.post('/api/create-folder', (req, res) => {
+    try {
+        const folderPath = req.body.path;
+        if (!folderPath) return res.json({ success: false });
+        fs.mkdirSync(folderPath, { recursive: true });
+        res.json({ success: true });
+    } catch (e) {
+        res.json({ success: false, error: e.message });
+    }
+});
+
 app.post('/api/veo3/start', async (req, res) => {
     try {
         const body = req.body;

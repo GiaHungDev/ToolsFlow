@@ -217,9 +217,10 @@ const Veo3Section = () => {
   };
 
   const handleOutputFolderChange = (value: string) => {
-    setOutputFolder(value);
+    const cleanValue = value.replace(/["']/g, '');
+    setOutputFolder(cleanValue);
     if (user?.id) {
-      localStorage.setItem(`veo3_${user.id}_output_folder`, value);
+      localStorage.setItem(`veo3_${user.id}_output_folder`, cleanValue);
     }
   };
 
@@ -227,7 +228,7 @@ const Veo3Section = () => {
     setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
   };
 
-  const handleSaveConfig = () => {
+  const executeSaveConfig = () => {
     if (loginMethod === "account" && importMethod === "text" && (!accountData.email || !accountData.password)) {
       Notify({ title: "Thiếu thông tin", description: "Vui lòng nhập đầy đủ Email và Mật khẩu!", status: "warning" });
       return;
@@ -242,6 +243,40 @@ const Veo3Section = () => {
     }
     setIsConfigSaved(true);
     Notify({ title: "Đã lưu", description: "Cấu hình đã được lưu và khóa lại.", status: "success" });
+  };
+
+  const handleSaveConfig = async () => {
+    if (outputFolder.trim()) {
+      const folderPath = outputFolder.trim();
+      const isFileRegex = /\.[a-zA-Z0-9]+$/;
+      if (isFileRegex.test(folderPath)) {
+        Notify({ title: "Đường dẫn không hợp lệ", description: "Vui lòng nhập đường dẫn thư mục, không phải tập tin!", status: "warning" });
+        return;
+      }
+
+      try {
+        const checkRes = await fetch("http://localhost:52424/api/check-folder", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ path: folderPath })
+        });
+        if (checkRes.ok) {
+          const checkData = await checkRes.json();
+          if (!checkData.exists) {
+            Notify({
+              title: "Thư mục không tồn tại",
+              description: "Vui lòng kiểm tra lại đường dẫn thư mục lưu trữ!",
+              status: "warning"
+            });
+            return;
+          }
+        }
+      } catch (e) {
+        // API failed, proceed as normal
+      }
+    }
+
+    executeSaveConfig();
   };
 
   const handlePlay = async (isReconnecting = false) => {
