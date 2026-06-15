@@ -124,6 +124,8 @@ const AdminUsersPage = () => {
           )}
         </div>
       </div>
+    </div>
+  );
 };
 
 export default AdminUsersPage;
