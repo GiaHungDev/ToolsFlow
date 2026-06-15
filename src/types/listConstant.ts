@@ -1,8 +1,8 @@
 export const videoStatus = [
   {
     id: 1,
-    status: "waiting",
-    label: "Chưa hoàn thành",
+    status: "pending",
+    label: "Đang chờ xử lý",
     color: "blue",
   },
   {
@@ -16,18 +16,6 @@ export const videoStatus = [
     status: "failed",
     label: "Lỗi xử lý video",
     color: "red",
-  },
-  {
-    id: 4,
-    status: "downloaded",
-    label: "Video đã tải",
-    color: "purple",
-  },
-  {
-    id: 5,
-    status: "not_downloaded",
-    label: "Video chưa tải",
-    color: "orange",
   },
 ];
 
@@ -61,18 +49,6 @@ export const videoStatusTable = [
     status: "failed",
     label: "Lỗi xử lý video",
     color: "red",
-  },
-  {
-    id: 5,
-    status: "downloaded",
-    label: "Video đã tải",
-    color: "purple",
-  },
-  {
-    id: 6,
-    status: "not_downloaded",
-    label: "Video chưa tải",
-    color: "orange",
   },
   {
     id: 7,
