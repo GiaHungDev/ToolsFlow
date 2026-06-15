@@ -61,13 +61,13 @@ const UserProfileSheet: React.FC<UserProfileProp> = ({ user }) => {
 
         {/* Nút Admin - Chỉ hiện khi role là ADMIN */}
         {user.role === "ADMIN" && (
-          <div className="pt-4 border-t border-gray-100">
+          <div className="pt-4 border-t border-gray-100 flex flex-col gap-3">
             <SheetClose asChild>
               <Button
                 onClick={() => router.push("/admin")}
                 className="w-full bg-emerald-500 hover:bg-emerald-600 text-white font-medium shadow-md flex items-center justify-center space-x-2 transition-all duration-200"
               >
-                <span>Quản trị</span>
+                <span>Quản trị Hệ thống</span>
               </Button>
             </SheetClose>
           </div>

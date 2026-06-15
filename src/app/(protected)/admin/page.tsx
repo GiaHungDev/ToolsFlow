@@ -3,6 +3,7 @@
 import { DatePicker } from "react-rainbow-components";
 import CustomTable from "@/components/shared/CTable";
 import { TableColumn } from "@/components/shared/CTable/interface";
+import { INotification, getNotificationsService, createNotificationService, updateNotificationService, deleteNotificationService } from "@/service/api/notificationService";
 import React, { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import Link from "next/link";
@@ -35,6 +36,13 @@ import {
   IUserGroup,
 } from "@/service/api/adminService";
 import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import {
   Shield,
   Plus,
   Edit,
@@ -54,6 +62,7 @@ import {
   BarChart2,
   FileSpreadsheet,
   RefreshCw,
+  Bell,
 } from "lucide-react";
 
 function getDatesFromWeekString(weekStr: string): { startDate: string; endDate: string } | null {
@@ -146,14 +155,15 @@ export default function AdminPage() {
     ];
   }, [currentYear]);
 
-  // tab state: 'flow' or 'bas' or 'users' or 'groups' or 'stats'
-  const [activeTab, setActiveTab] = useState<"flow" | "bas" | "users" | "groups" | "stats">("flow");
+  // tab state: 'flow' or 'bas' or 'users' or 'groups' or 'stats' or 'notifications'
+  const [activeTab, setActiveTab] = useState<"flow" | "bas" | "users" | "groups" | "stats" | "notifications">("flow");
 
   // data states
   const [flowAccounts, setFlowAccounts] = useState<IFlowAccount[]>([]);
   const [basAccounts, setBasAccounts] = useState<IBasAccount[]>([]);
   const [automationUsers, setAutomationUsers] = useState<IAccountWeb[]>([]);
   const [groups, setGroups] = useState<IUserGroup[]>([]);
+  const [notifications, setNotifications] = useState<INotification[]>([]);
   const [loading, setLoading] = useState(true);
 
   // search/filter state
@@ -192,6 +202,10 @@ export default function AdminPage() {
   const [groupName, setGroupName] = useState("");
   const [groupDescription, setGroupDescription] = useState("");
 
+  const [isNotificationModalOpen, setIsNotificationModalOpen] = useState(false);
+  const [editingNotification, setEditingNotification] = useState<INotification | null>(null);
+  const [notificationFormData, setNotificationFormData] = useState({ title: '', content: '', isActive: true });
+
   const [isDeleteOpen, setIsDeleteOpen] = useState(false);
   const [deleteType, setDeleteType] = useState<"flow" | "bas" | "users" | "groups" | null>(null);
   const [deleteId, setDeleteId] = useState<any>(null);
@@ -206,16 +220,18 @@ export default function AdminPage() {
   const loadData = async () => {
     try {
       setLoading(true);
-      const [flows, bases, usersResp, groupsResp] = await Promise.all([
+      const [flows, bases, accounts, groupsData, notifs] = await Promise.all([
         getFlowAccounts(),
         getBasAccounts(),
         getAutomationUsers(),
         getGroups(),
+        getNotificationsService(false),
       ]);
       setFlowAccounts(flows || []);
       setBasAccounts(bases || []);
-      setAutomationUsers(usersResp || []);
-      setGroups(groupsResp || []);
+      setAutomationUsers(accounts || []);
+      setGroups(groupsData || []);
+      setNotifications(notifs || []);
     } catch (error: any) {
       console.error("Error loading admin data:", error);
       Notify({
@@ -298,7 +314,29 @@ export default function AdminPage() {
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement("a");
       link.href = url;
-      link.setAttribute("download", `thong_ke_${statsPeriod}_${new Date().toISOString().split("T")[0]}.xlsx`);
+
+      const groupNameStr = statsGroupId 
+        ? (groups.find(g => g.id === Number(statsGroupId))?.name || "Nhom") 
+        : "Tat_ca_nhom";
+      // Sanitize group name to be safe for filenames
+      const safeGroupName = groupNameStr.replace(/[^a-zA-Z0-9_]/g, "_");
+
+      let dateRangeStr = new Date().toISOString().split("T")[0].split("-").reverse().join("-"); // Default to DD-MM-YYYY
+      if (startDate && endDate) {
+        const d1 = startDate.split("-");
+        const d2 = endDate.split("-");
+        if (d1[0] === d2[0]) {
+          // Same year: DD-MM_DD-MM-YYYY
+          dateRangeStr = `${d1[2]}-${d1[1]}_${d2[2]}-${d2[1]}-${d2[0]}`;
+        } else {
+          // Different years: DD-MM-YYYY_DD-MM-YYYY
+          dateRangeStr = `${d1[2]}-${d1[1]}-${d1[0]}_${d2[2]}-${d2[1]}-${d2[0]}`;
+        }
+      } else if (startDate) {
+        dateRangeStr = startDate.split("-").reverse().join("-");
+      }
+
+      link.setAttribute("download", `${safeGroupName}_${dateRangeStr}.xlsx`);
       document.body.appendChild(link);
       link.click();
       document.body.removeChild(link);
@@ -476,6 +514,8 @@ export default function AdminPage() {
         await Promise.all(selectedKeys.map(id => deleteAutomationUser(Number(id))));
       } else if (activeTab === "groups") {
         await Promise.all(selectedKeys.map(id => deleteGroup(Number(id))));
+      } else if (activeTab === "notifications") {
+        await Promise.all(selectedKeys.map(id => deleteNotificationService(Number(id))));
       }
       Notify({ title: "Thành công", description: `Đã xóa ${selectedKeys.length} mục.`, status: "success" });
       setSelectedKeys([]);
@@ -483,6 +523,28 @@ export default function AdminPage() {
     } catch (err) {
       Notify({ title: "Lỗi xóa hàng loạt", description: "Có lỗi xảy ra khi xóa các mục đã chọn.", status: "error" });
       setLoading(false);
+    }
+  };
+
+  // Save Notification
+  const handleSaveNotification = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!notificationFormData.title.trim() || !notificationFormData.content.trim()) {
+      Notify({ title: "Lỗi biểu mẫu", description: "Vui lòng nhập đủ tiêu đề và nội dung", status: "warning" });
+      return;
+    }
+    try {
+      if (editingNotification) {
+        await updateNotificationService(editingNotification.id, notificationFormData);
+        Notify({ title: "Thành công", description: "Cập nhật thông báo thành công!", status: "success" });
+      } else {
+        await createNotificationService(notificationFormData);
+        Notify({ title: "Thành công", description: "Tạo thông báo thành công!", status: "success" });
+      }
+      setIsNotificationModalOpen(false);
+      loadData();
+    } catch (error: any) {
+      Notify({ title: "Lỗi", description: "Có lỗi xảy ra khi lưu thông báo", status: "error" });
     }
   };
 
@@ -745,6 +807,11 @@ export default function AdminPage() {
     g.name.toLowerCase().includes(searchTerm.toLowerCase())
   ), [groups, searchTerm]);
 
+  const filteredNotifications = React.useMemo(() => notifications.filter((n) =>
+    n.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    n.content.toLowerCase().includes(searchTerm.toLowerCase())
+  ), [notifications, searchTerm]);
+
   if (!user || user.role !== "ADMIN") {
     return (
       <div className="flex flex-col items-center justify-center min-screen h-[70vh] text-center px-4">
@@ -943,6 +1010,35 @@ export default function AdminPage() {
     ) }
   ];
 
+  const notificationColumns: TableColumn<INotification>[] = [
+    { key: "id", title: "ID" },
+    { key: "title", title: "Tiêu đề" },
+    { key: "content", title: "Nội dung", render: (val) => <div className="max-w-xs truncate" title={val}>{val}</div> },
+    { key: "isActive", title: "Trạng thái", render: (val: any) => val ? (
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-emerald-50 text-emerald-600 rounded-full text-xs font-semibold uppercase">Hiển thị</span>
+    ) : (
+      <span className="inline-flex items-center gap-1 px-2.5 py-1 bg-stone-100 text-stone-500 rounded-full text-xs font-semibold uppercase">Ẩn</span>
+    ) },
+    { key: "id", title: "Hành động", render: (_, row: any) => (
+      <div className="flex items-center gap-2">
+        <button onClick={() => {
+          setEditingNotification(row);
+          setNotificationFormData({ title: row.title, content: row.content, isActive: row.isActive });
+          setIsNotificationModalOpen(true);
+        }} className="p-1.5 text-emerald-600 hover:bg-emerald-50 rounded-lg transition" title="Sửa">
+          <Edit className="h-4 w-4" />
+        </button>
+        <button onClick={async () => {
+          setDeleteId(row.id);
+          setDeleteType("notifications" as any);
+          setIsDeleteOpen(true);
+        }} className="p-1.5 text-red-600 hover:bg-red-50 rounded-lg transition" title="Xóa">
+          <Trash2 className="h-4 w-4" />
+        </button>
+      </div>
+    )}
+  ];
+
   const groupColumns: TableColumn<IUserGroup>[] = [
     { key: "id", title: "ID Nhóm" },
     { key: "name", title: "Tên Nhóm" },
@@ -1094,6 +1190,22 @@ export default function AdminPage() {
             <BarChart2 className="h-4 w-4 text-blue-500" />
             <span>Thống kê & Excel</span>
           </button>
+          <button
+            onClick={() => {
+              setActiveTab("notifications");
+              setSearchTerm("");
+              setSelectedKeys([]);
+              setFilterGroupId("");
+            }}
+            className={`flex items-center space-x-2 px-4 py-2 rounded-lg text-sm font-medium transition-all whitespace-nowrap ${
+              activeTab === "notifications"
+                ? "bg-white text-emerald-600 shadow"
+                : "text-gray-500 hover:text-gray-900"
+            }`}
+          >
+            <Bell className="h-4 w-4" />
+            <span>Thông báo</span>
+          </button>
         </div>
 
         {activeTab === "stats" ? (
@@ -1129,40 +1241,45 @@ export default function AdminPage() {
             </button>
           </div>
         ) : (
-          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto">
+          <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-3 w-full lg:w-auto flex-wrap">
             {activeTab === "users" && (
-              <select
-                value={filterGroupId}
-                onChange={(e) => setFilterGroupId(e.target.value)}
-                className="px-3 py-2.5 bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition text-gray-700 min-w-[150px]"
-              >
-                <option value=""> Tất cả nhóm </option>
-                <option value="none">Chưa vào nhóm</option>
-                {groups.map((g) => (
-                  <option key={g.id} value={g.id}>
-                    {g.name}
-                  </option>
-                ))}
-              </select>
+              <Select value={filterGroupId || "all"} onValueChange={(val) => setFilterGroupId(val === "all" ? "" : val)}>
+                <SelectTrigger className="px-3 py-2.5 h-[42px] bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition text-gray-700 w-full sm:w-[180px] shrink-0 font-medium">
+                  <SelectValue placeholder="Tất cả nhóm" />
+                </SelectTrigger>
+                <SelectContent className="rounded-xl border-gray-200 max-h-[250px] overflow-y-auto">
+                  <SelectItem value="all">Tất cả nhóm</SelectItem>
+                  <SelectItem value="none">Chưa vào nhóm</SelectItem>
+                  {groups.map((g) => (
+                    <SelectItem key={g.id} value={String(g.id)}>
+                      {g.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
             )}
-            <div className="relative flex-1 lg:w-64">
-              <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
-                <Search className="h-4 w-4" />
-              </span>
-              <input
-                type="text"
-                placeholder={
-                  activeTab === "flow" ? "Tìm email tài khoản Flow..." :
-                  activeTab === "bas" ? "Tìm tên hoặc email liên kết..." :
-                  activeTab === "users" ? "Tìm username người dùng..." :
-                  activeTab === "groups" ? "Tìm tên nhóm..." :
-                  "Tìm kiếm..."
-                }
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
-                className="pl-9 pr-4 py-2.5 w-full bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
-              />
-            </div>
+            {activeTab !== "notifications" ? (
+              <div className="relative flex-1 min-w-[200px] lg:w-64 shrink-0">
+                <span className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none text-gray-400">
+                  <Search className="h-4 w-4" />
+                </span>
+                <input
+                  type="text"
+                  placeholder={
+                    activeTab === "flow" ? "Tìm email tài khoản Flow..." :
+                    activeTab === "bas" ? "Tìm tên hoặc email liên kết..." :
+                    activeTab === "users" ? "Tìm username người dùng..." :
+                    activeTab === "groups" ? "Tìm tên nhóm..." :
+                    "Tìm kiếm..."
+                  }
+                  value={searchTerm}
+                  onChange={(e) => setSearchTerm(e.target.value)}
+                  className="pl-9 pr-4 py-2.5 w-full bg-white border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                />
+              </div>
+            ) : (
+              <div className="flex-1"></div>
+            )}
 
             <div className="flex items-center gap-2">
               {selectedKeys.length > 0 && (
@@ -1201,6 +1318,10 @@ export default function AdminPage() {
                     setGroupName("");
                     setGroupDescription("");
                     setIsGroupModalOpen(true);
+                  } else if (activeTab === "notifications") {
+                    setEditingNotification(null);
+                    setNotificationFormData({ title: '', content: '', isActive: true });
+                    setIsNotificationModalOpen(true);
                   } else {
                     resetUserForm();
                     setIsUserModalOpen(true);
@@ -1213,6 +1334,7 @@ export default function AdminPage() {
                   {activeTab === "flow" ? "Thêm tài khoản Flow" :
                    activeTab === "bas" ? "Thêm tài khoản BAS" :
                    activeTab === "groups" ? "Thêm Nhóm" :
+                   activeTab === "notifications" ? "Thêm Thông báo" :
                    "Thêm Người dùng"}
                 </span>
               </button>
@@ -1263,16 +1385,17 @@ export default function AdminPage() {
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nhóm</label>
-                <select
-                  value={statsGroupId}
-                  onChange={(e) => setStatsGroupId(e.target.value)}
-                  className="px-4 py-2.5 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white text-gray-700"
-                >
-                  <option value=""> Tất cả nhóm </option>
-                  {groups.map(g => (
-                    <option key={g.id} value={g.id}>{g.name}</option>
-                  ))}
-                </select>
+                <Select value={statsGroupId ? String(statsGroupId) : "all"} onValueChange={(val) => setStatsGroupId(val === "all" ? "" : val)}>
+                  <SelectTrigger className="px-4 py-2.5 h-[42px] w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white text-gray-700 font-medium">
+                    <SelectValue placeholder="Tất cả nhóm" />
+                  </SelectTrigger>
+                  <SelectContent className="rounded-xl border-gray-200">
+                    <SelectItem value="all">Tất cả nhóm</SelectItem>
+                    {groups.map(g => (
+                      <SelectItem key={g.id} value={String(g.id)}>{g.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
               </div>
               <div>
                 <button
@@ -1367,12 +1490,14 @@ export default function AdminPage() {
               activeTab === "flow" ? filteredFlows :
               activeTab === "users" ? filteredUsers :
               activeTab === "groups" ? filteredGroups :
+              activeTab === "notifications" ? filteredNotifications :
               filteredBases
             }
             columns={
               (activeTab === "flow" ? flowColumns :
               activeTab === "users" ? userColumns :
               activeTab === "groups" ? groupColumns :
+              activeTab === "notifications" ? notificationColumns :
               basColumns) as any
             }
             loading={loading}
@@ -1382,6 +1507,77 @@ export default function AdminPage() {
           />
         )}
       </div>
+
+      {/* NOTIFICATION MODAL */}
+      {isNotificationModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/55 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full overflow-hidden border border-gray-100 shadow-2xl animate-in fade-in zoom-in-95 duration-200">
+            <div className="flex justify-between items-center px-6 py-4 bg-gray-50 border-b border-gray-100">
+              <h2 className="text-lg font-bold text-gray-900">
+                {editingNotification ? "Sửa thông báo" : "Thêm mới thông báo"}
+              </h2>
+              <button
+                onClick={() => setIsNotificationModalOpen(false)}
+                className="p-1.5 rounded-lg text-gray-400 hover:bg-gray-100 hover:text-gray-700 transition"
+              >
+                <X className="h-5 w-5" />
+              </button>
+            </div>
+            <form onSubmit={handleSaveNotification}>
+              <div className="p-6 space-y-4">
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Tiêu đề</label>
+                  <input
+                    required
+                    type="text"
+                    value={notificationFormData.title}
+                    onChange={(e) => setNotificationFormData({ ...notificationFormData, title: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                    placeholder="VD: Những thay đổi ở phiên bản v1.0.1"
+                  />
+                </div>
+                <div>
+                  <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nội dung</label>
+                  <textarea
+                    required
+                    rows={8}
+                    value={notificationFormData.content}
+                    onChange={(e) => setNotificationFormData({ ...notificationFormData, content: e.target.value })}
+                    className="w-full px-4 py-2.5 bg-gray-50 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                    placeholder="Nhập nội dung các thay đổi..."
+                  />
+                </div>
+                <div className="flex items-center gap-2 mt-4">
+                  <label className="cursor-pointer flex items-center gap-2 text-sm text-gray-700">
+                    <input
+                      type="checkbox"
+                      checked={notificationFormData.isActive}
+                      onChange={(e) => setNotificationFormData({ ...notificationFormData, isActive: e.target.checked })}
+                      className="w-4 h-4 text-emerald-600 rounded border-gray-300 focus:ring-emerald-500"
+                    />
+                    Hiển thị thông báo này trên ứng dụng
+                  </label>
+                </div>
+              </div>
+              <div className="px-6 py-4 bg-gray-50 border-t border-gray-100 flex justify-end gap-3">
+                <button
+                  type="button"
+                  onClick={() => setIsNotificationModalOpen(false)}
+                  className="px-4 py-2 bg-white border border-gray-200 text-gray-700 rounded-xl text-sm font-semibold hover:bg-gray-50 transition"
+                >
+                  Hủy
+                </button>
+                <button
+                  type="submit"
+                  className="px-6 py-2 bg-gradient-to-r from-emerald-600 to-emerald-600 text-white rounded-xl text-sm font-semibold hover:from-emerald-700 hover:to-emerald-700 shadow-md transition"
+                >
+                  Lưu lại
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* FLOW ACCOUNT MODAL */}
       {isFlowModalOpen && (
@@ -1553,18 +1749,19 @@ export default function AdminPage() {
 
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Liên kết tài khoản Flow</label>
-                  <select
-                    value={basFlowAccountId}
-                    onChange={(e) => setBasFlowAccountId(e.target.value === "" ? "" : Number(e.target.value))}
-                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white"
-                  >
-                    <option value="">-- Chưa liên kết tài khoản nào --</option>
-                    {flowAccounts.map((flow) => (
-                      <option key={flow.id} value={flow.id}>
-                        {flow.email}
-                      </option>
-                    ))}
-                  </select>
+                  <Select value={basFlowAccountId ? String(basFlowAccountId) : "none"} onValueChange={(val) => setBasFlowAccountId(val === "none" ? "" : Number(val))}>
+                    <SelectTrigger className="px-4 py-2 h-[38px] w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white text-gray-700">
+                      <SelectValue placeholder="-- Chưa liên kết tài khoản nào --" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-gray-200">
+                      <SelectItem value="none">-- Chưa liên kết tài khoản nào --</SelectItem>
+                      {flowAccounts.map((flow) => (
+                        <SelectItem key={flow.id} value={String(flow.id)}>
+                          {flow.email}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 
@@ -1629,29 +1826,31 @@ export default function AdminPage() {
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Vai trò (Role)</label>
-                  <select
-                    value={userRole}
-                    onChange={(e) => setUserRole(e.target.value)}
-                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white"
-                  >
-                    <option value="user">User thường</option>
-                    <option value="admin">Admin</option>
-                  </select>
+                  <Select value={userRole} onValueChange={(val) => setUserRole(val)}>
+                    <SelectTrigger className="px-4 py-2 h-[38px] w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white text-gray-700">
+                      <SelectValue placeholder="Chọn vai trò" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-gray-200">
+                      <SelectItem value="user">User thường</SelectItem>
+                      <SelectItem value="admin">Admin</SelectItem>
+                    </SelectContent>
+                  </Select>
                 </div>
                 <div>
                   <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nhóm (Group)</label>
-                  <select
-                    value={userGroupId}
-                    onChange={(e) => setUserGroupId(e.target.value)}
-                    className="px-4 py-2 w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white text-gray-700"
-                  >
-                    <option value="">-- Chưa vào nhóm --</option>
-                    {groups.map((g) => (
-                      <option key={g.id} value={g.id}>
-                        {g.name}
-                      </option>
-                    ))}
-                  </select>
+                  <Select value={userGroupId ? String(userGroupId) : "none"} onValueChange={(val) => setUserGroupId(val === "none" ? "" : val)}>
+                    <SelectTrigger className="px-4 py-2 h-[38px] w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white text-gray-700">
+                      <SelectValue placeholder="-- Chưa vào nhóm --" />
+                    </SelectTrigger>
+                    <SelectContent className="rounded-xl border-gray-200">
+                      <SelectItem value="none">-- Chưa vào nhóm --</SelectItem>
+                      {groups.map((g) => (
+                        <SelectItem key={g.id} value={String(g.id)}>
+                          {g.name}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
                 </div>
               </div>
 

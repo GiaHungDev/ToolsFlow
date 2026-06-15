@@ -33,7 +33,11 @@ import { useFormVideo } from "@/hooks/flow-ai/useFormVideo";
 import { usePlayVideo } from "@/hooks/flow-ai/usePlayVideo";
 import { useTableActions } from "@/hooks/flow-ai/useTableActions";
 import { useTableData } from "@/hooks/flow-ai/useTableData";
-import { useAppSelector } from "@/lib/redux/store";
+import { useAppSelector, useAppDispatch } from "@/lib/redux/store";
+import { deleteFlowVideo } from "@/lib/redux/slices/flowSlice";
+import { getFlowVideoService } from "@/service/api/flowService";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Notify } from "@/lib/Notify";
 import { IFlowVideo } from "@/types/flow";
 import { videoStatusTable } from "@/types/listConstant";
 import dayjs from "dayjs";
@@ -65,10 +69,13 @@ const TableSection: React.FC<TableSectionProp> = ({
   formVideo,
   formFilter,
 }) => {
+  const dispatch = useAppDispatch();
   const { listFlowVideo, loadFlow, paginationFlow } = useAppSelector(
     (state) => state.flow,
   );
-  const { handlePaginationChange, pagination } = useTableData();
+  const [appliedFilters, setAppliedFilters] = useState<any>({});
+  
+  const { handlePaginationChange, pagination, setReload } = useTableData(appliedFilters);
   const {
     handleSelectionChange,
     selectedCount,
@@ -76,8 +83,7 @@ const TableSection: React.FC<TableSectionProp> = ({
     handleDelete,
     handleDeleteVideos,
     handleRecreateVideos,
-    handleReload,
-  } = useTableActions({ formVideo });
+  } = useTableActions({ formVideo, appliedFilters, setReload });
 
   const paginationInfo = {
     page: pagination.page,
@@ -89,13 +95,96 @@ const TableSection: React.FC<TableSectionProp> = ({
   const { setIsOpenVideoModal, isOpenVideoModal, handleShowVideo, videoUrl } =
     usePlayVideo();
 
+  const handleApplyFilter = (filters: any) => {
+    setAppliedFilters(filters);
+    handlePaginationChange(1, pagination.limit);
+  };
+
   const {
     handleOpenFilterModal,
     handleCloseFilterModal,
     isOpenFilterModal,
     setIsOpenFilterModal,
     handleSubmit,
-  } = useFilter({ formFilter: formFilter, paginationInfo: paginationInfo });
+  } = useFilter({ formFilter, onApplyFilter: handleApplyFilter });
+
+  const currentProjectName = formFilter.watch("projectName");
+  const [isOpenDeleteProjectModal, setIsOpenDeleteProjectModal] = useState(false);
+  const [isFetchingStats, setIsFetchingStats] = useState(false);
+  const [isDeletingProject, setIsDeletingProject] = useState(false);
+  const [projectStats, setProjectStats] = useState<{
+    success: IFlowVideo[];
+    failed: IFlowVideo[];
+    processing: IFlowVideo[];
+    other: IFlowVideo[];
+  }>({
+    success: [],
+    failed: [],
+    processing: [],
+    other: [],
+  });
+  const [selectedDeleteStatuses, setSelectedDeleteStatuses] = useState({
+    success: false,
+    failed: true,
+    processing: false,
+    other: false,
+  });
+
+  const fetchProjectStats = async () => {
+    if (!currentProjectName) return;
+    setIsFetchingStats(true);
+    try {
+      const res = await getFlowVideoService({ projectName: currentProjectName, limit: 1000, page: 1 });
+      const allVideos = res.data || [];
+      const stats = {
+        success: [] as IFlowVideo[],
+        failed: [] as IFlowVideo[],
+        processing: [] as IFlowVideo[],
+        other: [] as IFlowVideo[],
+      };
+
+      allVideos.forEach((v) => {
+        const s = String(v.status || "").toLowerCase();
+        if (s === "completed") stats.success.push(v);
+        else if (s === "failed" || s === "error") stats.failed.push(v);
+        else if (s === "pending" || s === "processing" || s === "generating") stats.processing.push(v);
+        else stats.other.push(v);
+      });
+
+      setProjectStats(stats);
+      setIsOpenDeleteProjectModal(true);
+    } catch (error) {
+      Notify({ title: "Lỗi", description: "Không thể lấy thông tin dự án", status: "error" });
+    } finally {
+      setIsFetchingStats(false);
+    }
+  };
+
+  const handleConfirmDeleteProject = async () => {
+    const toDelete: IFlowVideo[] = [];
+    if (selectedDeleteStatuses.success) toDelete.push(...projectStats.success);
+    if (selectedDeleteStatuses.failed) toDelete.push(...projectStats.failed);
+    if (selectedDeleteStatuses.processing) toDelete.push(...projectStats.processing);
+    if (selectedDeleteStatuses.other) toDelete.push(...projectStats.other);
+
+    if (toDelete.length === 0) {
+      Notify({ title: "Chưa chọn", description: "Vui lòng chọn ít nhất một trạng thái để xóa", status: "warning" });
+      return;
+    }
+
+    setIsDeletingProject(true);
+    try {
+      const promises = toDelete.map((v) => dispatch(deleteFlowVideo(Number(v.id))));
+      await Promise.all(promises);
+      Notify({ title: "Thành công", description: `Đã xóa ${toDelete.length} video.`, status: "success" });
+      setIsOpenDeleteProjectModal(false);
+      setReload(prev => !prev);
+    } catch (error) {
+      Notify({ title: "Lỗi", description: "Không thể xóa tất cả video đã chọn", status: "error" });
+    } finally {
+      setIsDeletingProject(false);
+    }
+  };
 
   const columns = useMemo<TableColumn<IFlowVideo>[]>(
     () => [
@@ -419,10 +508,26 @@ const TableSection: React.FC<TableSectionProp> = ({
           </AlertDialogContent>
         </AlertDialog>
       )}
-      <Button variant="outline" onClick={() => handleReload(pagination.page, pagination.limit)} className="shadow-sm border-stone-200">
+      <Button variant="outline" onClick={() => setReload(p => !p)} className="shadow-sm border-stone-200">
         <RefreshCcw className="w-4 h-4 mr-2" />
         Tải lại
       </Button>
+
+      {currentProjectName && (
+        <Button 
+          variant="destructive" 
+          onClick={fetchProjectStats} 
+          disabled={isFetchingStats}
+          className="shadow-sm"
+        >
+          {isFetchingStats ? (
+            <RefreshCcw className="w-4 h-4 mr-2 animate-spin" />
+          ) : (
+            <Trash2 className="w-4 h-4 mr-2" />
+          )}
+          Xóa toàn bộ dự án
+        </Button>
+      )}
     </>
   );
 
@@ -461,6 +566,67 @@ const TableSection: React.FC<TableSectionProp> = ({
         handleSubmit={handleSubmit}
         loading={loadFlow.loadGetFlow}
       />
+
+      <AlertDialog open={isOpenDeleteProjectModal} onOpenChange={setIsOpenDeleteProjectModal}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Xóa toàn bộ dự án: <span className="text-emerald-600">{currentProjectName}</span></AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="space-y-4 mt-2">
+                <p>Chọn các video bạn muốn xóa dựa theo trạng thái:</p>
+                <div className="space-y-3 bg-stone-50 p-4 rounded-xl border border-stone-200">
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <Checkbox 
+                      checked={selectedDeleteStatuses.success}
+                      onCheckedChange={(c) => setSelectedDeleteStatuses(p => ({ ...p, success: !!c }))}
+                    />
+                    <span className="flex-1 text-sm font-medium">Thành công</span>
+                    <Badge variant="outline" className="bg-blue-50 text-blue-700">{projectStats.success.length}</Badge>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <Checkbox 
+                      checked={selectedDeleteStatuses.failed}
+                      onCheckedChange={(c) => setSelectedDeleteStatuses(p => ({ ...p, failed: !!c }))}
+                    />
+                    <span className="flex-1 text-sm font-medium">Thất bại / Lỗi</span>
+                    <Badge variant="outline" className="bg-red-50 text-red-700">{projectStats.failed.length}</Badge>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <Checkbox 
+                      checked={selectedDeleteStatuses.processing}
+                      onCheckedChange={(c) => setSelectedDeleteStatuses(p => ({ ...p, processing: !!c }))}
+                    />
+                    <span className="flex-1 text-sm font-medium">Đang xử lý</span>
+                    <Badge variant="outline" className="bg-orange-50 text-orange-700">{projectStats.processing.length}</Badge>
+                  </label>
+                  <label className="flex items-center gap-3 cursor-pointer">
+                    <Checkbox 
+                      checked={selectedDeleteStatuses.other}
+                      onCheckedChange={(c) => setSelectedDeleteStatuses(p => ({ ...p, other: !!c }))}
+                    />
+                    <span className="flex-1 text-sm font-medium">Khác (Unknown)</span>
+                    <Badge variant="outline" className="bg-stone-100 text-stone-700">{projectStats.other.length}</Badge>
+                  </label>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={isDeletingProject}>Hủy</AlertDialogCancel>
+            <AlertDialogAction 
+              onClick={(e) => {
+                e.preventDefault();
+                handleConfirmDeleteProject();
+              }}
+              disabled={isDeletingProject || (projectStats.success.length === 0 && projectStats.failed.length === 0 && projectStats.processing.length === 0 && projectStats.other.length === 0)} 
+              className="bg-red-600 hover:bg-red-700 text-white"
+            >
+              {isDeletingProject ? <RefreshCcw className="w-4 h-4 mr-2 animate-spin" /> : <Trash2 className="w-4 h-4 mr-2" />}
+              Tiến hành Xóa
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 };

@@ -1,19 +1,16 @@
-import { useAppDispatch, useAppSelector } from "@/lib/redux/store";
-import { ITopic } from "@/types/flow";
+import { useAppDispatch } from "@/lib/redux/store";
 import { useState } from "react";
 import { FilterFormValues, useFormFilter } from "./useFormFilter";
 import { FieldErrors } from "react-hook-form";
-import { PaginationInfo } from "@/components/shared/CTable/interface";
 import dayjs from "dayjs";
 import { cleanData } from "@/utils/dataUtils";
-import { getFlowVideo } from "@/lib/redux/slices/flowSlice";
 
 interface UseFilterProp {
   formFilter: ReturnType<typeof useFormFilter>;
-  paginationInfo: PaginationInfo;
+  onApplyFilter: (filters: any) => void;
 }
 
-export const useFilter = ({ formFilter, paginationInfo }: UseFilterProp) => {
+export const useFilter = ({ formFilter, onApplyFilter }: UseFilterProp) => {
   const dispatch = useAppDispatch();
 
   const [isOpenFilterModal, setIsOpenFilterModal] = useState<boolean>(false);
@@ -35,19 +32,8 @@ export const useFilter = ({ formFilter, paginationInfo }: UseFilterProp) => {
           : values.startDate;
         delete values.dateRange;
       }
-      const filter = {
-        ...values,
-        page: paginationInfo.page,
-        limit: paginationInfo.limit,
-      };
-
-      const filterClear = cleanData(filter);
-
-      await dispatch(
-        getFlowVideo({
-          ...filterClear,
-        })
-      ).unwrap();
+      const filterClear = cleanData(values);
+      onApplyFilter(filterClear);
       setIsOpenFilterModal(false);
     } catch (error) {
       if (error instanceof Error) {

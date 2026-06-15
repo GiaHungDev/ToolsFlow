@@ -2,8 +2,11 @@ import { PaginationInfo } from "@/components/shared/CTable/interface";
 import { getFlowVideo } from "@/lib/redux/slices/flowSlice";
 import { useAppDispatch } from "@/lib/redux/store";
 import { useEffect, useState } from "react";
+import dayjs from "dayjs";
+import { cleanData } from "@/utils/dataUtils";
+import { useFormFilter } from "./useFormFilter";
 
-export const useTableData = () => {
+export const useTableData = (appliedFilters?: any) => {
   const dispatch = useAppDispatch();
 
   const [pagination, setPagination] = useState<PaginationInfo>({
@@ -15,16 +18,18 @@ export const useTableData = () => {
   const [reload, setReload] = useState<boolean>(false);
 
   useEffect(() => {
-    dispatch(
-      getFlowVideo({
-        page: pagination.page,
-        limit: pagination.limit,
-      })
-    );
-  }, [dispatch, reload, pagination]);
+    const payload = cleanData({
+      ...appliedFilters,
+      page: pagination.page,
+      limit: pagination.limit,
+    });
+
+    dispatch(getFlowVideo(payload));
+  }, [dispatch, reload, pagination, appliedFilters]);
 
   const handlePaginationChange = (page: number, pageSize: number) => {
     setPagination({
+      ...pagination,
       page: page,
       limit: pageSize,
     });

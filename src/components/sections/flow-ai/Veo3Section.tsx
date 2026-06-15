@@ -15,6 +15,7 @@ const Veo3Section = () => {
   const [cookieData, setCookieData] = useState("");
   const [toolAccount, setToolAccount] = useState("");
   const [chromePath, setChromePath] = useState("");
+  const [outputFolder, setOutputFolder] = useState("");
   const [isConfigSaved, setIsConfigSaved] = useState(false);
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
@@ -55,6 +56,9 @@ const Veo3Section = () => {
 
     const savedToolAccount = localStorage.getItem(`veo3_${userId}_tool_account`);
     setToolAccount(savedToolAccount || "");
+
+    const savedOutputFolder = localStorage.getItem(`veo3_${userId}_output_folder`);
+    setOutputFolder(savedOutputFolder || "");
 
     const savedLoginMethod = localStorage.getItem(`veo3_${userId}_login_method`) as "account" | "cookie" | "tool";
     if (savedLoginMethod) {
@@ -201,6 +205,13 @@ const Veo3Section = () => {
     }
   };
 
+  const handleOutputFolderChange = (value: string) => {
+    setOutputFolder(value);
+    if (user?.id) {
+      localStorage.setItem(`veo3_${user.id}_output_folder`, value);
+    }
+  };
+
   const addLog = (msg: string) => {
     setLogs((prev) => [...prev, `[${new Date().toLocaleTimeString()}] ${msg}`]);
   };
@@ -256,6 +267,7 @@ const Veo3Section = () => {
           cookieData: loginMethod === "cookie" ? cookieData : null,
           toolAccount: loginMethod === "tool" ? toolAccount : null,
           chromePath,
+          outputFolder,
           userId: user?.id,
           username: user?.username,
           isHeadless: [1, '1', true].includes(user?.isHeadless as any),
@@ -546,6 +558,20 @@ const Veo3Section = () => {
                     <Server className="w-5 h-5" />
                     <span className="font-medium text-sm">Tài khoản Tools</span>
                   </label>
+                </div>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-stone-700 mb-2">Lưu trữ Video tại</label>
+                <div className="space-y-3">
+                  <input
+                    type="text"
+                    placeholder="Vị trí bạn nhập + {tên dự án}\video_{id}"
+                    value={outputFolder}
+                    onChange={(e) => handleOutputFolderChange(e.target.value)}
+                    disabled={isRunning || isConfigSaved}
+                    className="w-full px-4 py-2.5 bg-stone-50 border border-stone-200 rounded-xl outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 transition-all disabled:opacity-50 text-sm font-mono"
+                  />
                 </div>
               </div>
 

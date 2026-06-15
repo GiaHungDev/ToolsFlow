@@ -57,7 +57,7 @@ const AdminUsersPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-stone-50 p-6 md:p-12">
+    <div className="space-y-8 mt-6">
       <div className="max-w-6xl mx-auto space-y-8">
         <div className="flex items-center justify-between">
           <div>
@@ -124,8 +124,6 @@ const AdminUsersPage = () => {
           )}
         </div>
       </div>
-    </div>
-  );
 };
 
 export default AdminUsersPage;

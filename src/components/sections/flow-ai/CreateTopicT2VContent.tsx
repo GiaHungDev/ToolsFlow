@@ -2,7 +2,7 @@ import { useAppSelector } from "@/lib/redux/store";
 import React, { useState, ChangeEvent } from "react";
 import { GoogleGenAI, Type } from "@google/genai";
 import { FormData, VideoType, Scene, ApiKey, MvGenre, Preset } from "./types";
-import { storySystemPrompt, liveSystemPrompt } from "./constants";
+import { storySystemPrompt, liveSystemPrompt, in2vSystemPrompt } from "./constants";
 import Results from "./modals/Results";
 import { LoaderIcon, TrashIcon, UploadIcon } from "./modals/Icon";
 import { useListPromptModal } from "@/hooks/flow-ai/useListPromptModal";
@@ -284,8 +284,16 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
     }
 
     let sceneCount = Math.max(3, Math.round(totalSeconds / 8));
-    const systemPrompt =
-      videoType === "story" ? storySystemPrompt : liveSystemPrompt;
+
+    // IN2V detection for story mode
+    const hasImages = videoType === "story" && formData.uploadedImages.some((img: any) => img && img.path);
+    const effectiveType = hasImages ? "IN2V" : "TEXT";
+
+    let systemPrompt = liveSystemPrompt;
+    if (videoType === "story") {
+      systemPrompt = effectiveType === "TEXT" ? storySystemPrompt : in2vSystemPrompt;
+    }
+
     let userPrompt = `Generate prompts for a music video.`;
 
     if (videoType === "story") {
@@ -301,12 +309,59 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
       userPrompt += ` Input: "${formData.idea.trim()}". Specs: Nationality: ${formData.country
         }, Genre: ${formData.mvGenre}, Style: ${formData.filmingStyle
         }, Consistent: ${formData.characterConsistency}, Music Genre: ${genre}`;
+        
+      if (formData.characterConsistency) {
+        userPrompt += `\n\n**IMPORTANT: CHARACTER CONSISTENCY ENABLED**
+        1. Define a detailed MASTER VISUAL PROFILE for the ${formData.characterCount} main character(s) (Face, Hair, Outfit).
+        2. REPEAT this exact visual profile description in the 'CHARACTER' field of EVERY single scene.
+        3. Ensure the character looks identical in Scene 1 and Scene ${sceneCount}.`;
+      }
     } else {
       userPrompt += ` Live Atmosphere: ${formData.liveAtmosphere}. Artist: ${formData.liveArtist}`;
     }
-    userPrompt += ` Create exactly ${sceneCount} scenes.`;
+    userPrompt += `\n\nCreate exactly ${sceneCount} scenes.`;
 
     const parts: any[] = [{ text: userPrompt }];
+
+    // Fetch base64 for local paths in story mode
+    if (effectiveType === "IN2V") {
+      for (const img of formData.uploadedImages) {
+        if (img && img.path) {
+          try {
+            if (img.base64) {
+               parts.push({
+                 inlineData: {
+                   mimeType: img.mimeType || "image/jpeg",
+                   data: img.base64,
+                 },
+               });
+            } else {
+               const res = await fetch(`/api/local-image?path=${encodeURIComponent(img.path)}`);
+               if (res.ok) {
+                 const blob = await res.blob();
+                 const base64Data = await new Promise<string>((resolve) => {
+                   const reader = new FileReader();
+                   reader.onloadend = () => {
+                     const b64 = (reader.result as string).split(",")[1];
+                     resolve(b64);
+                   };
+                   reader.readAsDataURL(blob);
+                 });
+                 parts.push({
+                   inlineData: {
+                     mimeType: blob.type || "image/jpeg",
+                     data: base64Data,
+                   },
+                 });
+               }
+            }
+          } catch (e) {
+            console.error("Lỗi khi load ảnh IN2V:", e);
+          }
+        }
+      }
+    }
+
     if (videoType === "live" && formData.liveArtistImage) {
       parts.push({
         inlineData: {

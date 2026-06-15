@@ -247,14 +247,9 @@ const DataTable = <T extends object>({
     };
   }, [paginationInfo, onPaginationChange]);
 
-  // Effects
   useEffect(() => {
     onSelectionChange(Array.from(selectedRows));
   }, [selectedRows, onSelectionChange]);
-
-  useEffect(() => {
-    setSelectedRows(new Set());
-  }, [data]);
 
   const { currentPage, pageSize, totalItems, totalPages, startItem, endItem } =
     paginationInfo;

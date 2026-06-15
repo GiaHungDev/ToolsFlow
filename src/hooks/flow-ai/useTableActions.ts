@@ -8,9 +8,11 @@ import { resetVideoPendingService } from "@/service/api/flowService";
 
 interface UseTableActionsProp {
   formVideo: ReturnType<typeof useFormVideo>;
+  appliedFilters: any;
+  setReload: React.Dispatch<React.SetStateAction<boolean>>;
 }
 
-export const useTableActions = ({ formVideo }: UseTableActionsProp) => {
+export const useTableActions = ({ formVideo, appliedFilters, setReload }: UseTableActionsProp) => {
   const dispatch = useAppDispatch();
 
   const { listFlowVideo } = useAppSelector((state) => state.flow);
@@ -138,17 +140,8 @@ export const useTableActions = ({ formVideo }: UseTableActionsProp) => {
     }
   };
 
-  const handleReload = async (page?: number, limit?: number) => {
-    try {
-      await dispatch(
-        getFlowVideo({
-          page: page ?? 1,
-          limit: limit ?? 10,
-        }),
-      );
-    } catch (error) {
-      console.error(`Lỗi reload video: ${error}`);
-    }
+  const handleReload = async () => {
+    setReload(prev => !prev);
   };
 
   const handleRecreateVideos = async () => {
@@ -176,12 +169,7 @@ export const useTableActions = ({ formVideo }: UseTableActionsProp) => {
       await Promise.all(promises);
 
       // Force reload the list to show new statuses
-      await dispatch(
-        getFlowVideo({
-          page: 1,
-          limit: 10,
-        })
-      );
+      setReload(prev => !prev);
 
       Notify({
         title: "Tạo lại thành công",

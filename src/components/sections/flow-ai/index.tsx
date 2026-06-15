@@ -64,6 +64,71 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
     setStep(3); // Go to Storyboard
   };
 
+  const handleExportExcel = () => {
+    if (!projectName.trim()) {
+      Notify({
+        title: "Lỗi",
+        description: "Vui lòng nhập tên dự án trước khi xuất file.",
+        status: "error",
+      });
+      return;
+    }
+
+    if (generatedScenes.length === 0) {
+      Notify({
+        title: "Lỗi",
+        description: "Không có kịch bản nào để xuất.",
+        status: "error",
+      });
+      return;
+    }
+
+    try {
+      const exportData = generatedScenes.map((scene, index) => {
+        // Image paths from scene
+        let imgPath1 = "", imgPath2 = "", imgPath3 = "";
+        
+        if (scene.images && scene.images.length > 0) {
+          imgPath1 = scene.images[0]?.path || "";
+          imgPath2 = scene.images[1]?.path || "";
+          imgPath3 = scene.images[2]?.path || "";
+        } else {
+          // Fallback to validImages
+          imgPath1 = validImages[0]?.path || "";
+          imgPath2 = validImages[1]?.path || "";
+          imgPath3 = validImages[2]?.path || "";
+        }
+
+        return {
+          JOB_ID: scene.scene_title || `Job_${index + 1}`,
+          PROMPT: scene.prompt_text,
+          IMAGE_PATH: imgPath1,
+          IMAGE_PATH_2: imgPath2,
+          IMAGE_PATH_3: imgPath3,
+          STATUS: "",
+          VIDEO_NAME: projectName.trim(),
+        };
+      });
+
+      const ws = XLSX.utils.json_to_sheet(exportData);
+      const wb = XLSX.utils.book_new();
+      XLSX.utils.book_append_sheet(wb, ws, "Kịch bản");
+      XLSX.writeFile(wb, `${projectName.trim()}.xlsx`);
+
+      Notify({
+        title: "Thành công",
+        description: "Xuất file Excel thành công!",
+        status: "success",
+      });
+    } catch (err: any) {
+      Notify({
+        title: "Lỗi",
+        description: `Không thể xuất file: ${err.message}`,
+        status: "error",
+      });
+    }
+  };
+
   const handleExcelUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
@@ -266,6 +331,17 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
                 </AlertDialogFooter>
               </AlertDialogContent>
             </AlertDialog>
+
+            <button
+              type="button"
+              onClick={handleExportExcel}
+              className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-sky-600 bg-sky-50 hover:bg-sky-100 rounded-xl transition border border-sky-200 shadow-sm whitespace-nowrap"
+            >
+              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+              </svg>
+              Export Excel
+            </button>
 
             <button
               type="button"
