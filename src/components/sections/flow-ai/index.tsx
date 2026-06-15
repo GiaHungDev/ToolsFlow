@@ -100,7 +100,7 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
         }
 
         return {
-          JOB_ID: scene.scene_title || `Job_${index + 1}`,
+          JOB_ID: `Job_${index + 1}`,
           PROMPT: scene.prompt_text,
           IMAGE_PATH: imgPath1,
           IMAGE_PATH_2: imgPath2,
@@ -257,13 +257,25 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
             </button>
           )}
           {step === 3 && (
-            <input
-              type="text"
-              placeholder="Nhập tên dự án..."
-              value={projectName}
-              onChange={(e) => setProjectName(e.target.value)}
-              className="px-3 py-2 text-sm font-medium border-2 border-emerald-500/50 bg-white/90 backdrop-blur-sm rounded-xl outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 shadow-sm transition-all w-24 sm:w-32 lg:w-36 2xl:w-48"
-            />
+            <div className="flex items-center gap-3">
+              <input
+                type="text"
+                placeholder="Nhập tên dự án..."
+                value={projectName}
+                onChange={(e) => setProjectName(e.target.value)}
+                className="px-3 py-2 text-sm font-medium border-2 border-emerald-500/50 bg-white/90 backdrop-blur-sm rounded-xl outline-none focus:border-emerald-500 focus:ring-2 focus:ring-emerald-200 shadow-sm transition-all w-24 sm:w-32 lg:w-36 2xl:w-48"
+              />
+              <button
+                type="button"
+                onClick={handleExportExcel}
+                className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-sky-600 bg-sky-50 hover:bg-sky-100 rounded-xl transition border border-sky-200 shadow-sm whitespace-nowrap"
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
+                </svg>
+                Export Excel
+              </button>
+            </div>
           )}
         </div>
 
@@ -332,16 +344,7 @@ const FlowAI: React.FC<FlowAIProp> = ({ formVideo, formFilter }) => {
               </AlertDialogContent>
             </AlertDialog>
 
-            <button
-              type="button"
-              onClick={handleExportExcel}
-              className="flex items-center gap-2 px-4 py-2 text-sm font-bold text-sky-600 bg-sky-50 hover:bg-sky-100 rounded-xl transition border border-sky-200 shadow-sm whitespace-nowrap"
-            >
-              <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={2.5} stroke="currentColor" className="w-4 h-4">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 14.25v-2.625a3.375 3.375 0 0 0-3.375-3.375h-1.5A1.125 1.125 0 0 1 13.5 7.125v-1.5a3.375 3.375 0 0 0-3.375-3.375H8.25m.75 12 3 3m0 0 3-3m-3 3v-6m-1.5-9H5.625c-.621 0-1.125.504-1.125 1.125v17.25c0 .621.504 1.125 1.125 1.125h12.75c.621 0 1.125-.504 1.125-1.125V11.25a9 9 0 0 0-9-9Z" />
-              </svg>
-              Export Excel
-            </button>
+
 
             <button
               type="button"
