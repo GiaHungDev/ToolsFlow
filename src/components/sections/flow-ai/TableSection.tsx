@@ -168,7 +168,7 @@ const TableSection: React.FC<TableSectionProp> = ({
     if (selectedDeleteStatuses.other) toDelete.push(...projectStats.other);
 
     if (toDelete.length === 0) {
-      Notify({ title: "Chưa chọn", description: "Vui lòng chọn ít nhất một trạng thái để xóa", status: "warning" });
+      Notify({ title: "Chưa chọn", description: "Vui lòng chọn ít nhất 1 trạng thái có dữ liệu để xóa", status: "warning" });
       return;
     }
 

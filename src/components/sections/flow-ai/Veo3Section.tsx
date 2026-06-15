@@ -16,7 +16,21 @@ const Veo3Section = () => {
   const [toolAccount, setToolAccount] = useState("");
   const [chromePath, setChromePath] = useState("");
   const [outputFolder, setOutputFolder] = useState("");
-  const [isConfigSaved, setIsConfigSaved] = useState(false);
+  
+  const [isConfigSaved, _setIsConfigSaved] = useState<boolean>(() => {
+    if (typeof window !== "undefined") {
+      return sessionStorage.getItem("veo3_config_saved") === "true";
+    }
+    return false;
+  });
+
+  const setIsConfigSaved = (val: boolean) => {
+    _setIsConfigSaved(val);
+    if (typeof window !== "undefined") {
+      sessionStorage.setItem("veo3_config_saved", String(val));
+    }
+  };
+
   const [isRunning, setIsRunning] = useState(false);
   const [logs, setLogs] = useState<string[]>([]);
   const [jobProgress, setJobProgress] = useState<Record<string, number>>({});
@@ -47,11 +61,8 @@ const Veo3Section = () => {
     const savedChromePath = localStorage.getItem(`veo3_${userId}_chrome_path`);
     if (savedChromePath) {
       setChromePath(savedChromePath);
-      // Auto-lock if they already have the required Chrome Path
-      setIsConfigSaved(true);
     } else {
       setChromePath("");
-      setIsConfigSaved(false);
     }
 
     const savedToolAccount = localStorage.getItem(`veo3_${userId}_tool_account`);
@@ -267,7 +278,7 @@ const Veo3Section = () => {
           cookieData: loginMethod === "cookie" ? cookieData : null,
           toolAccount: loginMethod === "tool" ? toolAccount : null,
           chromePath,
-          outputFolder,
+          outputFolder: outputFolder?.trim() ? outputFolder.trim() : "C:\\",
           userId: user?.id,
           username: user?.username,
           isHeadless: [1, '1', true].includes(user?.isHeadless as any),
@@ -562,11 +573,13 @@ const Veo3Section = () => {
               </div>
 
               <div>
-                <label className="block text-sm font-semibold text-stone-700 mb-2">Lưu trữ Video tại</label>
+                <label className="block text-sm font-semibold text-stone-700 mb-2">
+                  Lưu trữ Video tại 
+                </label>
                 <div className="space-y-3">
                   <input
                     type="text"
-                    placeholder="Vị trí bạn nhập + {tên dự án}\video_{id}"
+                    placeholder="Vị trí bạn nhập + [ tên dự án ] \ video_[id]"
                     value={outputFolder}
                     onChange={(e) => handleOutputFolderChange(e.target.value)}
                     disabled={isRunning || isConfigSaved}
