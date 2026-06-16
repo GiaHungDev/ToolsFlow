@@ -83,6 +83,8 @@ const TableSection: React.FC<TableSectionProp> = ({
     handleDelete,
     handleDeleteVideos,
     handleRecreateVideos,
+    listSelectedId,
+    clearSelection,
   } = useTableActions({ formVideo, appliedFilters, setReload });
 
   const paginationInfo = {
@@ -97,6 +99,7 @@ const TableSection: React.FC<TableSectionProp> = ({
 
   const handleApplyFilter = (filters: any) => {
     setAppliedFilters(filters);
+    clearSelection();
     handlePaginationChange(1, pagination.limit);
   };
 
@@ -531,15 +534,58 @@ const TableSection: React.FC<TableSectionProp> = ({
     </>
   );
 
+  const renderActiveFilters = () => {
+    const filters = [];
+    if (appliedFilters?.projectName) {
+      filters.push(
+        <Badge key="project" variant="secondary" className="px-4 py-2 text-base font-normal bg-blue-50 text-blue-700 border border-blue-200">
+          Dự án: <span className="font-semibold ml-1">{appliedFilters.projectName}</span>
+        </Badge>
+      );
+    }
+    if (appliedFilters?.status) {
+      const statusLabel = videoStatusTable.find((s) => s.status.toLowerCase() === appliedFilters.status.toLowerCase())?.label || appliedFilters.status;
+      filters.push(
+        <Badge key="status" variant="secondary" className="px-4 py-2 text-base font-normal bg-emerald-50 text-emerald-700 border border-emerald-200">
+          Trạng thái: <span className="font-semibold ml-1">{statusLabel}</span>
+        </Badge>
+      );
+    }
+    if (appliedFilters?.startDate) {
+      const from = dayjs(appliedFilters.startDate).format("DD/MM/YYYY");
+      const to = appliedFilters.endDate ? dayjs(appliedFilters.endDate).format("DD/MM/YYYY") : from;
+      filters.push(
+        <Badge key="date" variant="secondary" className="px-4 py-2 text-base font-normal bg-purple-50 text-purple-700 border border-purple-200">
+          Thời gian: <span className="font-semibold ml-1">{from} - {to}</span>
+        </Badge>
+      );
+    }
+
+    if (filters.length === 0) return null;
+
+    return (
+      <div className="flex flex-wrap gap-4 mt-5 items-center">
+        <span className="text-lg text-gray-700 font-medium mr-2 flex items-center">
+          <Search className="w-6 h-6 mr-2 text-gray-500" />
+          Đang lọc theo:
+        </span>
+        {filters}
+      </div>
+    );
+  };
+
   return (
     <div className="flex flex-col gap-6 w-full">
       <div className="w-full bg-white rounded-3xl p-6 shadow-sm border border-stone-100">
         <DataTable<IFlowVideo>
           data={listFlowVideo}
           columns={columns}
+          description={renderActiveFilters()}
           fixedRightColumns={fixedRightColumns}
           maxHeight="max-h-[1500px]"
           enableSelection={true}
+          selectedRowIds={listSelectedId as (string | number)[]}
+          getRowId={(row, index) => `${row.id}_${index}_${row.ownerId}`}
           enablePagination={true}
           pageSizeOptions={[10, 20, 30, 50]}
           onSelectionChange={handleSelectionChange}

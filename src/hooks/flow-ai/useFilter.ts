@@ -25,14 +25,15 @@ export const useFilter = ({ formFilter, onApplyFilter }: UseFilterProp) => {
 
   const handleSubmitSuccess = async (values: any) => {
     try {
-      if (values.dateRange) {
-        values.startDate = dayjs(values.dateRange.from).format("YYYY-MM-DD");
-        values.endDate = values.dateRange.to 
-          ? dayjs(values.dateRange.to).format("YYYY-MM-DD")
-          : values.startDate;
-        delete values.dateRange;
+      const payload = { ...values };
+      if (payload.dateRange) {
+        payload.startDate = dayjs(payload.dateRange.from).format("YYYY-MM-DD");
+        payload.endDate = payload.dateRange.to 
+          ? dayjs(payload.dateRange.to).format("YYYY-MM-DD")
+          : payload.startDate;
+        delete payload.dateRange;
       }
-      const filterClear = cleanData(values);
+      const filterClear = cleanData(payload);
       onApplyFilter(filterClear);
       setIsOpenFilterModal(false);
     } catch (error) {

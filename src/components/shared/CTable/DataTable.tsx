@@ -71,6 +71,9 @@ const DataTable = <T extends object>({
   onPaginationChange = () => { },
   loading = false,
   headerActions,
+  clearSelectionOnPageChange = false,
+  getRowId,
+  selectedRowIds,
 }: CustomTableProps<T>) => {
   const [selectedRows, setSelectedRows] = useState<Set<string | number>>(
     new Set()
@@ -100,11 +103,26 @@ const DataTable = <T extends object>({
     };
   }, [pagination, data.length, enablePagination]);
 
+  const displayData = useMemo(() => {
+    const pageSize = paginationInfo.pageSize;
+    if (enablePagination && pagination && data.length > pageSize) {
+      return data.slice(0, pageSize);
+    }
+    return data;
+  }, [data, enablePagination, pagination, paginationInfo.pageSize]);
+
+
   // Memoized row IDs and selection state
   const selectionInfo = useMemo(() => {
-    const currentPageIds = data.map((row, index) => {
+    const { currentPage, pageSize } = paginationInfo;
+    const currentPageIds = displayData.map((row, index) => {
+      const actualIndex =
+        enablePagination && pagination
+          ? (currentPage - 1) * pageSize + index
+          : index;
+      if (getRowId) return getRowId(row, actualIndex);
       const rowWithId = row as T & { id?: string | number };
-      return rowWithId.id ?? index;
+      return rowWithId.id ?? actualIndex;
     });
 
     const isAllCurrentPageSelected =
@@ -120,7 +138,7 @@ const DataTable = <T extends object>({
       isAllCurrentPageSelected,
       isSomeCurrentPageSelected,
     };
-  }, [data, selectedRows]);
+  }, [displayData, selectedRows, paginationInfo, enablePagination, pagination]);
 
   // Memoized column organization
   const columnInfo = useMemo(() => {
@@ -251,6 +269,23 @@ const DataTable = <T extends object>({
     onSelectionChange(Array.from(selectedRows));
   }, [selectedRows, onSelectionChange]);
 
+  useEffect(() => {
+    if (selectedRowIds !== undefined) {
+      setSelectedRows((prev) => {
+        if (prev.size === selectedRowIds.length && selectedRowIds.every(id => prev.has(id))) {
+          return prev;
+        }
+        return new Set(selectedRowIds);
+      });
+    }
+  }, [selectedRowIds]);
+
+  useEffect(() => {
+    if (clearSelectionOnPageChange) {
+      setSelectedRows(new Set());
+    }
+  }, [paginationInfo.currentPage, paginationInfo.pageSize, clearSelectionOnPageChange]);
+
   const { currentPage, pageSize, totalItems, totalPages, startItem, endItem } =
     paginationInfo;
   const {
@@ -271,11 +306,11 @@ const DataTable = <T extends object>({
               )}
               {title === "Danh Sách Video AI" && (
                 <p className="text-xs text-gray-500 mt-1">
-                  Trạng thái video thành công hãy kiểm tra trong ổ C sẽ được lưu dưới dạng C:// {`{Tên dự án}`} / video_{`{id}`}
+                  Trạng thái video thành công sẽ được lưu dưới dạng {`{Tên dự án}`} / video_{`{id}`}
                 </p>
               )}
               {description && (
-                <p className="text-sm text-gray-600 mt-1">{description}</p>
+                <div className="text-sm text-gray-600 mt-1">{description}</div>
               )}
             </div>
 
@@ -376,7 +411,7 @@ const DataTable = <T extends object>({
               </thead>
 
               <tbody>
-                {data.length === 0 ? (
+                {displayData.length === 0 ? (
                   <tr>
                     <td
                       colSpan={totalColspan}
@@ -404,13 +439,13 @@ const DataTable = <T extends object>({
                     </td>
                   </tr>
                 ) : (
-                  data.map((row, rowIndex) => {
+                  displayData.map((row, rowIndex) => {
                     const actualIndex =
                       enablePagination && pagination
                         ? (currentPage - 1) * pageSize + rowIndex
                         : rowIndex;
                     const rowWithId = row as T & { id?: string | number };
-                    const rowId = rowWithId.id ?? rowIndex;
+                    const rowId = getRowId ? getRowId(row, actualIndex) : (rowWithId.id ?? actualIndex);
                     const isSelected = selectedRows.has(rowId);
                     const customRowClass = rowClassName(
                       row,

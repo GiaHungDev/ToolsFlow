@@ -27,12 +27,13 @@ export interface CustomTableProps<T extends object> {
   data: T[];
   columns?: TableColumn<T>[];
   title?: string;
-  description?: string;
+  description?: ReactNode;
   maxHeight?: string;
   enableSelection?: boolean;
   fixedLeftColumns?: TableColumn<T>[];
   fixedRightColumns?: TableColumn<T>[];
   onSelectionChange?: (selectedIds: (string | number)[]) => void;
+  getRowId?: (row: T, index: number) => string | number;
   className?: string;
   rowClassName?: (row: T, index: number, isSelected: boolean) => string;
   zebra?: boolean;
@@ -43,4 +44,6 @@ export interface CustomTableProps<T extends object> {
   onPaginationChange?: (page: number, limit: number) => void;
   loading?: boolean;
   headerActions?: ReactNode;
+  clearSelectionOnPageChange?: boolean;
+  selectedRowIds?: (string | number)[];
 }

@@ -119,7 +119,10 @@ export const useTableActions = ({ formVideo, appliedFilters, setReload }: UseTab
         return;
       }
 
-      const promises = listSelectedId.map((id) => dispatch(deleteFlowVideo(Number(id))));
+      const promises = listSelectedId.map((id) => {
+        const realId = String(id).split("_")[0];
+        return dispatch(deleteFlowVideo(Number(realId)));
+      });
       await Promise.all(promises);
 
       Notify({
@@ -141,6 +144,7 @@ export const useTableActions = ({ formVideo, appliedFilters, setReload }: UseTab
   };
 
   const handleReload = async () => {
+    clearSelection();
     setReload(prev => !prev);
   };
 
@@ -160,9 +164,17 @@ export const useTableActions = ({ formVideo, appliedFilters, setReload }: UseTab
       }
 
       const promises = listSelectedId.map(async (id) => {
-        const video = listFlowVideo.find((item) => Number(item.id) === Number(id));
-        if (video && video.prompt) {
-          await resetVideoPendingService(Number(id), Number(video.ownerId));
+        const parts = String(id).split("_");
+        const realId = parts[0];
+        const ownerId = parts[2];
+        const video = listFlowVideo?.find((item) => Number(item.id) === Number(realId));
+        
+        if (video) {
+          if (video.prompt) {
+            await resetVideoPendingService(Number(realId), Number(video.ownerId));
+          }
+        } else if (ownerId && ownerId !== "undefined") {
+          await resetVideoPendingService(Number(realId), Number(ownerId));
         }
       });
 
@@ -189,9 +201,16 @@ export const useTableActions = ({ formVideo, appliedFilters, setReload }: UseTab
     }
   };
 
+  const clearSelection = useCallback(() => {
+    setListSelectedId([]);
+    setSelectedCount(0);
+  }, []);
+
   return {
     handleSelectionChange,
     selectedCount,
+    listSelectedId,
+    clearSelection,
     handleRecreate,
     handleDelete,
     handleDeleteVideos,

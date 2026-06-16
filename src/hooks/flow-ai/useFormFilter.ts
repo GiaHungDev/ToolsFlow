@@ -18,7 +18,7 @@ export const useFormFilter = () => {
     resolver: zodResolver(formSchema),
     defaultValues: {
       projectName: undefined,
-      status: "completed",
+      status: undefined,
       dateRange: undefined,
     },
   });

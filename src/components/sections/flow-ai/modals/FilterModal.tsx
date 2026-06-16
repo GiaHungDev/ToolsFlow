@@ -82,11 +82,9 @@ const FilterModal: React.FC<FilterModalProp> = ({
             <Button
               variant="outline"
               onClick={() => {
-                formFilter.reset({
-                  projectName: "",
-                  status: "",
-                  dateRange: undefined,
-                });
+                formFilter.setValue("projectName", "");
+                formFilter.setValue("status", "");
+                formFilter.setValue("dateRange", undefined);
               }}
               disabled={loading}
               className="text-red-500 hover:text-red-600 hover:bg-red-50"
@@ -110,7 +108,7 @@ const FilterModal: React.FC<FilterModalProp> = ({
             </Button>
           </>
         }
-        className="max-w-[700px]"
+        className="max-w-[850px]"
         onlyCloseByButton
       >
         <Form {...formFilter}>
@@ -125,7 +123,7 @@ const FilterModal: React.FC<FilterModalProp> = ({
                     <FormLabel>Tìm theo tên dự án</FormLabel>
                     <FormControl>
                       <Select
-                        value={field.value}
+                        value={field.value || undefined}
                         onValueChange={(val) =>
                           field.onChange(val === "clear" ? "" : val)
                         }
@@ -176,7 +174,7 @@ const FilterModal: React.FC<FilterModalProp> = ({
                     <FormLabel>Tìm theo trạng thái</FormLabel>
                     <FormControl>
                       <Select
-                        value={field.value}
+                        value={field.value || undefined}
                         onValueChange={(val) =>
                           field.onChange(val === "clear" ? "" : val)
                         }
@@ -225,15 +223,17 @@ const FilterModal: React.FC<FilterModalProp> = ({
                               !field.value && "text-muted-foreground"
                             )}
                           >
-                            <CalendarIcon className="mr-2 h-4 w-4" />
+                            <CalendarIcon className="mr-2 h-4 w-4 shrink-0" />
                             {field.value?.from ? (
                               field.value.to ? (
-                                <>
+                                <span>
                                   {dayjs(field.value.from).format("DD/MM/YYYY")}{" "}
                                   - {dayjs(field.value.to).format("DD/MM/YYYY")}
-                                </>
+                                </span>
                               ) : (
-                                dayjs(field.value.from).format("DD/MM/YYYY")
+                                <span>
+                                  {dayjs(field.value.from).format("DD/MM/YYYY")}
+                                </span>
                               )
                             ) : (
                               <span>Chọn khoảng ngày</span>
