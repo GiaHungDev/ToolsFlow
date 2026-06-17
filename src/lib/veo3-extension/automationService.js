@@ -61,8 +61,7 @@ async function startAutomation(config) {
 }
 
 async function runBackground(config) {
-    let userDataPath = process.env.USER_DATA_PATH || (process.platform === 'win32' ? 'C:\\' : '/app');
-    let OUTPUT_DIR = path.join(userDataPath, 'outputs');
+    let OUTPUT_DIR = config.outputFolder && config.outputFolder.trim() ? config.outputFolder.trim() : 'C:\\';
     try {
         if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
     } catch (err) {
@@ -71,7 +70,7 @@ async function runBackground(config) {
         if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
         globalState.addLog(`⚠️ Cảnh báo: Lỗi đường dẫn (ENOTDIR/EPERM). Đã tự động chuyển nơi lưu video sang: ${OUTPUT_DIR}`);
     }
-    const defaultProfilePath = 'Profiles_BAS_Flow'; // Chá»‰ Ä‘á»ƒ tĂªn thÆ° má»¥c, worker.js sáº½ tá»± ná»‘i vá»›i USER_DATA_PATH
+    const defaultProfilePath = 'Profiles_BAS_Flow'; // Chỉ để tên thư mục, worker.js sẽ tự nối với USER_DATA_PATH
 
     const headlessValue = config.isHeadless !== undefined ? config.isHeadless : false;
 
@@ -90,8 +89,9 @@ async function runBackground(config) {
         toolAccount: config.toolAccount
     };
 
-    // Dummy AutomationService Ä‘á»ƒ bÆ¡m vĂ o AutomationWorker (vĂ¬ nĂ³ cáº§n 1 sá»‘ hĂ m cÆ¡ báº£n)
+    // Dummy AutomationService để bơm vào AutomationWorker (vì nó cần 1 số hàm cơ bản)
     const dummyService = {
+        isRunning: () => globalState.isRunning,
         addLog: (id, msg) => {
             globalState.addLog(msg);
         },

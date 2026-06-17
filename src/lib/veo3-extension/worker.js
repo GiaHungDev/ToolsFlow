@@ -169,7 +169,10 @@ class AutomationWorker {
             vMsg = `❌ Lỗi xử lý: [STEP 9] : Tạo Video thất bại`;
         }
         else if (msg.includes('Pipeline failed at some step') || msg.includes('Pipeline failed')) {
-            vMsg = `Hệ thống sẽ tạo lại video ngay . Bạn đừng lo lắng`;
+            const isRunning = this.automationService && (typeof this.automationService.isRunning === 'function' ? this.automationService.isRunning() : true);
+            if (isRunning) {
+                vMsg = `Hệ thống sẽ tạo lại video ngay . Bạn đừng lo lắng`;
+            }
         }
         else if (msg.toLowerCase().includes('error')) {
             vMsg = `❌ Lỗi xử lý: ${msg}`;
@@ -4554,93 +4557,112 @@ class AutomationWorker {
         // ============ SUB-STEP A: Close Agent Chat Panel ============
         try {
             this.log('[STEP 4.5a] Checking for Agent chat panel...');
-            const chatPanelClose = await page.evaluate(() => {
-                const isVisible = (el) => {
-                    const style = window.getComputedStyle(el);
-                    if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) return false;
-                    const r = el.getBoundingClientRect();
-                    return r.width > 0 && r.height > 0;
-                };
+            let clicked = false;
+            for (let attempt = 1; attempt <= 10; attempt++) {
+                const chatPanelClose = await page.evaluate(() => {
+                    const isVisible = (el) => {
+                        const style = window.getComputedStyle(el);
+                        if (style.display === 'none' || style.visibility === 'hidden' || parseFloat(style.opacity) === 0) return false;
+                        const r = el.getBoundingClientRect();
+                        return r.width > 0 && r.height > 0;
+                    };
 
-                // The agent chat panel contains a header with "Phiên không có tiêu đề" / "Untitled session"
-                // and a close button with icon "close" and hidden text "Đóng"
-                // Strategy 1: Find close button using exact DOM attributes and structures provided by user
-                const allBtns = Array.from(document.querySelectorAll('button'));
-                for (const btn of allBtns) {
-                    if (!isVisible(btn)) continue;
-                    
-                    const r = btn.getBoundingClientRect();
-
-                    // Must be on the right side of the screen
-                    const isRightSide = r.x > window.innerWidth * 0.5;
-                    if (!isRightSide) continue;
-
-                    // Precise Class Check from user's DOM:
-                    // <button class="sc-e8425ea6-0 hOBPaw sc-d3791a4f-0 sc-d3791a4f-4 sc-9972d1c3-4 ewGlDn famhRe BPRCp">
-                    const classes = Array.from(btn.classList);
-                    const hasClassBPRCp = classes.includes('BPRCp');
-                    const hasClassSc9972 = classes.some(c => c.includes('sc-9972d1c3-4') || c.includes('sc-9972d1c3'));
-                    if (!hasClassBPRCp && !hasClassSc9972) continue; // MUST match these styling classes
-
-                    // Precise Children Structure Check:
-                    // 1. <i> close icon inside
-                    const icon = btn.querySelector('i.google-symbols, .google-symbols');
-                    const iconText = icon ? (icon.textContent || '').trim().toLowerCase() : '';
-                    
-                    // 2. <span> element with text "Đóng" (or "Close" for English compatibility)
-                    const span = btn.querySelector('span');
-                    const spanText = span ? (span.textContent || '').trim().toLowerCase() : '';
-
-                    // Must have close icon OR close text, and MUST NOT be a menu/nhật ký button
-                    const hasCloseIcon = iconText === 'close';
-                    const hasDongText = ['đóng', 'close'].includes(spanText);
-                    const isWrongMenuBtn = iconText === 'menu' || spanText.includes('nhật ký');
-
-                    if (isWrongMenuBtn || (!hasCloseIcon && !hasDongText)) continue;
-
-                    // Parent Panel Context check (ensure it is the Agent chat/session panel)
-                    const parent = btn.closest('div[class*="sc-"]') || btn.parentElement?.parentElement;
-                    if (parent) {
-                        const parentText = (parent.innerText || '').toLowerCase();
-                        const isAgentOrChatPanel = parentText.includes('phiên không có tiêu đề') ||
-                            parentText.includes('untitled session') ||
-                            parentText.includes('chào') ||
-                            parentText.includes('bạn muốn làm gì') ||
-                            parentText.includes('tác nhân') ||
-                            parentText.includes('agent') ||
-                            parentText.includes('biến ý tưởng thành câu lệnh') ||
-                            parentText.includes('what do you want to do');
-
-                        if (isAgentOrChatPanel) {
-                            return {
-                                found: true,
-                                x: r.x + r.width / 2,
-                                y: r.y + r.height / 2,
-                                method: 'precise-dom-and-parent-match',
-                                classes: classes.join(' ')
-                            };
+                    // Strategy 1: Find header with "Phiên không có tiêu đề" / "Untitled session"
+                    // and search for a close button within its parent containers
+                    const headers = Array.from(document.querySelectorAll('h2, h3, div, span'));
+                    for (const h of headers) {
+                        const txt = (h.textContent || '').trim().toLowerCase();
+                        if (txt.includes('phiên không có tiêu đề') || txt.includes('untitled session')) {
+                            let container = h.parentElement;
+                            // Search up to 4 levels of ancestors for a close button
+                            for (let i = 0; i < 4 && container; i++) {
+                                const buttons = Array.from(container.querySelectorAll('button'));
+                                for (const btn of buttons) {
+                                    if (!isVisible(btn)) continue;
+                                    const icon = btn.querySelector('i.google-symbols, .google-symbols');
+                                    const iconText = icon ? (icon.textContent || '').trim().toLowerCase() : '';
+                                    const span = btn.querySelector('span');
+                                    const spanText = span ? (span.textContent || '').trim().toLowerCase() : '';
+                                    
+                                    if (iconText === 'close' || ['đóng', 'close'].includes(spanText)) {
+                                        const r = btn.getBoundingClientRect();
+                                        return {
+                                            found: true,
+                                            x: r.x + r.width / 2,
+                                            y: r.y + r.height / 2,
+                                            method: 'header-ancestor-match'
+                                        };
+                                    }
+                                }
+                                container = container.parentElement;
+                            }
                         }
                     }
 
-                    // Fallback to exact class + close-icon/text match if parent text is dynamic
-                    return {
-                        found: true,
-                        x: r.x + r.width / 2,
-                        y: r.y + r.height / 2,
-                        method: 'precise-class-and-close-match',
-                        classes: classes.join(' ')
-                    };
-                }
-                return { found: false };
-            }).catch(() => ({ found: false }));
+                    // Strategy 2: Fallback - look for any button on the right side of the screen
+                    // with a close icon or "close"/"đóng" text inside an agent/session panel context
+                    const allBtns = Array.from(document.querySelectorAll('button'));
+                    for (const btn of allBtns) {
+                        if (!isVisible(btn)) continue;
+                        
+                        const r = btn.getBoundingClientRect();
 
-            if (chatPanelClose.found) {
-                this.log(`[STEP 4.5a] ⚠ Agent chat panel detected (${chatPanelClose.method}). Clicking close button...`);
-                await this.humanClick(page, chatPanelClose.x, chatPanelClose.y);
-                await this.sleep(2000 + Math.random() * 500);
-                this.log('[STEP 4.5a] ✓ Agent chat panel closed.');
-            } else {
-                this.log('[STEP 4.5a] No agent chat panel detected. Skipping.');
+                        // Must be on the right side of the screen
+                        const isRightSide = r.x > window.innerWidth * 0.5;
+                        if (!isRightSide) continue;
+
+                        // Children Structure Check
+                        const icon = btn.querySelector('i.google-symbols, .google-symbols');
+                        const iconText = icon ? (icon.textContent || '').trim().toLowerCase() : '';
+                        
+                        const span = btn.querySelector('span');
+                        const spanText = span ? (span.textContent || '').trim().toLowerCase() : '';
+
+                        const hasCloseIcon = iconText === 'close';
+                        const hasDongText = ['đóng', 'close'].includes(spanText);
+                        const isWrongMenuBtn = iconText === 'menu' || spanText.includes('nhật ký') || spanText.includes('history');
+
+                        if (isWrongMenuBtn || (!hasCloseIcon && !hasDongText)) continue;
+
+                        // Parent Panel Context check
+                        let parent = btn.parentElement;
+                        for (let i = 0; i < 5 && parent; i++) {
+                            const parentText = (parent.innerText || '').toLowerCase();
+                            const isAgentOrChatPanel = parentText.includes('phiên không có tiêu đề') ||
+                                parentText.includes('untitled session') ||
+                                parentText.includes('chào') ||
+                                parentText.includes('bạn muốn làm gì') ||
+                                parentText.includes('tác nhân') ||
+                                parentText.includes('agent') ||
+                                parentText.includes('what do you want to do');
+
+                            if (isAgentOrChatPanel) {
+                                return {
+                                    found: true,
+                                    x: r.x + r.width / 2,
+                                    y: r.y + r.height / 2,
+                                    method: 'right-side-agent-panel-context'
+                                };
+                            }
+                            parent = parent.parentElement;
+                        }
+                    }
+                    return { found: false };
+                }).catch(() => ({ found: false }));
+
+                if (chatPanelClose.found) {
+                    this.log(`[STEP 4.5a] [Attempt ${attempt}/10] ⚠ Agent chat panel detected (${chatPanelClose.method}). Clicking close button...`);
+                    await this.humanClick(page, chatPanelClose.x, chatPanelClose.y);
+                    await this.sleep(2000 + Math.random() * 500);
+                    this.log('[STEP 4.5a] ✓ Agent chat panel closed.');
+                    clicked = true;
+                    break;
+                }
+                await this.sleep(1000);
+            }
+
+            if (!clicked) {
+                this.log('[STEP 4.5a] No agent chat panel detected or failed to locate close button after 10 attempts. Skipping.');
             }
         } catch (e) {
             this.log(`[STEP 4.5a] Warning: Chat panel close failed: ${e.message}. Continuing...`);
@@ -4664,30 +4686,32 @@ class AutomationWorker {
                     
                     const r = btn.getBoundingClientRect();
 
-                    // 1. Check classes from user's exact DOM:
-                    // <button class="sc-59223abb-3 dmZGYv"> or <button class="sc-59223abb-3 bdRbOx">
+                    // Check classes
                     const classes = Array.from(btn.classList);
                     const hasClassSc5922 = classes.some(c => c.includes('sc-59223abb-3') || c.includes('sc-59223abb'));
 
-                    // 2. Check inner text or structured children
+                    // Check inner text or structured children
                     const spanContent = btn.querySelector('span.content, span');
                     const spanText = spanContent ? (spanContent.textContent || '').trim().toLowerCase() : '';
                     const hasAgentText = ['tác nhân', 'agent'].includes(spanText);
 
-                    // 3. Fallback text checks
+                    // Fallback text checks
                     const fullText = (btn.innerText || btn.textContent || '').trim().toLowerCase();
                     const ariaLabel = (btn.getAttribute('aria-label') || '').toLowerCase();
                     const isAgentText = fullText.includes('tác nhân') || fullText.includes('agent') ||
                         ariaLabel.includes('tác nhân') || ariaLabel.includes('agent');
 
-                    // If matches classes or precise text structure
-                    const matchesUserDOM = hasClassSc5922 || (spanContent && hasAgentText) || (btn.hasAttribute('aria-pressed') && isAgentText);
+                    // If matches classes or contains Agent text
+                    const matchesUserDOM = hasClassSc5922 || hasAgentText || isAgentText;
 
                     if (matchesUserDOM) {
-                        const pressed = btn.getAttribute('aria-pressed');
+                        const pressedAttr = btn.getAttribute('aria-pressed') || btn.getAttribute('aria-selected');
+                        const dataState = btn.getAttribute('data-state');
+                        const isPressed = pressedAttr === 'true' || dataState === 'active' || dataState === 'on';
+                        
                         return {
                             found: true,
-                            pressed: pressed === 'true',
+                            pressed: isPressed,
                             x: r.x + r.width / 2,
                             y: r.y + r.height / 2,
                             text: fullText.substring(0, 30),
@@ -4704,7 +4728,7 @@ class AutomationWorker {
             }
 
             if (agentBtnInfo.pressed) {
-                this.log(`[STEP 4.5b] ⚠ Agent button "${agentBtnInfo.text}" is ACTIVE (aria-pressed=true). Clicking to deactivate...`);
+                this.log(`[STEP 4.5b] ⚠ Agent button "${agentBtnInfo.text}" is ACTIVE. Clicking to deactivate...`);
                 await this.humanClick(page, agentBtnInfo.x, agentBtnInfo.y);
                 await this.sleep(1000 + Math.random() * 500);
 
@@ -4728,7 +4752,9 @@ class AutomationWorker {
 
                         const fullText = (btn.innerText || btn.textContent || '').trim().toLowerCase();
                         if (hasClassSc5922 || hasAgentText || fullText.includes('tác nhân') || fullText.includes('agent')) {
-                            return btn.getAttribute('aria-pressed');
+                            const pressedAttr = btn.getAttribute('aria-pressed') || btn.getAttribute('aria-selected');
+                            const dataState = btn.getAttribute('data-state');
+                            return (pressedAttr === 'true' || dataState === 'active' || dataState === 'on') ? 'true' : 'false';
                         }
                     }
                     return null;
@@ -4737,13 +4763,12 @@ class AutomationWorker {
                 if (verifyState === 'false') {
                     this.log('[STEP 4.5b] ✓ Agent button successfully deactivated.');
                 } else if (verifyState === null) {
-                    // Button may have disappeared entirely after toggle (which is also fine)
                     this.log('[STEP 4.5b] ✓ Agent button no longer found after click (removed from DOM). OK.');
                 } else {
-                    this.log(`[STEP 4.5b] ⚠ Agent button state after click: aria-pressed="${verifyState}". May need manual check.`);
+                    this.log(`[STEP 4.5b] ⚠ Agent button state after click: active="${verifyState}". May need manual check.`);
                 }
             } else {
-                this.log(`[STEP 4.5b] ✓ Agent button "${agentBtnInfo.text}" is already OFF (aria-pressed=false). No action needed.`);
+                this.log(`[STEP 4.5b] ✓ Agent button "${agentBtnInfo.text}" is already OFF. No action needed.`);
             }
         } catch (e) {
             this.log(`[STEP 4.5b] Warning: Agent button toggle failed: ${e.message}. Continuing pipeline...`);
@@ -6180,7 +6205,10 @@ class AutomationWorker {
                 
                 const projectName = job.PROJECT_NAME || job.PROJECT_ID || 'UnknownProject';
                 const safeProjectName = String(projectName).replace(/[<>:"/\\|?*]/g, '_');
-                const targetDir = `C:\\\\${safeProjectName}`;
+                
+                // Use the outputDir passed from backend configuration if it's not empty, otherwise default to C:\
+                const baseOutputDir = (outputDir && outputDir.trim()) ? outputDir.trim() : 'C:\\';
+                const targetDir = path.join(baseOutputDir, safeProjectName);
                 if (!fs.existsSync(targetDir)) {
                     fs.mkdirSync(targetDir, { recursive: true });
                 }
