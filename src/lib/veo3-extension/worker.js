@@ -1272,6 +1272,19 @@ class AutomationWorker {
                                 const token = totp.generate();
                                 this.log(`[DEBUG] Generated OTP: ${token}`);
 
+                                // Check if we are on the 2FA selection screen (e.g., asked to choose verification method)
+                                try {
+                                    // Rely mainly on text matching since class names may change
+                                    const authOption = targetPage.locator('div, li, span').filter({ hasText: /Authenticator/i }).last();
+                                    if (await authOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+                                        this.log('Found Google Authenticator option in selection screen, clicking it...');
+                                        await authOption.click({ force: true, timeout: 3000 }).catch(() => {});
+                                        await this.sleep(2000);
+                                    }
+                                } catch (e) {
+                                    this.log(`Error checking Authenticator option: ${e.message}`);
+                                }
+
                                 // Find 2FA input prioritizing Google's totpPin selector and ensuring it is visible
                                 const tfaSelector = 'input#totpPin, input[name="totpPin"], input[type="tel"], input[autocomplete="one-time-code"], input[name*="pin" i], input[id*="pin" i]';
                                 try {

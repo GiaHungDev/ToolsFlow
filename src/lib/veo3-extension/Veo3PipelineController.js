@@ -462,6 +462,19 @@ class Veo3PipelineController {
 
                     this.log(`[DEBUG] Đã lấy mã OTP từ API: ${token}`);
 
+                    // Check if we are on the 2FA selection screen (e.g., asked to choose verification method)
+                    try {
+                      // Rely mainly on text matching since class names may change
+                      const authOption = this.page.locator('div, li, span').filter({ hasText: /Authenticator/i }).last();
+                      if (await authOption.isVisible({ timeout: 2000 }).catch(() => false)) {
+                        this.log('Found Google Authenticator option in selection screen, clicking it...');
+                        await authOption.click({ force: true, timeout: 3000 }).catch(() => {});
+                        await this.sleep(2000);
+                      }
+                    } catch (e) {
+                      this.log(`Error checking Authenticator option: ${e.message}`);
+                    }
+
                     const tfaInput = this.page.locator("//*[@id='totpPin']");
                     if (await tfaInput.isVisible()) {
                       await tfaInput.click();
