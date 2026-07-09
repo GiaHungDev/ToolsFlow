@@ -164,9 +164,30 @@ class AutomationWorker {
             const match = msg.match(/complete: (.*)/);
             if (match) vMsg = `✓ Tải thành công: ${match[1]}`;
         }
+        else if (msg.includes('Đang chờ lấy link tải...')) {
+            vMsg = 'Đang chờ lấy link tải...';
+        }
+        else if (msg.includes('Chưa tìm thấy...')) {
+            vMsg = 'Chưa tìm thấy...';
+        }
+        else if (msg.includes('Đã tìm thấy link tải!')) {
+            vMsg = 'Đã tìm thấy link tải!';
+        }
+        else if (msg.includes('Login verification successful')) {
+            vMsg = 'Đã đăng nhập thành công!';
+        }
+        else if (msg.includes('Initiating New Project setup')) {
+            vMsg = 'Đang mở giao diện tạo Video...';
+        }
+        else if (msg.includes('pill_button scan ERROR')) {
+            const match = msg.match(/ERROR: (.*)/);
+            vMsg = `❌ Lỗi khi tìm nút Menu: ${match ? match[1] : 'Không rõ'}`;
+        }
         // 9. Lỗi
         else if (msg.includes('Render/Download failed')) {
-            vMsg = `❌ Lỗi xử lý: [STEP 9] : Tạo Video thất bại`;
+            // const match = msg.match(/Render\/Download failed: (.*)/);
+            // vMsg = `❌ Lỗi xử lý: [STEP 9] : Tạo Video thất bại. Chi tiết: ${match ? match[1] : 'Không xác định'}`;
+            vMsg = `❌ Lỗi xử lý : Tạo Video thất bại.`;
         }
         else if (msg.includes('Pipeline failed at some step') || msg.includes('Pipeline failed')) {
             const isRunning = this.automationService && (typeof this.automationService.isRunning === 'function' ? this.automationService.isRunning() : true);
@@ -195,7 +216,7 @@ class AutomationWorker {
                 if (this.automationService && this.automationService.db) {
                     try {
                         this.automationService.db.addLog(jobId, null, 'info', msg);
-                    } catch (e) {}
+                    } catch (e) { }
                 }
             }
         }
@@ -567,10 +588,10 @@ class AutomationWorker {
                             this.log(`[Network Intercept] Intercepted batchGenerate API.`);
                             const currentUrl = this.page ? this.page.url() : '';
                             const inActiveProject = currentUrl.match(/\/flow\/project\/[^\/]+/);
-                            
+
                             const targetValue = !!inActiveProject;
                             this.log(`[Network Intercept] Processing batchGenerate payload. Target isDirectReuseRequest = ${targetValue}`);
-                            
+
                             // Recursive function to deeply modify any nested occurrences of isDirectReuseRequest and randomize activeSessionId / sessionId
                             const modifyPayload = (obj, reuseVal) => {
                                 if (!obj || typeof obj !== 'object') return;
@@ -585,7 +606,7 @@ class AutomationWorker {
                                         obj.isDirectReuseRequest = reuseVal;
                                         this.log(`[Network Intercept] Found isDirectReuseRequest: ${oldVal} => ${reuseVal}`);
                                     }
-                                    
+
                                     // 2. Randomize activeSessionId / sessionId if present to ensure it changes continuously on every request
                                     for (const k in obj) {
                                         if (Object.prototype.hasOwnProperty.call(obj, k)) {
@@ -606,7 +627,7 @@ class AutomationWorker {
                             };
 
                             modifyPayload(postData, targetValue);
-                            
+
                             await route.continue({
                                 postData: JSON.stringify(postData)
                             });
@@ -1278,7 +1299,7 @@ class AutomationWorker {
                                     const authOption = targetPage.locator('div, li, span').filter({ hasText: /Authenticator/i }).last();
                                     if (await authOption.isVisible({ timeout: 2000 }).catch(() => false)) {
                                         this.log('Found Google Authenticator option in selection screen, clicking it...');
-                                        await authOption.click({ force: true, timeout: 3000 }).catch(() => {});
+                                        await authOption.click({ force: true, timeout: 3000 }).catch(() => { });
                                         await this.sleep(2000);
                                     }
                                 } catch (e) {
@@ -1289,36 +1310,60 @@ class AutomationWorker {
                                 const tfaSelector = 'input#totpPin, input[name="totpPin"], input[type="tel"], input[autocomplete="one-time-code"], input[name*="pin" i], input[id*="pin" i]';
                                 try {
                                     await targetPage.waitForSelector(tfaSelector, { timeout: 15000, state: 'visible' });
-                                    this.log('Found 2FA input, focusing and entering OTP...');
+                                    
+                                    let attempt = 1;
+                                    let success2FA = false;
+                                    
+                                    while (attempt <= 3 && !success2FA) {
+                                        const currentToken = totp.generate();
+                                        this.log(`[Attempt ${attempt}/3] Found 2FA input, focusing and entering OTP: ${currentToken}...`);
 
-                                    await targetPage.focus(tfaSelector, { timeout: 5000 });
-                                    await this.sleep(500);
-                                    await targetPage.click(tfaSelector, { force: true, timeout: 3000 }).catch(() => { });
-                                    await this.sleep(300);
-                                    await targetPage.fill(tfaSelector, '', { timeout: 3000 }).catch(() => { });
-                                    await targetPage.keyboard.insertText(token);
+                                        await targetPage.focus(tfaSelector, { timeout: 5000 });
+                                        await this.sleep(500);
+                                        await targetPage.click(tfaSelector, { force: true, timeout: 3000 }).catch(() => { });
+                                        await this.sleep(300);
+                                        
+                                        // Robust clear
+                                        await targetPage.keyboard.down('Control');
+                                        await targetPage.keyboard.press('a');
+                                        await targetPage.keyboard.up('Control');
+                                        await targetPage.keyboard.press('Backspace');
+                                        await this.sleep(300);
+                                        
+                                        await targetPage.keyboard.insertText(currentToken);
 
-                                    const tfaWaitMs = Math.floor(Math.random() * (1500 - 1000 + 1)) + 1000;
-                                    this.log(`Waiting ${Math.floor(tfaWaitMs / 1000)}s after typing 2FA...`);
-                                    await this.sleep(tfaWaitMs);
+                                        const tfaWaitMs = Math.floor(Math.random() * (1500 - 1000 + 1)) + 1000;
+                                        this.log(`Waiting ${Math.floor(tfaWaitMs / 1000)}s after typing 2FA...`);
+                                        await this.sleep(tfaWaitMs);
 
-                                    // Click Next using locator with broad text pattern & force click
-                                    let clickedTfaNext = false;
-                                    try {
-                                        const nextBtn = targetPage.locator('button, [role="button"]').filter({ hasText: /Next|Tiếp theo|Tiếp tục|Continue/i }).first();
-                                        if (await nextBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
-                                            await nextBtn.click({ force: true, timeout: 3000 });
-                                            clickedTfaNext = true;
+                                        // Click Next using locator with broad text pattern & force click
+                                        let clickedTfaNext = false;
+                                        try {
+                                            const nextBtn = targetPage.locator('button, [role="button"]').filter({ hasText: /Next|Tiếp theo|Tiếp tục|Continue/i }).first();
+                                            if (await nextBtn.isVisible({ timeout: 2000 }).catch(() => false)) {
+                                                await nextBtn.click({ force: true, timeout: 3000 });
+                                                clickedTfaNext = true;
+                                            }
+                                        } catch (e) { }
+
+                                        if (!clickedTfaNext) {
+                                            this.log('Could not click Next, falling back to Enter...');
+                                            await targetPage.keyboard.press('Enter');
                                         }
-                                    } catch (e) { }
 
-                                    if (!clickedTfaNext) {
-                                        this.log('Could not click Next, falling back to Enter...');
-                                        await targetPage.keyboard.press('Enter');
+                                        this.log(`OTP ${currentToken} submitted.`);
+                                        await this.sleep(3000 + Math.random() * 1000);
+                                        
+                                        // Check for "Wrong code" or "Sai mã"
+                                        const errorLoc = targetPage.locator('text="Wrong code"').or(targetPage.locator('text="Sai mã"')).or(targetPage.locator('text="Try again"')).or(targetPage.locator('text="Thử lại"')).last();
+                                        if (await errorLoc.isVisible({ timeout: 2000 }).catch(() => false)) {
+                                            this.log(`[STEP 3] ⚠ Wrong 2FA code detected! Waiting 5s before retrying...`);
+                                            await this.sleep(5000);
+                                            attempt++;
+                                        } else {
+                                            success2FA = true;
+                                        }
                                     }
-
-                                    this.log(`OTP ${token} submitted.`);
-                                    await this.sleep(2000 + Math.random() * 1000);
                                 } catch (tfaSelectorErr) {
                                     this.log('No 2FA input found on the page. Skipping auto-2FA...');
                                 }
@@ -1442,9 +1487,9 @@ class AutomationWorker {
                         const imgCaptcha = document.querySelector('#captchaimg');
                         const reCaptcha = document.querySelector('.g-recaptcha');
                         const isVisible = (el) => el && el.offsetParent !== null;
-                        return isVisible(imgCaptcha) || isVisible(reCaptcha) || 
-                               document.body.innerText.includes('captcha') || 
-                               document.body.innerText.includes('Robot');
+                        return isVisible(imgCaptcha) || isVisible(reCaptcha) ||
+                            document.body.innerText.includes('captcha') ||
+                            document.body.innerText.includes('Robot');
                     }).catch(() => false);
 
                     if (autoErr.message === 'CAPTCHA_STUCK' || hasCaptchaOnPage) {
@@ -4596,7 +4641,7 @@ class AutomationWorker {
                                     const iconText = icon ? (icon.textContent || '').trim().toLowerCase() : '';
                                     const span = btn.querySelector('span');
                                     const spanText = span ? (span.textContent || '').trim().toLowerCase() : '';
-                                    
+
                                     if (iconText === 'close' || ['đóng', 'close'].includes(spanText)) {
                                         const r = btn.getBoundingClientRect();
                                         return {
@@ -4617,7 +4662,7 @@ class AutomationWorker {
                     const allBtns = Array.from(document.querySelectorAll('button'));
                     for (const btn of allBtns) {
                         if (!isVisible(btn)) continue;
-                        
+
                         const r = btn.getBoundingClientRect();
 
                         // Must be on the right side of the screen
@@ -4627,7 +4672,7 @@ class AutomationWorker {
                         // Children Structure Check
                         const icon = btn.querySelector('i.google-symbols, .google-symbols');
                         const iconText = icon ? (icon.textContent || '').trim().toLowerCase() : '';
-                        
+
                         const span = btn.querySelector('span');
                         const spanText = span ? (span.textContent || '').trim().toLowerCase() : '';
 
@@ -4696,7 +4741,7 @@ class AutomationWorker {
                 const allBtns = Array.from(document.querySelectorAll('button'));
                 for (const btn of allBtns) {
                     if (!isVisible(btn)) continue;
-                    
+
                     const r = btn.getBoundingClientRect();
 
                     // Check classes
@@ -4721,7 +4766,7 @@ class AutomationWorker {
                         const pressedAttr = btn.getAttribute('aria-pressed') || btn.getAttribute('aria-selected');
                         const dataState = btn.getAttribute('data-state');
                         const isPressed = pressedAttr === 'true' || dataState === 'active' || dataState === 'on';
-                        
+
                         return {
                             found: true,
                             pressed: isPressed,
@@ -4745,6 +4790,17 @@ class AutomationWorker {
                 await this.humanClick(page, agentBtnInfo.x, agentBtnInfo.y);
                 await this.sleep(1000 + Math.random() * 500);
 
+                // NẾU MÀN HÌNH XUẤT HIỆN POPUP OFF/ON (UI MỚI CỦA GOOGLE LABS)
+                this.log(`[STEP 4.5b] Checking for Off/On popup...`);
+                try {
+                    const offBtn = page.locator('button[role="tab"][aria-label="Off"], button[role="tab"]:has-text("Off")').last();
+                    if (await offBtn.isVisible({ timeout: 1500 }).catch(() => false)) {
+                        this.log(`[STEP 4.5b] Found "Off" tab in popup. Clicking it...`);
+                        await offBtn.click({ force: true, delay: 100 + Math.random() * 100 });
+                        await this.sleep(500 + Math.random() * 500);
+                    }
+                } catch(e) {}
+
                 // Verify toggle succeeded
                 const verifyState = await page.evaluate(() => {
                     const isVisible = (el) => {
@@ -4758,7 +4814,7 @@ class AutomationWorker {
                         if (!isVisible(btn)) continue;
                         const classes = Array.from(btn.classList);
                         const hasClassSc5922 = classes.some(c => c.includes('sc-59223abb-3') || c.includes('sc-59223abb'));
-                        
+
                         const spanContent = btn.querySelector('span.content, span');
                         const spanText = spanContent ? (spanContent.textContent || '').trim().toLowerCase() : '';
                         const hasAgentText = ['tác nhân', 'agent'].includes(spanText);
@@ -4958,10 +5014,10 @@ class AutomationWorker {
         // --- Coordinates map — stable aria-controls$ selectors from Radix UI ---
         const coords = {
             modes: {
-                'T2V': { type: 'selector', value: 'button[aria-controls$="-content-VIDEO"]' },
-                'IN2V': { type: 'selector', value: 'button[aria-controls$="-content-VIDEO"]' },
-                'I2V': { type: 'selector', value: 'button[aria-controls$="-content-VIDEO"]' },
-                'IMG': { type: 'selector', value: 'button[aria-controls$="-content-IMAGE"]' },
+                'T2V': { type: 'selector', value: 'button[role="tab"]:has-text("Video"), button[aria-controls$="-content-VIDEO"]' },
+                'IN2V': { type: 'selector', value: 'button[role="tab"]:has-text("Video"), button[aria-controls$="-content-VIDEO"]' },
+                'I2V': { type: 'selector', value: 'button[role="tab"]:has-text("Video"), button[aria-controls$="-content-VIDEO"]' },
+                'IMG': { type: 'selector', value: 'button[role="tab"]:has-text("Image"), button[aria-controls$="-content-IMAGE"]' },
                 trigger_create_menu: { type: 'custom', value: 'pill_button' }
             },
             subModes: {
@@ -5052,7 +5108,7 @@ class AutomationWorker {
                             const r = btn.getBoundingClientRect();
                             const info = { text: text.substring(0, 60), y: Math.round(r.y), w: Math.round(r.width), h: Math.round(r.height) };
                             debug.candidates.push(info);
-                            if (r.width > 0 && r.height > 0 && r.y > 200 && keywords.some(kw => text.includes(kw))) {
+                            if (r.width > 0 && r.height > 0 && keywords.some(kw => text.includes(kw))) {
                                 return { coords: { x: r.x + r.width / 2, y: r.y + r.height / 2 }, debug, strategy: 'keyword' };
                             }
                         }
@@ -5075,7 +5131,11 @@ class AutomationWorker {
                     }).catch(e => ({ coords: null, debug: { error: e.message }, strategy: 'error' }));
 
                     if (result && result.debug) {
-                        this.log(`[STEP 6] pill_button scan: ${result.debug.total} buttons found, strategy=${result.strategy}, candidates=${JSON.stringify(result.debug.candidates || [])}`);
+                        if (result.strategy === 'error') {
+                            this.log(`[STEP 6] pill_button scan ERROR: ${result.debug.error}`);
+                        } else {
+                            this.log(`[STEP 6] pill_button scan: ${result.debug.total} buttons found, strategy=${result.strategy}, candidates=${JSON.stringify(result.debug.candidates || [])}`);
+                        }
                     }
 
                     if (result && result.coords) {
@@ -5161,14 +5221,22 @@ class AutomationWorker {
         const TYPE_VIDEO = job.TYPE_VIDEO || (isVideoJob ? 'T2V' : 'IMG');
         this.log(`[STEP 6.1] Selecting mode: ${TYPE_VIDEO}...`);
         const modeSelector = coords.modes[TYPE_VIDEO]?.value;
-        await mustClickWithVerify(coords.modes, TYPE_VIDEO, modeSelector, `mode:${TYPE_VIDEO}`);
+        try {
+            await mustClickWithVerify(coords.modes, TYPE_VIDEO, modeSelector, `mode:${TYPE_VIDEO}`);
+        } catch(e) {
+            this.log(`[STEP 6.1] Mode tab not found, assuming new unified UI (skipping tab click)...`);
+        }
         await this.sleep(150 + Math.random() * 150);
 
         // Sub-mode for I2V/IN2V
         if (TYPE_VIDEO === 'IN2V' || TYPE_VIDEO === 'I2V') {
             this.log(`[STEP 6.1b] Switching to sub-tab for ${TYPE_VIDEO}...`);
             const subSelector = coords.subModes[TYPE_VIDEO]?.value;
-            await mustClickWithVerify(coords.subModes, TYPE_VIDEO, subSelector, `subMode:${TYPE_VIDEO}`);
+            try {
+                await mustClickWithVerify(coords.subModes, TYPE_VIDEO, subSelector, `subMode:${TYPE_VIDEO}`);
+            } catch(e) {
+                this.log(`[STEP 6.1b] Sub-tab not found, assuming new unified UI...`);
+            }
             await this.sleep(150 + Math.random() * 150);
         }
 
@@ -5419,7 +5487,7 @@ class AutomationWorker {
         // --- Robust Prompt Entry ---
         this.log(`[STEP 8] Entering prompt (${cleanPrompt.length} chars)...`);
         let entrySuccess = false;
-        
+
         try {
             // Focus the Slate editor
             await page.focus(editorSelector);
@@ -5438,13 +5506,13 @@ class AutomationWorker {
             const hasText = await page.evaluate((selector) => {
                 const el = document.querySelector(selector);
                 if (!el) return false;
-                
+
                 // If a placeholder element is still visible, the editor is empty!
                 const placeholder = el.querySelector('[data-slate-placeholder="true"]');
                 if (placeholder && placeholder.offsetParent !== null) {
                     return false;
                 }
-                
+
                 // Clean the text: remove zero-width spaces (\uFEFF) and trim
                 const text = el.textContent.replace(/\uFEFF/g, '').trim();
                 return text.length > 0;
@@ -5469,7 +5537,7 @@ class AutomationWorker {
             } catch (fallbackErr) {
                 this.log(`[STEP 8] ❌ Prompt entry fallback failed: ${fallbackErr.message}`);
                 // Last resort: try force fill
-                await page.fill(editorSelector, cleanPrompt).catch(() => {});
+                await page.fill(editorSelector, cleanPrompt).catch(() => { });
             }
         }
         await this.sleep(400 + Math.random() * 300);
@@ -5551,6 +5619,7 @@ class AutomationWorker {
         let currentErrorReason = '';
         let maxWaitSeconds = job.TYPE_VIDEO === 'IMG' ? 70 : 90;
         let targetMediaCoords = null;
+        let targetMediaVideoSrc = "";
 
         // --- 9a: Submit confirmation (15s) ---
         this.log('[STEP 9a] Waiting for submit confirmation (Toast/%)...');
@@ -5624,6 +5693,7 @@ class AutomationWorker {
         this.hasSeenGenerating = false;
         this.scrolledToTopDuringRender = false;
         this._coordsCapturedAt75 = false;
+        let completedTileId = null;
         let waitTime = 0;
         const downloadInterval = setInterval(() => {
             waitTime += 5;
@@ -5675,7 +5745,7 @@ class AutomationWorker {
                     }
 
                     // No generating/completed tile → check NEWEST tile for error
-                    const newest = newTiles[newTiles.length - 1];
+                    const newest = newTiles[0];
                     const text = (newest.innerText || '').toLowerCase();
 
                     if (text.includes('unusual activity') || text.includes('hoạt động bất thường')) {
@@ -5833,7 +5903,7 @@ class AutomationWorker {
                 }
 
                 // --- Tile status: check NEWEST tile, veto errors if any tile has %/queue ---
-                const tileStatus = await page.evaluate((existingIds) => {
+                const tileStatus = await page.evaluate(([existingIds, isVideoJob]) => {
                     const isVisible = (el) => el.offsetParent !== null;
                     const allTiles = Array.from(document.querySelectorAll('[data-tile-id]'));
                     const newTiles = allTiles.filter(t => !existingIds.includes(t.getAttribute('data-tile-id')));
@@ -5857,17 +5927,17 @@ class AutomationWorker {
                     }
 
                     // No generating tile → check NEWEST tile only
-                    const tile = newTiles[newTiles.length - 1];
+                    const tile = newTiles[0];
                     const tileId = tile.getAttribute('data-tile-id');
                     const tileText = (tile.innerText || '').toLowerCase();
                     const r = tile.getBoundingClientRect();
                     const coords = { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) };
 
-                    // Check completed
                     const videoEl = tile.querySelector('video');
-                    if (videoEl && isVisible(videoEl) && videoEl.duration > 0 && !isNaN(videoEl.duration)) {
+                    if (videoEl && isVisible(videoEl)) {
                         const vr = videoEl.getBoundingClientRect();
-                        return { state: 'complete', tileId, coords: { x: Math.round(vr.x + vr.width / 2), y: Math.round(vr.y + vr.height / 2) } };
+                        const src = videoEl.getAttribute('src') || (videoEl.querySelector('source') ? videoEl.querySelector('source').getAttribute('src') : '') || '';
+                        return { state: 'complete', tileId, coords: { x: Math.round(vr.x + vr.width / 2), y: Math.round(vr.y + vr.height / 2) }, videoSrc: src };
                     }
                     const imgEl = tile.querySelector('img');
                     if (imgEl && isVisible(imgEl) && imgEl.getBoundingClientRect().width > 80) {
@@ -5878,13 +5948,17 @@ class AutomationWorker {
                     // Check error
                     const icons = Array.from(tile.querySelectorAll('i.google-symbols, i[class*="google-symbols"]'));
                     const hasWarning = icons.some(i => i.textContent.trim() === 'warning');
+                    const isSlowWarning = tileText.includes('nhiều thời gian hơn dự kiến') || tileText.includes('longer than expected');
+                    if (isSlowWarning) {
+                        return { state: 'generating', tileId, coords, percent: 99 };
+                    }
                     if (hasWarning || tileText.includes('không thành công')) {
                         return { state: 'error', tileId, coords, reason: 'tile_error', text: tileText.substring(0, 100) };
                     }
 
                     // Unknown → treat as generating
                     return { state: 'generating', tileId, coords, percent: -1 };
-                }, existingTileIds);
+                }, [existingTileIds, job.TYPE_VIDEO !== 'IMG']);
 
                 // Log tile status periodically
                 if (tileStatus.state !== this._lastTileState) {
@@ -5895,6 +5969,8 @@ class AutomationWorker {
                 if (tileStatus.state === 'complete') {
                     this.log('[STEP 9b] ✓ Render COMPLETE — media element detected on new tile.');
                     targetMediaCoords = tileStatus.coords;
+                    completedTileId = tileStatus.tileId;
+                    targetMediaVideoSrc = tileStatus.videoSrc || '';
                     this.hasSeenGenerating = true;
 
                     this.successfulGenerations = (this.successfulGenerations || 0) + 1;
@@ -5993,98 +6069,44 @@ class AutomationWorker {
             // Sử dụng humanClick thay vì rawMouse để né bot detection
 
             const isIMG = job.TYPE_VIDEO === 'IMG';
-            const resolution = isIMG 
-                ? (job.settings?.photoQuality || '1K') 
+            const resolution = isIMG
+                ? (job.settings?.photoQuality || '1K')
                 : (job.settings?.videoQuality || '1080p');
-
-            if (!isIMG && resolution === '720p') {
-                this.log('[STEP 9f] 720p selected - fetching via API...');
-                
-                const urlMatch = page.url().match(/\/flow\/project\/([^/]+)/);
-                const projectId = urlMatch ? urlMatch[1] : (job.PROJECT_ID || 'UnknownProject');
-                
-                const apiResult = await page.evaluate(async (pid) => {
-                    let result = [];
-                    let error_status = "";
-                    try {
-                        let res = await fetch(`https://labs.google/fx/api/trpc/project.searchProjectWorkflows?input=%7B%22json%22%3A%7B%22pageSize%22%3A4%2C%22projectId%22%3A%22${pid}%22%2C%22toolName%22%3A%22PINHOLE%22%2C%22fetchBookmarked%22%3Afalse%2C%22rawQuery%22%3A%22%22%2C%22cursor%22%3Anull%7D%2C%22meta%22%3A%7B%22values%22%3A%7B%22cursor%22%3A%5B%22undefined%22%5D%7D%7D%7D`);
-                        let raw = await res.text();
-                        let jsonData = JSON.parse(raw);
-                        
-                        let workflows = jsonData?.result?.data?.json?.result?.workflows || [];
-                        let downloadedKeys = [];
-                        try { downloadedKeys = JSON.parse(localStorage.getItem('veo3_downloaded_keys')) || []; } catch(e){}
-                        
-                        for (let i = 0; i < workflows.length; i++) {
-                            let steps = workflows[i].workflowSteps || [];
-                            for (let j = 0; j < steps.length; j++) {
-                                let step = steps[j] || {};
-                                let gens = step.mediaGenerations || [];
-                                let prompt = "";
-                                try { prompt = step.workflowStepLog.requestData.promptInputs[0].structuredPrompt.parts[0].text || ""; } catch(e2){}
-                                
-                                for (let k = 0; k < gens.length; k++) {
-                                    let url = gens[k].mediaData?.videoData?.fifeUri || "";
-                                    let mediaKey = gens[k].mediaGenerationId?.mediaKey || "";
-                                    
-                                    if (url && mediaKey && downloadedKeys.indexOf(mediaKey) === -1) {
-                                        result.push({ url: url, prompt: prompt, mediaKey: mediaKey });
-                                        downloadedKeys.push(mediaKey);
-                                    }
-                                }
-                            }
-                        }
-                        localStorage.setItem('veo3_downloaded_keys', JSON.stringify(downloadedKeys));
-                    } catch (e) {
-                        error_status = "JSON Parsing/Error: " + e.message;
-                    }
-                    return { urls: result, error: error_status };
-                }, projectId);
-
-                if (apiResult.error) {
-                    throw new Error(apiResult.error);
-                }
-                
-                if (apiResult.urls.length > 0) {
-                    const fifeUrl = apiResult.urls[0].url;
-                    
-                    const projectName = job.PROJECT_NAME || job.PROJECT_ID || 'UnknownProject';
-                    const safeProjectName = String(projectName).replace(/[<>:"/\\|?*]/g, '_');
-                    const targetDir = `C:\\\\${safeProjectName}`;
-                    if (!fs.existsSync(targetDir)) {
-                        fs.mkdirSync(targetDir, { recursive: true });
-                    }
-                    const ext = '.mp4';
-                    const destPath = path.join(targetDir, `video_${job.JOB_ID}${ext}`);
-                    
-                    this.log(`[STEP 9f] ✓ Found video URL from API. Downloading to ${destPath}...`);
-                    
-                    const https = require('https');
-                    await new Promise((resolve, reject) => {
-                        https.get(fifeUrl, (res) => {
-                            const fileStream = fs.createWriteStream(destPath);
-                            res.pipe(fileStream);
-                            fileStream.on('finish', () => { fileStream.close(); resolve(); });
-                        }).on('error', (e) => reject(e));
-                    });
-                    
-                    downloadedFile = destPath;
-                    jobSuccess = true;
-                    this.unusualActivityStreak = 0; 
-                    this.lastSuccessfulDownloadAt = Date.now(); 
-                    this.log(`[STEP 9f] ✓ Download complete via API: video_${job.JOB_ID}${ext}`);
-                } else {
-                    throw new Error("API returned no new video fifeUri");
-                }
-            } else {
 
                 // Register download event BEFORE interaction
                 const downloadPromise = page.waitForEvent('download', { timeout: 120000 });
-                downloadPromise.catch(() => {}); // Mute UnhandledPromiseRejection if page closes early
+                downloadPromise.catch(() => { }); // Mute UnhandledPromiseRejection if page closes early
 
                 // Scroll to top for accurate coordinates
                 await page.evaluate(() => window.scrollTo(0, 0));
                 await this.sleep(500);
+
+                if (completedTileId) {
+                    const updatedCoords = await page.evaluate((tileId) => {
+                        const tile = document.querySelector(`[data-tile-id="${tileId}"]`);
+                        if (!tile) return null;
+                        const isVisible = (el) => el.offsetParent !== null;
+                        const videoEl = tile.querySelector('video');
+                        if (videoEl && isVisible(videoEl)) {
+                            const vr = videoEl.getBoundingClientRect();
+                            return { x: Math.round(vr.x + vr.width / 2), y: Math.round(vr.y + vr.height / 2) };
+                        }
+                        const imgEl = tile.querySelector('img');
+                        if (imgEl && isVisible(imgEl)) {
+                            const ir = imgEl.getBoundingClientRect();
+                            return { x: Math.round(ir.x + ir.width / 2), y: Math.round(ir.y + ir.height / 2) };
+                        }
+                        const tr = tile.getBoundingClientRect();
+                        return { x: Math.round(tr.x + tr.width / 2), y: Math.round(tr.y + tr.height / 2) };
+                    }, completedTileId).catch(() => null);
+
+                    if (updatedCoords) {
+                        this.log(`[STEP 9f] Dynamically updated coordinates for tile ${completedTileId}: x=${updatedCoords.x}, y=${updatedCoords.y}`);
+                        targetMediaCoords = updatedCoords;
+                    } else {
+                        this.log(`[STEP 9f] ⚠️ Failed to query dynamic coordinates for tile ${completedTileId}. Using cached coordinates.`);
+                    }
+                }
 
                 // --- Find media target (Use tracked coordinates) ---
                 this.log('[STEP 9f] Waiting 4 seconds for media UI to settle...');
@@ -6112,6 +6134,34 @@ class AutomationWorker {
                 await this.sleep(50 + Math.floor(Math.random() * 50));
                 await page.mouse.up({ button: 'right' });
                 await this.sleep(1000);
+
+                // Verify context menu thực sự mở, nếu không retry right-click (max 2 lần)
+                let menuVisible = false;
+                for (let retryRC = 0; retryRC < 3; retryRC++) {
+                    if (retryRC > 0) {
+                        this.log(`[STEP 9f] Context menu not found. Retrying right-click (${retryRC}/2)...`);
+                        await page.mouse.move(rcX + (Math.random() * 10 - 5), rcY + (Math.random() * 10 - 5), { steps: 5 });
+                        await this.sleep(500);
+                        await page.mouse.down({ button: 'right' });
+                        await this.sleep(50 + Math.floor(Math.random() * 50));
+                        await page.mouse.up({ button: 'right' });
+                        await this.sleep(1000);
+                    }
+                    menuVisible = await page.evaluate(() => {
+                        const menu = document.querySelector('[role="menu"]');
+                        if (!menu) return false;
+                        const r = menu.getBoundingClientRect();
+                        return r.width > 0 && r.height > 0;
+                    });
+                    if (menuVisible) {
+                        this.log('[STEP 9f] Context menu visible.');
+                        break;
+                    }
+                }
+
+                if (!menuVisible) {
+                    throw new Error('Context menu failed to open after multiple right-clicks.');
+                }
 
                 // --- Find "Tải xuống" in context menu ---
                 this.log('[STEP 9f] Finding "Tải xuống" in context menu...');
@@ -6155,7 +6205,7 @@ class AutomationWorker {
                     const allItems = Array.from(document.querySelectorAll(
                         '[role="menu"] li, [role="menu"] [role="menuitem"], [role="menu"] button, [role="menu"] div, [role="listbox"] div, div[class*="menu"] div'
                     ));
-                    
+
                     // Pass 1: Try to find the exact target resolution / quality specified by the user
                     for (const item of allItems) {
                         const t = (item.innerText || item.textContent || '').trim();
@@ -6163,13 +6213,13 @@ class AutomationWorker {
                         let ok = false;
                         if (type === 'IMG') {
                             // Image quality matching (1K / Original / 2K / 4K)
-                            ok = firstLine.includes(resolution) || 
-                                 (resolution === '1K' && firstLine.includes('Original'));
+                            ok = firstLine.includes(resolution) ||
+                                (resolution === '1K' && firstLine.includes('Original'));
                         } else {
                             // Video quality matching (270p / 720p / 1080p)
                             ok = firstLine.includes(resolution);
                         }
-                        
+
                         if (ok) {
                             const r = item.getBoundingClientRect();
                             if (r.width > 30 && r.height > 10 && r.x > 0 && r.y > 0) {
@@ -6179,8 +6229,8 @@ class AutomationWorker {
                     }
 
                     // Pass 2: Fallback to any of the expected qualities in descending order of preference if target is not found
-                    const fallbacks = type === 'IMG' 
-                        ? ['1K', 'Original', '2K', '4K'] 
+                    const fallbacks = type === 'IMG'
+                        ? ['1K', 'Original', '2K', '4K']
                         : ['1080p', '720p', '270p'];
                     for (const fallback of fallbacks) {
                         for (const item of allItems) {
@@ -6194,7 +6244,7 @@ class AutomationWorker {
                             }
                         }
                     }
-                    
+
                     return null;
                 }, { type, resolution });
 
@@ -6215,17 +6265,17 @@ class AutomationWorker {
                 const download = await downloadPromise;
                 const suggestedName = download.suggestedFilename() || '';
                 const ext = path.extname(suggestedName) || (isIMG ? '.png' : '.mp4');
-                
+
                 const projectName = job.PROJECT_NAME || job.PROJECT_ID || 'UnknownProject';
                 const safeProjectName = String(projectName).replace(/[<>:"/\\|?*]/g, '_');
-                
+
                 // Use the outputDir passed from backend configuration if it's not empty, otherwise default to C:\
                 const baseOutputDir = (outputDir && outputDir.trim()) ? outputDir.trim() : 'C:\\';
                 const targetDir = path.join(baseOutputDir, safeProjectName);
                 if (!fs.existsSync(targetDir)) {
                     fs.mkdirSync(targetDir, { recursive: true });
                 }
-                
+
                 const destPath = path.join(targetDir, `video_${job.JOB_ID}${ext}`);
                 await download.saveAs(destPath);
                 downloadedFile = destPath;
@@ -6233,7 +6283,6 @@ class AutomationWorker {
                 this.unusualActivityStreak = 0; // Reset streak on successful download
                 this.lastSuccessfulDownloadAt = Date.now(); // Track for 15-min no-download restart
                 this.log(`[STEP 9f] ✓ Download complete: video_${job.JOB_ID}${ext}`);
-            }
         } catch (e) {
             this.log(`[STEP 9] Render/Download failed: ${e.message}`);
             page.off('console', consoleHandler);
