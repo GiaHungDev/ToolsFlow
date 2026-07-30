@@ -98,7 +98,7 @@ async function runBackground(config) {
         configManager: {
             getConfig: () => ({
                 videoSettings: {
-                    ratio: '16:9',
+                    ratio: config.videoRatio || '16:9',
                     count: 1,
                     model: 'Veo 3.1 - Lite [Lower Priority]'
                 }
@@ -327,7 +327,12 @@ async function runBackground(config) {
                 PROJECT_ID: row.projectId || 'api_jobs',
                 PROJECT_NAME: row.projectName || row.project?.name || row.projectId || 'api_jobs',
                 settings: {
-                    videoQuality: config.videoQuality || '1080p'
+                    videoQuality: config.videoQuality || '1080p',
+                    videoSettings: {
+                        ratio: config.videoRatio || '16:9',
+                        count: 1,
+                        model: 'Veo 3.1 - Lite [Lower Priority]'
+                    }
                 }
             };
 

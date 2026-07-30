@@ -9,6 +9,7 @@ const Veo3Section = () => {
   const { user } = useAppSelector((state) => state.auth);
   const [threadCount, setThreadCount] = useState<number>(1);
   const [videoQuality, setVideoQuality] = useState<"1080p" | "720p">("1080p");
+  const [videoRatio, setVideoRatio] = useState<"16:9" | "9:16">("16:9");
   const [loginMethod, setLoginMethod] = useState<"account" | "cookie" | "tool">("account");
   const [importMethod, setImportMethod] = useState<"text" | "file">("text");
   const [accountData, setAccountData] = useState({ email: "", password: "", twoFA: "" });
@@ -16,7 +17,7 @@ const Veo3Section = () => {
   const [toolAccount, setToolAccount] = useState("");
   const [chromePath, setChromePath] = useState("");
   const [outputFolder, setOutputFolder] = useState("");
-  
+
   const [isConfigSaved, _setIsConfigSaved] = useState<boolean>(() => {
     if (typeof window !== "undefined") {
       return sessionStorage.getItem("veo3_config_saved") === "true";
@@ -92,6 +93,13 @@ const Veo3Section = () => {
       setVideoQuality("1080p");
     }
 
+    const savedVideoRatio = localStorage.getItem(`veo3_${userId}_video_ratio`) as "16:9" | "9:16";
+    if (savedVideoRatio) {
+      setVideoRatio(savedVideoRatio);
+    } else {
+      setVideoRatio("16:9");
+    }
+
     setConfig({
       apiUrl: process.env.NEXT_PUBLIC_API_URL,
       token: typeof window !== "undefined" ? (localStorage.getItem("access_token") || localStorage.getItem("token")) : null
@@ -162,7 +170,7 @@ const Veo3Section = () => {
               if (res.ok) {
                 resetJobIds.push(j.id);
               }
-            } catch (err) {}
+            } catch (err) { }
           }
         }
       }
@@ -320,6 +328,7 @@ const Veo3Section = () => {
           apiUrl: process.env.NEXT_PUBLIC_API_URL,
           isReconnecting,
           videoQuality,
+          videoRatio,
         }),
       });
 
@@ -349,20 +358,20 @@ const Veo3Section = () => {
           const dataObj = JSON.parse(event.data);
           if (dataObj.log) {
             const logText = dataObj.log;
-            
+
             // Lọc những log rác không có giá trị
             if (logText.includes("Ignoring extra certs") || logText.includes("PEM routines::ASN1 lib")) return;
             if (logText.includes("[Master][Account") && logText.endsWith("Pipeline")) return;
-            if (logText.replace(/^\[.*?\]\s*/, '').trim() === '') return; 
-            if (logText.includes("Đang kiểm tra tiến độ Job")) return; 
-            if (logText.includes("chuyển sang: Rendering")) return; 
+            if (logText.replace(/^\[.*?\]\s*/, '').trim() === '') return;
+            if (logText.includes("Đang kiểm tra tiến độ Job")) return;
+            if (logText.includes("chuyển sang: Rendering")) return;
 
             const progressMatch = logText.match(/Tiến trình Job (.*?):\s*(\d+)%/);
             if (progressMatch) {
               const jobId = progressMatch[1];
               const percent = parseInt(progressMatch[2], 10);
               setJobProgress((prev) => ({ ...prev, [jobId]: percent }));
-              return; 
+              return;
             }
 
             const statusMatch = logText.match(/\[TRẠNG THÁI\] Job (.*?) chuyển sang: (Completed|Failed)/);
@@ -548,7 +557,7 @@ const Veo3Section = () => {
               <div>
                 <label className="block text-sm font-semibold text-stone-700 mb-2">Chất lượng Video</label>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <label className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${videoQuality === "1080p" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
+                  <label className={`flex items-center justify-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${videoQuality === "1080p" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
                     <input type="radio" name="videoQuality" value="1080p" checked={videoQuality === "1080p"} onChange={() => {
                       setVideoQuality("1080p");
                       if (user?.id) {
@@ -557,7 +566,7 @@ const Veo3Section = () => {
                     }} disabled={isRunning || isConfigSaved} className="hidden" />
                     <span className="font-medium text-sm">1080p</span>
                   </label>
-                  <label className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${videoQuality === "720p" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
+                  <label className={`flex items-center justify-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${videoQuality === "720p" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
                     <input type="radio" name="videoQuality" value="720p" checked={videoQuality === "720p"} onChange={() => {
                       setVideoQuality("720p");
                       if (user?.id) {
@@ -570,17 +579,41 @@ const Veo3Section = () => {
                 <div className="flex items-center gap-1.5 mt-2 text-stone-500 text-xs font-medium">
                   <Info className="w-4 h-4 text-emerald-500" />
                   <p>
-                    {videoQuality === "1080p" 
-                      ? "Chọn 1080p thì 1 video khoảng 2p15s" 
+                    {videoQuality === "1080p"
+                      ? "Chọn 1080p thì 1 video khoảng 2p15s"
                       : "Chọn 720p thì 1 video khoảng 1p30s"}
                   </p>
                 </div>
               </div>
 
               <div>
+                <label className="block text-sm font-semibold text-stone-700 mb-2">Khung hình Video</label>
+                <div className="flex flex-col sm:flex-row gap-3">
+                  <label className={`flex items-center justify-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${videoRatio === "16:9" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
+                    <input type="radio" name="videoRatio" value="16:9" checked={videoRatio === "16:9"} onChange={() => {
+                      setVideoRatio("16:9");
+                      if (user?.id) {
+                        localStorage.setItem(`veo3_${user.id}_video_ratio`, "16:9");
+                      }
+                    }} disabled={isRunning || isConfigSaved} className="hidden" />
+                    <span className="font-medium text-sm">Ngang [16:9]</span>
+                  </label>
+                  <label className={`flex items-center justify-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${videoRatio === "9:16" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
+                    <input type="radio" name="videoRatio" value="9:16" checked={videoRatio === "9:16"} onChange={() => {
+                      setVideoRatio("9:16");
+                      if (user?.id) {
+                        localStorage.setItem(`veo3_${user.id}_video_ratio`, "9:16");
+                      }
+                    }} disabled={isRunning || isConfigSaved} className="hidden" />
+                    <span className="font-medium text-sm">Dọc [9:16]</span>
+                  </label>
+                </div>
+              </div>
+
+              <div>
                 <label className="block text-sm font-semibold text-stone-700 mb-2">Phương thức đăng nhập</label>
                 <div className="flex flex-col sm:flex-row gap-3">
-                  <label className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${loginMethod === "account" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
+                  <label className={`flex items-center justify-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${loginMethod === "account" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
                     <input type="radio" name="loginMethod" value="account" checked={loginMethod === "account"} onChange={() => {
                       setLoginMethod("account");
                       if (user?.id) {
@@ -594,7 +627,7 @@ const Veo3Section = () => {
                     <Key className="w-5 h-5" />
                     <span className="font-medium text-sm">Tài khoản GG</span>
                   </label>
-                  <label className={`flex items-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${loginMethod === "tool" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
+                  <label className={`flex items-center justify-center gap-2 p-3 border rounded-xl cursor-pointer flex-1 transition ${loginMethod === "tool" ? "border-emerald-500 bg-emerald-50 text-emerald-700" : "border-stone-200 hover:bg-stone-50"} ${isRunning || isConfigSaved ? "opacity-50 cursor-not-allowed" : ""}`}>
                     <input type="radio" name="loginMethod" value="tool" checked={loginMethod === "tool"} onChange={() => {
                       setLoginMethod("tool");
                       if (user?.id) {
@@ -609,7 +642,7 @@ const Veo3Section = () => {
 
               <div>
                 <label className="block text-sm font-semibold text-stone-700 mb-2">
-                  Lưu trữ Video tại 
+                  Lưu trữ Video tại
                 </label>
                 <div className="space-y-3">
                   <input
@@ -702,8 +735,8 @@ const Veo3Section = () => {
                 <Server className="w-4 h-4 text-emerald-400" />
                 <span className="text-sm font-bold text-stone-200">Theo dõi quá trình tại đây</span>
               </div>
-              <button 
-                onClick={handleClearLogs} 
+              <button
+                onClick={handleClearLogs}
                 className="px-3 py-1.5 bg-stone-800 hover:bg-stone-700 text-stone-300 rounded-lg text-xs font-bold transition border border-stone-700 shadow-sm"
               >
                 Clear

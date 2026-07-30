@@ -4979,7 +4979,6 @@ class AutomationWorker {
             targetCount = is.count || jobConfig.imgCount || '1';
             targetRatio = is.ratio || jobConfig.imgRatio || '16:9';
         }
-        // Normalize count: strip 'x'/'X' prefix/suffix → pure digit string
         targetCount = String(targetCount).replace(/[xX]/g, '').trim() || '1';
 
         // --- NEW: Check if settings are already applied and match target ---
