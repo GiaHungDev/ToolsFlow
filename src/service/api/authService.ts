@@ -46,7 +46,8 @@ export const loginService = async (data: any): Promise<ITokenData> => {
     if (!isAdmin) {
       // 1. Xác thực qua Server Tổng (Auth API)
       const authUrl = process.env.NEXT_PUBLIC_AUTH_API_URL;
-      const authResponse = await axios.post(`${authUrl}/auth/login-tool`, data, {
+      const payload = { ...data, toolKey: "123456789" };
+      const authResponse = await axios.post(`${authUrl}/auth/login-tool`, payload, {
         headers: {
           'Content-Type': 'application/json',
         }
