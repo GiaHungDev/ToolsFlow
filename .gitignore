@@ -40,4 +40,13 @@ next-env.d.ts
 dist_electron/
 
 # extension outputs
-src/lib/veo3-extension/outputs/
+src/lib/veo3-extension/outputs/
+
+# tests
+tests/
+
+# backups
+backups/
+
+# browser profile data
+src/user_data/

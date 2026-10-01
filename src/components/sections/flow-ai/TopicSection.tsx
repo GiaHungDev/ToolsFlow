@@ -107,9 +107,9 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({
   return (
     <div className="grid w-full gap-6 mb-6">
       <div className="w-full max-w-3xl mx-auto">
-        <div className="glass-card rounded-2xl p-8 shadow-2xl border-4 border-white bg-white/90">
-          <h1 className="text-3xl font-semibold tracking-tight mb-2 text-center text-stone-700">
-            <span className="text-cute-mint-dark font-medium">API Key</span>{" "}
+        <div className="glass-card rounded-2xl p-8 shadow-2xl border-4 border-white bg-white/90 font-sans text-sm font-normal tracking-normal normal-case">
+          <h1 className="text-lg font-bold text-stone-800 tracking-normal mb-2 text-center">
+            <span className="text-stone-800 font-bold">API Key</span>{" "}
             Manager
           </h1>
 
@@ -120,7 +120,7 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({
           <div className="grid grid-cols-1 grid-cols-1 gap-8">
             {/* ================= LIST ================= */}
             <div className="order-2 md:order-1">
-              <h2 className="text-xs font-black text-stone-400 uppercase tracking-widest mb-4 ml-2">
+              <h2 className="text-lg font-bold text-stone-800 normal-case tracking-normal mb-4 ml-2">
                 Danh sách khóa
               </h2>
 
@@ -141,10 +141,10 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({
                         </div>
 
                         <div className="min-w-0">
-                          <p className="font-bold text-sm text-stone-700 truncate">
+                          <p className="font-semibold text-sm text-stone-700 truncate">
                             {key.name}
                           </p>
-                          <p className="text-[10px] text-stone-400 font-mono truncate">
+                          <p className="text-xs text-stone-400 font-sans truncate">
                             ••••••••••••{key.value.slice(-4)}
                           </p>
                         </div>
@@ -175,7 +175,7 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({
 
             {/* ================= ADD ================= */}
             <div className="order-1 md:order-2 bg-stone-50 rounded-xl p-6 border-2 border-stone-100 h-fit">
-              <h2 className="text-xs font-black text-stone-600 uppercase tracking-widest mb-4 flex items-center gap-2">
+              <h2 className="text-lg font-bold text-stone-800 normal-case tracking-normal mb-4 flex items-center gap-2">
                 <span className="w-3 h-3 rounded-full bg-cute-pink"></span>
                 Thêm khóa mới
               </h2>
@@ -185,7 +185,7 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({
                   type="text"
                   value={newKeyName}
                   onChange={(e) => setNewKeyName(e.target.value)}
-                  className="w-full bg-white border-2 border-stone-100 rounded-2xl p-3 text-sm text-stone-700 focus:border-cute-pink transition font-bold"
+                  className="w-full bg-white border-2 border-stone-100 rounded-2xl p-3 text-sm text-stone-700 focus:border-cute-pink transition font-semibold"
                   placeholder="Tên gợi nhớ (VD: Key Chính)"
                 />
 
@@ -193,19 +193,19 @@ const ApiKeySection: React.FC<ApiKeySectionProps> = ({
                   type="password"
                   value={newKeyValue}
                   onChange={(e) => setNewKeyValue(e.target.value)}
-                  className="w-full bg-white border-2 border-stone-100 rounded-2xl p-3 text-sm text-stone-700 focus:border-cute-pink transition font-bold"
+                  className="w-full bg-white border-2 border-stone-100 rounded-2xl p-3 text-sm text-stone-700 focus:border-cute-pink transition font-semibold"
                   placeholder="AI Studio API Key"
                 />
 
                 {error && (
-                  <p className="text-red-500 text-xs font-bold bg-red-50 p-3 rounded-xl border border-red-100">
+                  <p className="text-red-500 text-xs font-semibold bg-red-50 p-3 rounded-xl border border-red-100">
                     {error}
                   </p>
                 )}
 
                 <button
                   type="submit"
-                  className="w-full bg-cute-pink text-black font-black py-3 rounded-2xl hover:bg-cute-pink-dark transition shadow-lg text-sm uppercase tracking-wide border-4 border-white"
+                  className="w-full bg-cute-pink text-black font-semibold py-3 rounded-2xl hover:bg-cute-pink-dark transition shadow-lg text-sm normal-case tracking-normal border-4 border-white"
                 >
                   Lưu Khóa
                 </button>

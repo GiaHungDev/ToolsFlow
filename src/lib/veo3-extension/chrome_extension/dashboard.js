@@ -61,7 +61,7 @@ loginCookieBtn.addEventListener('click', async () => {
     loginCookieBtn.disabled = true;
     
     let successCount = 0;
-    const defaultUrl = data.url || 'https://labs.google';
+    const defaultUrl = data.url || 'https://flow.google.com/';
 
     for (let c of cookiesArray) {
       // Chuẩn bị object cấu hình cookie cho Chrome API
@@ -90,7 +90,7 @@ loginCookieBtn.addEventListener('click', async () => {
     log(`Đã nạp thành công ${successCount}/${cookiesArray.length} cookies!`, 'success');
     log('Đang mở tab Google Veo để kiểm tra đăng nhập...', 'info');
     
-    chrome.tabs.create({ url: 'https://labs.google/fx/tools/flow' });
+    chrome.tabs.create({ url: 'https://flow.google.com/' });
     
   } catch (err) {
     log(`Lỗi xử lý JSON: ${err.message}`, 'error');
@@ -181,14 +181,14 @@ pausePipelineBtn.addEventListener('click', () => {
 
 async function runPipeline() {
   // Tìm hoặc mở tab Veo
-  const tabs = await chrome.tabs.query({ url: "*://labs.google/fx/tools/flow*" });
+  const tabs = await chrome.tabs.query({ url: ["https://flow.google.com/*", "*://labs.google/fx/*tools/flow*"] });
   if (tabs.length > 0) {
     currentVeoTabId = tabs[0].id;
     await chrome.tabs.update(currentVeoTabId, { active: true });
     log('Đã tìm thấy tab Veo đang mở.');
   } else {
     log('Mở tab Veo mới...');
-    const newTab = await chrome.tabs.create({ url: 'https://labs.google/fx/tools/flow' });
+    const newTab = await chrome.tabs.create({ url: 'https://flow.google.com/' });
     currentVeoTabId = newTab.id;
     // Đợi load xong
     await new Promise(r => setTimeout(r, 10000));

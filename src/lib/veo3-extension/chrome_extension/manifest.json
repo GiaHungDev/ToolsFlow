@@ -13,7 +13,8 @@
   ],
   "host_permissions": [
     "*://*.google.com/*",
-    "*://labs.google/*"
+    "*://labs.google/*",
+    "https://flow.google.com/*"
   ],
   "background": {
     "service_worker": "background.js"
@@ -23,15 +24,26 @@
   },
   "content_scripts": [
     {
-      "matches": ["*://labs.google/fx/tools/flow*", "*://labs.google/fx/vi/tools/flow*"],
-      "js": ["content.js"],
+      "matches": [
+        "*://labs.google/fx/tools/flow*",
+        "*://labs.google/fx/vi/tools/flow*",
+        "https://flow.google.com/*"
+      ],
+      "js": [
+        "content.js"
+      ],
       "run_at": "document_idle"
     }
   ],
   "web_accessible_resources": [
     {
-      "resources": ["inject.js"],
-      "matches": ["*://labs.google/*"]
+      "resources": [
+        "inject.js"
+      ],
+      "matches": [
+        "*://labs.google/*",
+        "https://flow.google.com/*"
+      ]
     }
   ]
 }

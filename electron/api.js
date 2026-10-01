@@ -41,6 +41,7 @@ app.post('/api/create-folder', (req, res) => {
     }
 });
 
+let automationStartVersion = 0;
 app.post('/api/veo3/start', async (req, res) => {
     try {
         const body = req.body;
@@ -55,12 +56,14 @@ app.post('/api/veo3/start', async (req, res) => {
 
         // 2. Dừng tiến trình
         if (body.action === 'stop') {
-            stopAutomation();
+            automationStartVersion++;
+            await stopAutomation();
             return res.json({ success: true, isRunning: false });
         }
 
         // Khởi động tiến trình nếu chưa chạy
         if (!globalState.isRunning) {
+            const requestVersion = automationStartVersion;
             const token = req.headers.authorization?.split(' ')[1] || '';
             let realTimeIsHeadless = body.isHeadless;
             let debugFetchMsg = 'Không gọi được API';
@@ -94,7 +97,11 @@ app.post('/api/veo3/start', async (req, res) => {
                 debugFetchMsg
             };
             console.log(`[API] Nhận yêu cầu Start Automation, isHeadless =`, realTimeIsHeadless);
-            startAutomation(config);
+            if (requestVersion !== automationStartVersion) {
+                return res.json({ success: false, message: 'Yêu cầu khởi động đã được hủy bởi lệnh dừng.' });
+            }
+            const result = await startAutomation(config);
+            return res.json(result);
         }
 
         return res.json({ success: true, message: 'Automation started' });
@@ -115,7 +122,7 @@ app.get('/api/veo3/logs', (req, res) => {
     if (globalState.logs.length > 0) {
         for (const log of globalState.logs) {
             if (log === '[DONE]') continue;
-            res.write(`data: ${JSON.stringify({ log })}\n\n`);
+            res.write(`data: ${JSON.stringify({ log, formatted: globalState.userLogsFormatted === true })}\n\n`);
         }
     } else {
         res.write(`data: ${JSON.stringify({ log: 'Đang kết nối luồng log...' })}\n\n`);
@@ -126,7 +133,7 @@ app.get('/api/veo3/logs', (req, res) => {
             res.write('data: [DONE]\n\n');
             res.end();
         } else {
-            res.write(`data: ${JSON.stringify({ log: newLog })}\n\n`);
+            res.write(`data: ${JSON.stringify({ log: newLog, formatted: globalState.userLogsFormatted === true })}\n\n`);
         }
     };
 
@@ -145,4 +152,9 @@ function startLocalApi() {
     });
 }
 
+if (require.main === module) {
+    startLocalApi();
+}
+
 module.exports = { startLocalApi };
+

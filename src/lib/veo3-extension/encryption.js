@@ -21,24 +21,29 @@ function encrypt(text) {
 }
 
 function decrypt(text) {
-    if (!text) return text;
-    if (!text.includes(':')) return text; // If it doesn't have ':' it's already plain text
+    if (!text || typeof text !== 'string') return text;
+    // Nếu text không có dạng iv:hex (không chứa dấu :) thì đây là plaintext thuần
+    if (!text.includes(':')) {
+        return text;
+    }
     try {
         // Ensure the key is exactly 32 bytes long
         const key = crypto.createHash('sha256').update(String(ENCRYPTION_KEY)).digest('base64').substring(0, 32);
 
         const textParts = text.split(':');
-        const iv = Buffer.from(textParts.shift(), 'hex');
-        const encryptedText = Buffer.from(textParts.join(':'), 'hex');
+        if (textParts.length !== 2) return text;
+        const iv = Buffer.from(textParts[0], 'hex');
+        const encryptedText = Buffer.from(textParts[1], 'hex');
+        if (iv.length !== IV_LENGTH) return text;
 
         const decipher = crypto.createDecipheriv('aes-256-cbc', Buffer.from(key), iv);
         let decrypted = decipher.update(encryptedText);
         decrypted = Buffer.concat([decrypted, decipher.final()]);
 
-        return decrypted.toString();
+        return decrypted.toString('utf8');
     } catch (e) {
-        console.error("Decryption failed, falling back to original text:", e.message);
-        return text; // Return original text as fallback
+        // Fallback: nếu giải mã không thành công thì trả về chuỗi gốc
+        return text;
     }
 }
 

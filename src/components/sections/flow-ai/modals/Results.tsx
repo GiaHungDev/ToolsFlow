@@ -23,13 +23,13 @@ const SceneCard: React.FC<SceneCardProps> = ({ scene }) => {
 
   return (
     <div className="scene-card glass-card rounded-lg p-4 border border-white/20 shadow-md flex flex-col w-full">
-      <h3 className="font-bold text-sm text-black mb-2 shrink-0">
+      <h3 className="text-lg font-bold text-stone-800 mb-2 shrink-0">
         🎬 Scene {scene.scene_number}
       </h3>
 
       <div className="w-full">
         <p
-          className="text-white text-[11px] bg-black/40 p-4 rounded-xl font-mono break-words whitespace-pre-wrap leading-relaxed shadow-inner"
+          className="text-white text-sm bg-black/40 p-4 rounded-xl font-sans break-words whitespace-pre-wrap leading-relaxed shadow-inner"
           dangerouslySetInnerHTML={{ __html: formattedText }}
         />
       </div>
@@ -49,8 +49,8 @@ const Results: React.FC<ResultsProps> = ({ scenes }) => {
   return (
     <div className="mt-2 pb-10 w-full">
       <div className="flex justify-center mb-6">
-        <span className="text-base font-semibold text-gray-900 hidden sm:block uppercase">
-          KỊCH BẢN PROMPT CỦA BẠN
+        <span className="text-lg font-bold text-stone-800 hidden sm:block">
+          Kịch bản prompt của bạn
         </span>
       </div>
       <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-10">

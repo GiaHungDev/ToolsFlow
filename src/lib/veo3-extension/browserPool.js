@@ -1,191 +1,253 @@
+/**
+ * BrowserPool - Simple browser registry for lifecycle management.
+ *
+ * Architecture (matches veo3auto):
+ *   - 1 account = 1 profile = 1 worker = 1 browser
+ *   - Each worker launches its own browser independently
+ *   - BrowserPool only tracks browsers for cleanup on stop
+ *   - No sharing, no CDP windows, no cookie sync
+ */
 const path = require('path');
 const fs = require('fs');
 
 class BrowserPool {
     constructor(io) {
         this.io = io;
-        // Map: workerId -> { browser, profilePath }
+        // Map: workerId → { browser, profilePath }
         this.pool = new Map();
     }
 
     log(msg) {
         const message = `[BrowserPool] ${msg}`;
         console.log(message);
-        if (this.io) this.io.emit('log', message);
+        this.io.emit('log', message);
     }
 
-    static log(msg) {
-        const message = `[BrowserPool] ${msg}`;
-        console.log(message);
-    }
-
+    /**
+     * Register a browser launched by a worker.
+     */
     register(workerId, browser, profilePath) {
-        this.pool.set(workerId, { browser, profilePath });
-        this.log(`Worker ${workerId} registered browser at: ${profilePath}`);
+        this.pool.set(String(workerId), { browser, profilePath });
+        // Playwright BrowserContext emits 'close', Puppeteer Browser emits 'disconnected'
+        const event = typeof browser.isConnected === 'function' ? 'disconnected' : 'close';
+        browser.on(event, () => {
+            this.pool.delete(String(workerId));
+        });
     }
 
+    /**
+     * Close a specific worker's browser.
+     */
     async closeBrowser(workerId) {
-        const entry = this.pool.get(workerId);
+        const id = String(workerId);
+        const entry = this.pool.get(id);
         if (!entry) return;
 
         try {
             if (entry.browser) {
-                await entry.browser.close();
+                // Playwright BrowserContext does not have isConnected()
+                if (typeof entry.browser.isConnected === 'function') {
+                    if (entry.browser.isConnected()) await entry.browser.close();
+                } else {
+                    await entry.browser.close();
+                }
             }
         } catch (e) {
-            this.log(`Lỗi khi đóng trình duyệt cho Worker ${workerId}: ${e.message}`);
+            this.log(`Error closing browser for worker ${id}: ${e.message}`);
         }
-
-        this.pool.delete(workerId);
-        this.log(`Worker ${workerId} closed and removed browser from pool.`);
+        this.pool.delete(id);
+        this.log(`Browser for worker ${id} closed.`);
     }
 
+    /**
+     * Close ALL browsers. Called on automation stop.
+     */
     async closeAll() {
-        const workerIds = Array.from(this.pool.keys());
-        for (const id of workerIds) {
+        const ids = Array.from(this.pool.keys());
+        for (const id of ids) {
             await this.closeBrowser(id);
         }
-        this.log(`Đã đóng toàn bộ trình duyệt (${workerIds.length} instances).`);
+        this.log(`All browsers closed (${ids.length} workers).`);
     }
 
+    /**
+     * Diagnostic: pool status for frontend display.
+     */
     getAllWindowInfo() {
-        const info = [];
-        for (const [workerId, entry] of this.pool.entries()) {
-            info.push({
+        const result = [];
+        for (const [workerId, entry] of this.pool) {
+            const connected = typeof entry.browser?.isConnected === 'function' ? entry.browser.isConnected() : (entry.browser !== null && entry.browser !== undefined);
+            result.push({
                 workerId,
-                profilePath: entry.profilePath,
-                isConnected: entry.browser ? entry.browser.isConnected() : false
+                connected: connected || false,
             });
         }
-        return info;
+        return result;
     }
 
-    static cleanStaleLocks(profilePath) {
-        const lockFiles = [
-            'SingletonLock',
-            'SingletonCookie',
-            'SingletonSocket'
+    // ─────────────────────────────────────────────────────────
+    // Static utility methods (used by worker before launch)
+    // ─────────────────────────────────────────────────────────
+
+    /**
+     * Remove known unsafe extensions that inject content scripts and trigger
+     * Google's anomaly detection.
+     */
+    static removeUnsafeExtensions(profilePath, logger) {
+        const extDir = path.join(profilePath, 'Default', 'Extensions');
+        if (!fs.existsSync(extDir)) return;
+
+        const unsafeIds = [
+            'ihcjicgdanjaechkgeegckofjjedodee',  // Malwarebytes Browser Guard
+            'aohghmighlieiainnegkcijnfilokake',  // Google Drive (Application Launcher)
+            'lmjegmlicamnimmfhcmpkclmigmmcbeh',  // Google Drive (alternate ID)
+            'fheoggkfdfchfphceeifdbepaojcggo',   // McAfee WebAdvisor
         ];
-        
-        // 1. Clean singleton lock files
-        for (const file of lockFiles) {
-            const filePath = path.join(profilePath, file);
-            if (fs.existsSync(filePath)) {
+
+        for (const id of unsafeIds) {
+            const extPath = path.join(extDir, id);
+            if (fs.existsSync(extPath)) {
                 try {
-                    fs.unlinkSync(filePath);
-                    BrowserPool.log(`[Lock Cleaner] Đã xóa stale lock file: ${filePath}`);
+                    fs.rmSync(extPath, { recursive: true, force: true });
+                    if (logger) logger(`[Security] Removed unsafe extension: ${id}`);
                 } catch (e) {
-                    try {
-                        fs.rmSync(filePath, { force: true });
-                    } catch (err) {
-                        BrowserPool.log(`[Lock Cleaner] Không thể xóa file ${filePath}: ${err.message}`);
+                    if (logger) logger(`[Security] Could not remove extension ${id}: ${e.message}`);
+                }
+            }
+        }
+
+        // Also remove extension entries from Preferences
+        try {
+            const prefsPath = path.join(profilePath, 'Default', 'Preferences');
+            if (fs.existsSync(prefsPath)) {
+                const prefs = JSON.parse(fs.readFileSync(prefsPath, 'utf8'));
+                if (prefs.extensions && prefs.extensions.settings) {
+                    let removed = 0;
+                    for (const id of unsafeIds) {
+                        if (prefs.extensions.settings[id]) {
+                            delete prefs.extensions.settings[id];
+                            removed++;
+                        }
+                    }
+                    if (removed > 0) {
+                        fs.writeFileSync(prefsPath, JSON.stringify(prefs));
+                        if (logger) logger(`[Security] Purged ${removed} extension entries from Preferences`);
                     }
                 }
             }
-        }
-
-        // 2. Clean session restore files
-        const defaultDir = path.join(profilePath, 'Default');
-        if (fs.existsSync(defaultDir)) {
-            const sessionFiles = [
-                'Last Session',
-                'Current Session',
-                'Last Tabs',
-                'Current Tabs'
-            ];
-            for (const file of sessionFiles) {
-                const filePath = path.join(defaultDir, file);
-                if (fs.existsSync(filePath)) {
-                    try {
-                        fs.unlinkSync(filePath);
-                        BrowserPool.log(`[Session Cleaner] Đã xóa session restore file: ${filePath}`);
-                    } catch (e) {}
-                }
-            }
-            const sessionsDir = path.join(defaultDir, 'Sessions');
-            if (fs.existsSync(sessionsDir)) {
-                try {
-                    fs.rmSync(sessionsDir, { recursive: true, force: true });
-                    BrowserPool.log(`[Session Cleaner] Đã xóa sessions directory: ${sessionsDir}`);
-                } catch (e) {}
-            }
+        } catch (e) {
+            // Non-fatal
         }
     }
 
+    /**
+     * Inject Brave/Chrome preferences for Google Labs compatibility.
+     */
     static injectPreferences(profilePath) {
         try {
             const setPrefs = (prefs) => {
                 if (!prefs.profile) prefs.profile = {};
-                prefs.profile.cookie_controls_mode = 2;
-                prefs.profile.block_third_party_cookies = true;
-                prefs.enable_do_not_track = true;
-                
+                prefs.profile.cookie_controls_mode = 2; // 2 = Block third-party cookies always
+                prefs.profile.block_third_party_cookies = true; // Google recommends blocking for Flow unusual activity fix
+                prefs.enable_do_not_track = true; // User-tested: works with Google login + Flow
+
                 if (!prefs.privacy_sandbox) prefs.privacy_sandbox = {};
                 prefs.privacy_sandbox.related_website_sets_enabled = false;
                 prefs.privacy_sandbox.first_party_sets_enabled = false;
-                
+
+                if (!prefs.privacy) prefs.privacy = {};
+                if (!prefs.privacy.tracking) prefs.privacy.tracking = {};
+                // Let the browser handle tracking protection naturally
+
+                if (!prefs.enhanced_tracking_prevention) prefs.enhanced_tracking_prevention = {};
+                prefs.enhanced_tracking_prevention.enabled = false;
+
+                // CRITICAL: Wipe proxy from preferences so that if user disables proxy, it doesn't linger
+                if (prefs.proxy) {
+                    delete prefs.proxy;
+                }
+
+                // Brave-specific
+                if (!prefs.brave) prefs.brave = {};
+                if (!prefs.brave.p3a) prefs.brave.p3a = {};
+                prefs.brave.p3a.notice_acknowledged = true;
+                prefs.brave.p3a.enabled = false;
+
+                if (!prefs.brave.shields) prefs.brave.shields = {};
+                prefs.brave.shields.advanced_view_enabled = false;
+                if (!prefs.brave.shields.default) prefs.brave.shields.default = {};
+                prefs.brave.shields.default.ads = 0;
+                prefs.brave.shields.default.trackers = 0;
+                prefs.brave.shields.default.httpUpgradable = 0;
+                prefs.brave.shields.default.noScript = 0;
+                prefs.brave.shields.default.fingerprinting = 0;
+                prefs.brave.shields.default.cookies = 0;
+
+                prefs.brave.fingerprinting_v2_enabled = false;
+
+                if (!prefs.brave.de_amp) prefs.brave.de_amp = {};
+                prefs.brave.de_amp.enabled = false;
+
+                // Disable shields for Google domains
+                if (!prefs.profile.content_settings) prefs.profile.content_settings = {};
+                if (!prefs.profile.content_settings.exceptions) prefs.profile.content_settings.exceptions = {};
+                if (!prefs.profile.content_settings.exceptions.braveShields) prefs.profile.content_settings.exceptions.braveShields = {};
+                prefs.profile.content_settings.exceptions.braveShields['[*.]google.com,*'] = { setting: 1 };
+                prefs.profile.content_settings.exceptions.braveShields['[*.]googleapis.com,*'] = { setting: 1 };
+                prefs.profile.content_settings.exceptions.braveShields['[*.]gstatic.com,*'] = { setting: 1 };
+                prefs.profile.content_settings.exceptions.braveShields['[*.]labs.google,*'] = { setting: 1 };
+                prefs.profile.content_settings.exceptions.braveShields['[*.]flow.google.com,*'] = { setting: 1 };
+                prefs.profile.content_settings.exceptions.braveShields['[*.]recaptcha.net,*'] = { setting: 1 };
+
+                // Disable session restore
                 if (!prefs.session) prefs.session = {};
-                prefs.session.restore_on_startup = 1;
+                prefs.session.restore_on_startup = 1; // 1 = New Tab page (NOT session restore)
                 prefs.session.startup_urls = [];
-                
-                prefs.profile.exit_type = "Normal";
+                prefs.profile.exit_type = 'Normal';
                 prefs.profile.exited_cleanly = true;
-                
+
+                // Hide download bubble/bar — prevents download UI from interfering with automation
+                if (!prefs.download_bubble) prefs.download_bubble = {};
+                prefs.download_bubble.partial_view_enabled = false;
+                if (!prefs.download) prefs.download = {};
+                prefs.download.prompt_for_download = false;
+
                 return prefs;
             };
 
-            const defaultDir = path.join(profilePath, 'Default');
-            if (!fs.existsSync(defaultDir)) {
-                fs.mkdirSync(defaultDir, { recursive: true });
-            }
-
-            const prefsPath = path.join(defaultDir, 'Preferences');
+            const prefsPath = path.join(profilePath, 'Default', 'Preferences');
             if (fs.existsSync(prefsPath)) {
-                let prefs = {};
-                try {
-                    prefs = JSON.parse(fs.readFileSync(prefsPath, 'utf8') || '{}');
-                } catch (e) {}
-                fs.writeFileSync(prefsPath, JSON.stringify(setPrefs(prefs), null, 2), 'utf8');
+                const prefs = JSON.parse(fs.readFileSync(prefsPath, 'utf8'));
+                fs.writeFileSync(prefsPath, JSON.stringify(setPrefs(prefs)));
             } else {
-                fs.writeFileSync(prefsPath, JSON.stringify(setPrefs({}), null, 2), 'utf8');
+                fs.mkdirSync(path.join(profilePath, 'Default'), { recursive: true });
+                fs.writeFileSync(prefsPath, JSON.stringify(setPrefs({})));
             }
-            BrowserPool.log(`[Pref Injector] Đã thiết lập Preferences sạch cho profile tại: ${profilePath}`);
+
+            // Delete session restore files
+            const sessionsDir = path.join(profilePath, 'Default', 'Sessions');
+            if (fs.existsSync(sessionsDir)) {
+                try { fs.rmSync(sessionsDir, { recursive: true, force: true }); } catch (e) { }
+            }
+            for (const sf of ['Last Session', 'Current Session', 'Last Tabs', 'Current Tabs']) {
+                const fp = path.join(profilePath, 'Default', sf);
+                try { if (fs.existsSync(fp)) fs.rmSync(fp); } catch (e) { }
+            }
         } catch (e) {
-            BrowserPool.log(`[Pref Injector] Lỗi inject Preferences: ${e.message}`);
+            // Non-fatal
         }
     }
 
-    getExtensions() {
-        const extensionsDir = path.join(process.cwd(), 'extensions');
-        const extensionPaths = [];
-        if (fs.existsSync(extensionsDir)) {
-            try {
-                const items = fs.readdirSync(extensionsDir);
-                for (const item of items) {
-                    const itemPath = path.join(extensionsDir, item);
-                    if (fs.statSync(itemPath).isDirectory()) {
-                        extensionPaths.push(itemPath);
-                    }
-                }
-            } catch (e) {
-                console.error('[Extensions] Error reading extensions dir:', e.message);
-            }
+    /**
+     * Clean stale lock files from a profile directory.
+     */
+    static cleanStaleLocks(profilePath) {
+        for (const f of ['SingletonLock', 'SingletonCookie', 'SingletonSocket']) {
+            const target = path.join(profilePath, f);
+            try { if (fs.existsSync(target)) fs.rmSync(target); } catch (e) { }
         }
-        return extensionPaths;
     }
 
-    static removeUnsafeExtensions(profilePath, logger = null) {
-        const logFunc = logger || ((msg) => BrowserPool.log(msg));
-        const extensionsDir = path.join(profilePath, 'Default', 'Extensions');
-        if (fs.existsSync(extensionsDir)) {
-            try {
-                fs.rmSync(extensionsDir, { recursive: true, force: true });
-                logFunc(`[Extension Cleaner] Đã dọn dẹp các Extension không an toàn tại: ${extensionsDir}`);
-            } catch (e) {
-                logFunc(`[Extension Cleaner] Lỗi dọn dẹp Extensions: ${e.message}`);
-            }
-        }
-    }
 }
 
 module.exports = BrowserPool;

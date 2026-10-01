@@ -94,7 +94,7 @@ class Veo3PipelineController {
     if (!this.page) return;
     try {
       this.log("Navigating to Veo3 for login check...");
-      await this.page.goto("https://labs.google/fx/vi/tools/flow", {
+      await this.page.goto("https://flow.google.com/", {
         waitUntil: "domcontentloaded",
         timeout: 30000,
       });
@@ -2591,7 +2591,7 @@ class Veo3PipelineController {
         this.log(
           `[Worker ${worker.id} - BƯỚC 0/5] Bắt đầu Job bằng cách tạo Project mới...`,
         );
-        await page.goto("https://labs.google/fx/vi/tools/flow", {
+        await page.goto("https://flow.google.com/", {
           waitUntil: "domcontentloaded",
           timeout: 30000,
         });
@@ -3778,38 +3778,10 @@ class Veo3PipelineController {
       await this.sleep(3000);
       this.master.updateJobStatus(job, "Downloading");
 
-      const isCharacterJob =
-        job.typeI2V === "Character" ||
-        job.typeI2V === "Avatar" ||
-        !!job.characterId;
-      let finalDir;
-      if (job.excelFilePath) {
-        const excelDir = path.dirname(job.excelFilePath);
-        finalDir = path.join(excelDir, job.excelFileName || job.id.toString());
-      } else {
-        const outputDir =
-          typeof this.master.getJobOutputDir === "function"
-            ? this.master.getJobOutputDir(
-                job.projectId,
-                isCharacterJob,
-                job.outputDir,
-              )
-            : job.outputDir
-              ? path.join(this.master.outputDir, job.outputDir)
-              : this.master.outputDir;
-        finalDir = outputDir;
-        if (job.excelFileName) {
-          finalDir = path.join(outputDir, job.excelFileName);
-        }
-      }
-
-      const safeProjectName = (
-        job.projectName ||
-        job.projectId ||
-        "Veo3_Downloads"
-      ).replace(/[<>:"/\\|?*]+/g, "_");
-      const rootDrive = process.platform === "win32" ? "C:\\" : "/tmp/";
-      finalDir = path.join(rootDrive, safeProjectName);
+      const finalDir = require("./downloadStorage").defaultDirectory(
+        job.projectName || job.project?.name || job.projectId,
+        this.master.outputDir || this.accountData.outputDir || '',
+      );
 
       const fs = require("fs");
       if (!fs.existsSync(finalDir)) {

@@ -1,81 +1,124 @@
 const fs = require('fs');
 const path = require('path');
 const AutomationWorker = require('./worker');
+const BrowserPool = require('./browserPool');
+const cloakUpdater = require('./cloakbrowser-updater');
+const { createVeo3LogFormatter } = require('./userLogs');
 
 class GlobalAutomationState {
     constructor() {
         this.workers = [];
         this.worker = null;
         this.isRunning = false;
+        this.isPaused = false;
         this.logs = [];
+        this.formatUserLog = createVeo3LogFormatter();
+        this.userLogsFormatted = true;
         this.listeners = new Set();
+        this.browserPool = new BrowserPool(this._createDummyIo());
+    }
+
+    _createDummyIo() {
+        return {
+            emit: (event, data) => {
+                if (event === 'log') {
+                    this.addLog(data);
+                } else if (event === 'startup-phase') {
+                    if (data && data.message) this.addLog(`[Khởi động] ${data.message}`);
+                }
+            }
+        };
     }
 
     addLog(msg) {
         if (!msg) return;
         const time = new Date().toLocaleTimeString();
-        const logMsg = `[${time}] ${msg}`;
+        if (msg === '[DONE]') {
+            this.listeners.forEach(listener => { try { listener('[DONE]'); } catch (e) {} });
+            return;
+        }
+        const logMsg = this.formatUserLog(`[${time}] ${msg}`);
+        if (!logMsg) return;
+        console.log(logMsg);
         this.logs.push(logMsg);
         if (this.logs.length > 1000) this.logs.shift();
-        this.listeners.forEach(listener => listener(logMsg));
+        this.listeners.forEach(listener => {
+            try { listener(logMsg); } catch (e) {}
+        });
     }
 
     async stop() {
-        if (this.isRunning) {
+        if (this._stopTask) return this._stopTask;
+        if (this.isRunning || this._runTask || this.workers.length || this.worker) {
+            this.isRunning = false;
+            for (const worker of this.workers) worker.isKilled = true;
+            if (this.worker) this.worker.isKilled = true;
+            this._stopTask = this._finishStop();
+            try { await this._stopTask; } finally { this._stopTask = null; }
+        }
+    }
+
+    async _finishStop() {
             this.addLog('[HỆ THỐNG] Đang dừng các trình duyệt, vui lòng đợi...');
             try {
                 if (this.workers && this.workers.length > 0) {
-                    await Promise.all(this.workers.map(w => w.close().catch(e=>{})));
+                    await Promise.all(this.workers.map(w => w.close().catch(e => {})));
                 } else if (this.worker) {
-                    await this.worker.close().catch(e=>{});
+                    await this.worker.close().catch(e => {});
                 }
             } catch (e) {}
+            // Drain startup/retry work before allowing another run.
+            if (this._runTask) await this._runTask;
+            // Close any context that finished launching while the first close ran.
+            await Promise.all(this.workers.filter(w => w.browser || w.page).map(w => w.close().catch(() => {})));
             this.isRunning = false;
             this.workers = [];
             this.worker = null;
             this.addLog('[HỆ THỐNG] Tiến trình đã dừng theo yêu cầu.');
-            this.listeners.forEach(listener => listener('[DONE]'));
+            this.listeners.forEach(listener => {
+                try { listener('[DONE]'); } catch (e) {}
+            });
             this.listeners.clear();
-        }
     }
 }
 
 const globalState = new GlobalAutomationState();
 
 async function startAutomation(config) {
-    if (globalState.isRunning) {
+    if (globalState.isRunning || globalState._runTask || globalState._stopTask) {
         return { success: false, message: 'Automation is already running' };
     }
 
     globalState.logs = [];
+    globalState.formatUserLog = createVeo3LogFormatter();
     globalState.isRunning = true;
     globalState.listeners.clear();
 
-    runBackground(config).catch(err => {
+    globalState._runTask = runBackground(config).catch(err => {
+        if (!globalState.isRunning) return;
         globalState.addLog(`[LỖI NGHIÊM TRỌNG] ${err.message}`);
         globalState.addLog('[DONE]');
         globalState.isRunning = false;
-    });
+    }).finally(() => { globalState._runTask = null; });
 
     return { success: true };
 }
 
 async function runBackground(config) {
-    let OUTPUT_DIR = config.outputFolder && config.outputFolder.trim() ? config.outputFolder.trim() : 'C:\\';
-    try {
-        if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-    } catch (err) {
-        const os = require('os');
-        OUTPUT_DIR = path.join(os.tmpdir(), 'harumi-outputs');
-        if (!fs.existsSync(OUTPUT_DIR)) fs.mkdirSync(OUTPUT_DIR, { recursive: true });
-        globalState.addLog(`⚠️ Cảnh báo: Lỗi đường dẫn (ENOTDIR/EPERM). Đã tự động chuyển nơi lưu video sang: ${OUTPUT_DIR}`);
+    const baseUserDataDir = process.env.USER_DATA_PATH || path.resolve(__dirname, '../../user_data');
+    if (!fs.existsSync(baseUserDataDir)) {
+        fs.mkdirSync(baseUserDataDir, { recursive: true });
     }
-    const defaultProfilePath = 'Profiles_BAS_Flow'; // Chỉ để tên thư mục, worker.js sẽ tự nối với USER_DATA_PATH
 
+    const { defaultDirectory, prepareOutputDirectory } = require('./downloadStorage');
+    const OUTPUT_DIR = config.outputFolder?.trim() || '';
+    if (OUTPUT_DIR) globalState.addLog(`Thư mục lưu video: ${OUTPUT_DIR}`);
+
+    const defaultProfilePath = 'Profiles_BAS_Flow';
     const headlessValue = config.isHeadless !== undefined ? config.isHeadless : false;
 
-    const account = {
-        id: 'account_veo3_local',
+    const baseAccount = {
+        id: config.userId ? `user_${config.userId}` : 'account_veo3_local',
         email: config.accountData ? config.accountData.email : '',
         password: config.accountData ? config.accountData.password : '',
         twoFactorSecret: config.accountData ? config.accountData.twoFA : '',
@@ -89,33 +132,101 @@ async function runBackground(config) {
         toolAccount: config.toolAccount
     };
 
-    // Dummy AutomationService để bơm vào AutomationWorker (vì nó cần 1 số hàm cơ bản)
-    const dummyService = {
-        isRunning: () => globalState.isRunning,
+    const dummyIo = globalState._createDummyIo();
+
+    // Đối tượng AutomationService cung cấp đầy đủ API cho AutomationWorker
+    const automationService = {
+        handlesCreditExhaustion: true,
+        io: dummyIo,
+        workers: [],
+        get isRunning() { return globalState.isRunning; },
+        get isPaused() { return globalState.isPaused; },
         addLog: (id, msg) => {
             globalState.addLog(msg);
         },
+        log: (msg) => {
+            globalState.addLog(msg);
+        },
+        browserPool: globalState.browserPool,
         configManager: {
             getConfig: () => ({
+                workerCount: config.threadCount || 1,
+                headless: headlessValue,
+                visibility: headlessValue ? 'hidden' : 'visible',
                 videoSettings: {
                     ratio: config.videoRatio || '16:9',
                     count: 1,
-                    model: 'Veo 3.1 - Lite [Lower Priority]'
+                    quality: config.videoQuality || '1080p',
+                    model: config.videoModel || 'Veo 3.1 - Lite'
                 }
             })
         },
         accountManager: {
-            updateAccount: (id, data) => {}
+            getAccountById: (id) => baseAccount,
+            updateAccount: (id, data) => {
+                Object.assign(baseAccount, data);
+            }
         },
         db: {
-            addLog: (jobId, dbId, type, msg) => {}
+            addLog: (jobId, dbId, type, msg) => {
+                globalState.addLog(`[Job ${jobId}] ${msg}`);
+            }
+        },
+        async restartWorker(id) {
+            if (!globalState.isRunning) return;
+            const worker = automationService.workers.find(w => w.id === id);
+            if (worker) {
+                if (worker._isRestarting || worker.isLaunching || worker._launching) {
+                    globalState.addLog(`Luồng ${id} đang trong quá trình khởi động lại...`);
+                    return { success: true };
+                }
+                worker._isRestarting = true;
+                globalState.addLog(`Đang khởi động lại Luồng ${id}...`);
+                try { await worker.close(); } catch (e) {}
+                if (!globalState.isRunning) return;
+
+                // Keep the same instance referenced by the queue and global state.
+                worker.isBusy = false;
+                worker.jobStartedAt = null;
+                worker.currentJobId = null;
+                worker.isLaunching = true;
+                worker._launchedAt = Date.now();
+
+                try {
+                    await worker.launch();
+                } finally {
+                    worker.isLaunching = false;
+                    worker._launching = false;
+                    worker._isRestarting = false;
+                }
+
+                if (worker.page && worker.browser) {
+                    worker.isOffline = false;
+                    globalState.addLog(`Luồng ${id} đã khởi động lại thành công.`);
+                } else {
+                    worker.isOffline = true;
+                    globalState.addLog(`⚠️ Luồng ${id} khởi động lại thất bại. Đã chuyển sang trạng thái offline.`);
+                }
+            }
         }
     };
 
     globalState.addLog("=========================================");
-    globalState.addLog("BẮT ĐẦU QUÁ TRÌNH TẠO VIDEO TỰ ĐỘNG");
+    globalState.addLog("BẮT ĐẦU QUÁ TRÌNH TẠO VIDEO TỰ ĐỘNG (VEO 3)");
     globalState.addLog("=========================================");
 
+    // Kiểm tra và cập nhật CloakBrowser nếu cần
+    try {
+        globalState.addLog('[CloakBrowser] Kiểm tra cập nhật CloakBrowser...');
+        const updateResult = await cloakUpdater.checkAndUpdate(dummyIo);
+        if (updateResult && updateResult.message) {
+            globalState.addLog(`[CloakBrowser] ${updateResult.message}`);
+        }
+    } catch (e) {
+        globalState.addLog(`[CloakBrowser] Kiểm tra cập nhật bỏ qua: ${e.message}`);
+    }
+
+    if (!globalState.isRunning) return;
     if (config.loginMethod === 'tool') {
         if (!config.toolAccount) {
             throw new Error("LỖI: Chọn phương thức Tài khoản tool nhưng không cung cấp tên tài khoản BAS!");
@@ -136,12 +247,10 @@ async function runBackground(config) {
             const data = await res.json();
             if (data.flowAccount && data.flowAccount.email && data.flowAccount.password) {
                 globalState.addLog("✅ Đã lấy thành công tài khoản liên kết Flow!");
-                account.email = data.flowAccount.email;
-                account.password = data.flowAccount.password;
-                account.twoFactorSecret = data.flowAccount.twoFaCode || '';
-                
-                
-                account.cookies = null;
+                baseAccount.email = data.flowAccount.email;
+                baseAccount.password = data.flowAccount.password;
+                baseAccount.twoFactorSecret = data.flowAccount.twoFaCode || '';
+                baseAccount.cookies = null;
             } else {
                 globalState.addLog("⚠️ Tài khoản tool của bạn chưa được liên kết với tài khoản VEO3.");
             }
@@ -150,25 +259,29 @@ async function runBackground(config) {
         }
     }
 
-    const dummyIo = { 
-        emit: (event, data) => {
-            if (event === 'log') {
-                globalState.addLog(data);
-            }
-        } 
-    };
-
-    dummyService.workers = [];
-    const threadCount = config.threadCount || 1;
-    for (let i = 0; i < threadCount; i++) {
-        const workerId = `worker_${i+1}`;
-        const worker = new AutomationWorker(workerId, account, dummyService, dummyIo, null);
-        dummyService.workers.push(worker);
+    if (!globalState.isRunning) return;
+    // Khởi tạo các Workers (xoá require cache để luôn nạp code mới nhất từ disk)
+    const threadCount = Math.max(1, parseInt(config.threadCount) || 1);
+    try {
+        for (const modulePath of ['./worker', './flowUpload', './flowSettings', './flowGeneration', './downloadGate', './downloadStorage', './browserLaunch', './promptContent']) {
+            delete require.cache[require.resolve(modulePath)];
+        }
+    } catch (e) {}
+    const WorkerClass = require('./worker');
+    automationService.workers = [];
+    for (let i = 1; i <= threadCount; i++) {
+        const workerAccount = {
+            ...baseAccount,
+            id: `${baseAccount.id}_thread_${i}`
+        };
+        const worker = new WorkerClass(i, workerAccount, automationService, dummyIo, null);
+        automationService.workers.push(worker);
     }
-    globalState.workers = dummyService.workers;
-    globalState.worker = dummyService.workers[0];
+    globalState.workers = automationService.workers;
+    globalState.worker = automationService.workers[0];
 
-    globalState.addLog(`Đang nạp dữ liệu từ API...`);
+    // Nạp Jobs từ API
+    globalState.addLog(`Đang nạp danh sách Job từ API...`);
     let pendingJobs = [];
     try {
         const backendUrl = config.apiUrl;
@@ -177,7 +290,7 @@ async function runBackground(config) {
         let hasMore = true;
         const limit = 100;
 
-        while (hasMore) {
+        while (hasMore && globalState.isRunning) {
             const res = await fetch(`${backendUrl}/flow/veo3?page=${currentPage}&limit=${limit}`, {
                 headers: { 'Authorization': `Bearer ${config.token}` }
             });
@@ -193,6 +306,7 @@ async function runBackground(config) {
             }
         }
 
+        if (!globalState.isRunning) return;
         await autoResetFailedJobs(config, jobs);
 
         pendingJobs = jobs.filter(j => j.status === 'pending' || j.status === 'processing' || j.status === 'uploaded' || j.status === 1);
@@ -201,6 +315,7 @@ async function runBackground(config) {
         globalState.addLog(`Lỗi gọi API lấy Jobs: ${e.message}`);
     }
 
+    if (!globalState.isRunning) return;
     if (pendingJobs.length === 0) {
         globalState.addLog("🎉 [HỆ THỐNG] Không có Job nào cần xử lý!");
         globalState.addLog('[DONE]');
@@ -210,25 +325,16 @@ async function runBackground(config) {
         return;
     }
 
-    globalState.addLog(`\n✅ Đã đẩy toàn bộ Job vào hàng đợi. Chuẩn bị khởi động trình duyệt...`);
+    globalState.addLog(`\n✅ Đã chuẩn bị ${pendingJobs.length} Job. Đang dọn dẹp và khởi động ${globalState.workers.length} trình duyệt...`);
 
-    // Dọn dẹp Chrome cũ
-    try {
-        const { execSync } = require('child_process');
-        for (const w of globalState.workers) {
-            const profilePathStr = w.profilePath || path.join(userDataPath, account.profilePath, 'cloak_' + account.id);
-            if (process.platform === 'win32') {
-                const psCmd = `powershell.exe -NoProfile -Command "Get-CimInstance Win32_Process -Filter \\"Name='chrome.exe' OR Name='msedge.exe'\\" | Where-Object { $_.CommandLine -match '${profilePathStr.replace(/\\/g, '\\\\')}' } | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }"`;
-                execSync(psCmd, { stdio: 'ignore' });
-            } else {
-                execSync(`pkill -f "${profilePathStr}"`, { stdio: 'ignore' });
-            }
-            const lockFile = path.join(profilePathStr, 'SingletonLock');
-            if (fs.existsSync(lockFile)) fs.unlinkSync(lockFile);
+    // Dọn dẹp profile locks cũ an toàn
+    for (const w of globalState.workers) {
+        if (w.profilePath) {
+            BrowserPool.cleanStaleLocks(w.profilePath);
         }
-    } catch (e) {}
+    }
 
-
+    // Launch tất cả các worker
     try {
         await Promise.all(globalState.workers.map(w => w.launch().catch(e => {
             globalState.addLog(`Lỗi khởi động luồng ${w.id}: ${e.message}`);
@@ -237,7 +343,11 @@ async function runBackground(config) {
         throw new Error("Không thể khởi động trình duyệt. Lỗi: " + e.message);
     }
 
-    const activeWorkers = globalState.workers.filter(w => w.browser);
+    if (!globalState.isRunning) {
+        await Promise.all(globalState.workers.map(w => w.close().catch(() => {})));
+        return;
+    }
+    const activeWorkers = globalState.workers.filter(w => w.browser && w.page);
     if (activeWorkers.length === 0) {
         throw new Error("Không thể khởi động trình duyệt tự động trên bất kỳ luồng nào. Vui lòng kiểm tra Task Manager.");
     }
@@ -296,11 +406,14 @@ async function runBackground(config) {
                     break;
                 }
             }
+            if (!globalState.isRunning) break;
             if (jobIndex >= pendingJobs.length) continue;
             
             const currentIndex = jobIndex++;
             const row = pendingJobs[currentIndex];
-            globalState.addLog(`\n>>> Bắt đầu xử lý Job ${currentIndex+1}/${pendingJobs.length} (ID: ${row.id}) trên luồng ${worker.id.replace('worker_', '')} <<<`);
+            if (!row) continue;
+
+            globalState.addLog(`\n>>> Bắt đầu xử lý Job ${currentIndex + 1}/${pendingJobs.length} (ID: ${row.id}) trên luồng ${worker.id} <<<`);
             
             let extractedImages = [];
             if (row.images && Array.isArray(row.images)) {
@@ -331,7 +444,7 @@ async function runBackground(config) {
                     videoSettings: {
                         ratio: config.videoRatio || '16:9',
                         count: 1,
-                        model: 'Veo 3.1 - Lite [Lower Priority]'
+                        model: config.videoModel || 'Veo 3.1 - Lite'
                     }
                 }
             };
@@ -339,42 +452,63 @@ async function runBackground(config) {
             try {
                 await updateApiStatus(config, row.id, 'processing');
 
-                // Chạy Core Worker
-                const result = await worker._internalProcessJob(jobData, OUTPUT_DIR);
+                // Chạy Core Worker (9-step pipeline chuẩn từ worker.js)
+                const jobOutputDir = await prepareOutputDirectory(
+                    '', message => globalState.addLog(message), defaultDirectory(jobData.PROJECT_NAME, OUTPUT_DIR)
+                );
+                globalState.addLog(`Thư mục lưu video: ${jobOutputDir}`);
+                const result = await worker._internalProcessJob(jobData, jobOutputDir);
+                if (!globalState.isRunning) break;
 
                 if (result && result.success && result.file) {
                     globalState.addLog(`✅ Job ${row.id} thành công! Tên file tải về: ${result.file}`);
                     await updateApiStatus(config, row.id, 'Completed');
                 } else {
-                    globalState.addLog(`❌ Job ${row.id} thất bại. Lý do: ${result.reason || 'Không rõ'}`);
+                    const failReason = result?.reason || 'Không rõ';
+                    globalState.addLog(`❌ Job ${row.id} thất bại. Lý do: ${failReason}`);
                     await updateApiStatus(config, row.id, 'Failed');
                     
-                    if (result.fatal) {
-                        globalState.addLog(`⚠️ Lỗi nghiêm trọng (Fatal). Đang khởi động lại trình duyệt cho luồng ${worker.id}...`);
-                        await worker.close(true);
-                        if (!globalState.isRunning) break;
-                        await worker.launch();
+                    if (result?.fatal) {
+                        globalState.addLog(`⚠️ Gặp lỗi nghiêm trọng. Đang khởi động lại trình duyệt cho luồng ${worker.id}...`);
+                        await automationService.restartWorker(worker.id);
                     }
                 }
             } catch (err) {
+                if (!globalState.isRunning) break;
+                if (err.message?.includes('FLOW_CREDITS_EXHAUSTED')) {
+                    globalState.addLog('HẾT CREDIT TẠO VIDEO! TỰ ĐỘNG TẠM DỪNG VÀ ĐÓNG TẤT CẢ TRÌNH DUYỆT. VUI LÒNG NẠP CREDIT TRƯỚC KHI CHẠY TIẾP.');
+                    // stop() drains _runTask; never await it from inside that task.
+                    const stopping = globalState.stop();
+                    stopping.catch(error => globalState.addLog(`LỖI ĐÓNG TRÌNH DUYỆT: ${error.message}`.toUpperCase()));
+                    await updateApiStatus(config, row.id, 'pending');
+                    break;
+                }
+                globalState.addLog(`❌ Lỗi ngoại lệ tại Job ${row.id}: ${err.message}`);
                 await updateApiStatus(config, row.id, 'Failed');
+                if (err.message?.startsWith('FLOW_SETTINGS_SUMMARY_MISMATCH')) {
+                    globalState.addLog(`[Job ${row.id}] Cấu hình hiển thị không khớp ban đầu. Bỏ qua job, giữ trình duyệt và không mở lại cài đặt.`);
+                    continue;
+                }
+                if (err.message?.startsWith('PROMPT_ENTRY_VERIFY_FAILED')) {
+                    globalState.addLog(`[Job ${row.id}] Không xác nhận được prompt. Giữ trình duyệt, bỏ qua job này; không gửi lệnh tạo video.`);
+                    continue;
+                }
                 try {
-                    await worker.close(true);
-                    if (!globalState.isRunning) break;
-                    await worker.launch();
-                } catch(e) {}
+                    await automationService.restartWorker(worker.id);
+                } catch (e) {}
             }
         }
     }
 
     await Promise.all(activeWorkers.map(w => processWorker(w)));
+    if (!globalState.isRunning) return;
 
-    globalState.addLog(`\n🎉 [HỆ THỐNG] Đã chạy xong tất cả các Job trong hàng đợi!`);
+    globalState.addLog(`\n🎉 [HỆ THỐNG] Đã hoàn tất tất cả các Job trong hàng đợi!`);
     
-    // Đóng trình duyệt sau khi xong
+    // Đóng trình duyệt sau khi hoàn thành
     try {
         await Promise.all(activeWorkers.map(w => w.close()));
-    } catch(e) {}
+    } catch (e) {}
 
     globalState.addLog('[DONE]');
     globalState.isRunning = false;
@@ -399,15 +533,6 @@ async function updateApiStatus(config, jobId, status) {
         globalState.addLog(`[LỖI API] Không thể cập nhật trạng thái: ${e.message}`);
     }
 }
-
-module.exports = {
-    globalState,
-    startAutomation,
-    stopAutomation: () => globalState.stop(),
-    autoResetFailedJobs
-};
-
-
 
 async function autoResetFailedJobs(config, fetchedJobs = null) {
     let resetJobIds = [];
@@ -434,7 +559,7 @@ async function autoResetFailedJobs(config, fetchedJobs = null) {
                     hasMore = false;
                 }
             }
-        } catch(e) { return resetJobIds; }
+        } catch (e) { return resetJobIds; }
     }
     
     if (!jobs) return resetJobIds;
@@ -461,3 +586,10 @@ async function autoResetFailedJobs(config, fetchedJobs = null) {
     }
     return resetJobIds;
 }
+
+module.exports = {
+    globalState,
+    startAutomation,
+    stopAutomation: () => globalState.stop(),
+    autoResetFailedJobs
+};

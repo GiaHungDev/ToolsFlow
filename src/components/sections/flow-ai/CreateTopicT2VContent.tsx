@@ -7,7 +7,28 @@ import Results from "./modals/Results";
 import { LoaderIcon, TrashIcon, UploadIcon } from "./modals/Icon";
 import { useListPromptModal } from "@/hooks/flow-ai/useListPromptModal";
 import { Notify } from "@/lib/Notify";
+import { getGeminiErrorMessage } from "@/lib/geminiErrorMessage";
+import {
+  Select,
+  SelectContent,
+  SelectGroup,
+  SelectItem,
+  SelectLabel,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
+const aiModelOptions = [
+  { value: "gemini-flash-lite-latest", label: "Gemini 2.5 Flash Lite (Mặc định)" },
+  { value: "gemini-flash-latest", label: "Gemini 2.5 Flash (Sáng tạo hơn)" },
+  { value: "gemini-3-flash-preview", label: "Gemini 3 Flash" },
+  { value: "gemini-3.1-pro-preview", label: "Gemini 3.1 Pro" },
+  { value: "gemini-3.5-flash", label: "Gemini 3.5 Flash" },
+  { value: "gemini-3.5-flash-lite", label: "Gemini 3.5 Flash Lite" },
+  { value: "gemini-3.6-flash", label: "Gemini 3.6 Flash" },
+  { value: "gemini-3.7-flash", label: "Gemini 3.7 Flash" },
+  { value: "gemini-3.8-flash", label: "Gemini 3.8 Flash" },
+];
 
 
 let ipcRenderer: any = null;
@@ -421,8 +442,8 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
 
         if (ipcRenderer) ipcRenderer.invoke("increment-prompt-count");
       } else throw new Error("Invalid AI response");
-    } catch (err: any) {
-      onFeedback({ type: "error", message: `Lỗi: ${err.message}` });
+    } catch (err: unknown) {
+      onFeedback({ type: "error", message: getGeminiErrorMessage(err) });
     } finally {
       setIsLoading(false);
     }
@@ -463,15 +484,13 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
 
               <div className="bg-white/80 p-5 rounded-[32px] shadow-sm border-4 border-white relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-2 h-full bg-cute-mint"></div>
-                <div className="absolute -top-6 -right-6 text-6xl opacity-10 rotate-12 select-none">
-                  ⛄
-                </div>
-                <h3 className="text-cute-mint-dark font-black uppercase text-xs mb-6 tracking-widest flex items-center gap-2 pb-2">
+               
+                <h3 className="text-lg font-bold text-stone-800 normal-case mb-6 tracking-normal flex items-center gap-2 pb-2">
                   1. Nội Dung Cốt Lõi
                 </h3>
                 {videoType === "story" ? (
                   <div>
-                    <label className="block text-[12px] font-bold text-stone-400 uppercase tracking-widest mb-2">
+                    <label className="text-sm font-semibold text-stone-700 block normal-case tracking-normal mb-2">
                       Ý Tưởng / Lời Bài Hát
                     </label>
                     <textarea
@@ -486,7 +505,7 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-2">
+                      <label className="text-sm font-semibold text-stone-700 block normal-case tracking-normal mb-2">
                         Không khí / Bối cảnh Live
                       </label>
                       <textarea
@@ -500,7 +519,7 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                     </div>
                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                       <div>
-                        <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-2">
+                        <label className="text-sm font-semibold text-stone-700 block normal-case tracking-normal mb-2">
                           Tên Ca Sĩ
                         </label>
                         <input
@@ -513,14 +532,14 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                         />
                       </div>
                       <div>
-                        <label className="block text-[10px] font-bold text-stone-400 uppercase tracking-widest mb-2">
+                        <label className="text-sm font-semibold text-stone-700 block normal-case tracking-normal mb-2">
                           Ảnh Ca Sĩ (AI nhận diện)
                         </label>
                         <input
                           type="file"
                           accept="image/*"
                           onChange={handleImageUpload}
-                          className="w-full p-2 text-stone-500 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-bold file:bg-stone-200 file:text-stone-700 hover:file:bg-stone-300 border-2 border-cute-mint/30 bg-cute-cream rounded-2xl cursor-pointer"
+                          className="w-full p-2 text-stone-500 text-sm file:mr-4 file:py-2 file:px-4 file:rounded-full file:border-0 file:text-xs file:font-semibold file:bg-stone-200 file:text-stone-700 hover:file:bg-stone-300 border-2 border-cute-mint/30 bg-cute-cream rounded-2xl cursor-pointer"
                         />
                       </div>
                     </div>
@@ -530,10 +549,8 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
 
               <div className="bg-white/80 p-5 rounded-[32px] shadow-sm border-4 border-white relative overflow-hidden group">
                 <div className="absolute top-0 left-0 w-2 h-full bg-cute-yellow"></div>
-                <div className="absolute -top-4 -right-2 text-6xl opacity-10 -rotate-12 select-none">
-                  🎨
-                </div>
-                <h3 className="text-stone-600 font-black uppercase text-xs mb-6 tracking-widest flex items-center gap-2 pb-2">
+              
+                <h3 className="text-lg font-bold text-stone-800 normal-case mb-6 tracking-normal flex items-center gap-2 pb-2">
                   2. Định Hướng Nghệ Thuật
                 </h3>
 
@@ -541,7 +558,7 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                   <div className="flex flex-col md:flex-row gap-6">
                     <div className="w-full md:w-1/3 flex flex-col gap-3">
                       <div>
-                        <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-1">
+                        <label className="text-sm font-semibold text-stone-700 block normal-case tracking-normal mb-1">
                           Quốc Gia
                         </label>
                         <div className="relative">
@@ -577,7 +594,7 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-1">
+                        <label className="text-sm font-semibold text-stone-700 block normal-case tracking-normal mb-1">
                           Nhạc nền
                         </label>
                         <div className="relative">
@@ -626,7 +643,7 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-1">
+                        <label className="text-sm font-semibold text-stone-700 block normal-case tracking-normal mb-1">
                           Thể Loại MV
                         </label>
                         <div className="relative">
@@ -662,7 +679,7 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                       </div>
 
                       <div>
-                        <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-1">
+                        <label className="text-sm font-semibold text-stone-700 block normal-case tracking-normal mb-1">
                           Phong Cách Quay
                         </label>
                         <div className="relative">
@@ -699,7 +716,7 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                     </div>
 
                     <div className="w-full md:w-2/3 flex flex-col justify-center border-2 border-stone-100 rounded-2xl bg-stone-50/50 p-4">
-                      <label className="block text-[10px] font-semibold text-stone-400 uppercase tracking-widest mb-3 text-center">
+                      <label className="text-sm font-semibold text-stone-700 block normal-case tracking-normal mb-3 text-center">
                         Ảnh Gốc (Tự Động I2V)
                       </label>
                       <div className="flex flex-col gap-3 w-full">
@@ -752,7 +769,7 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                     🎅
                   </div>
                   <div className="flex items-center justify-between mb-2 pb-2">
-                    <h3 className="text-cute-pink-dark font-black uppercase text-xs tracking-widest">
+                    <h3 className="text-lg font-bold text-stone-800 normal-case tracking-normal">
                       3. Nhân Vật & Diễn Viên
                     </h3>
                   </div>
@@ -769,11 +786,11 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                       <div>
                         <label
                           htmlFor="charConsistency"
-                          className="text-sm font-bold text-stone-700 cursor-pointer select-none tracking-wide block"
+                          className="text-sm font-semibold text-stone-700 cursor-pointer select-none tracking-normal block"
                         >
                           Đồng nhất nhân vật
                         </label>
-                        <span className="text-[10px] text-stone-400">
+                        <span className="text-xs text-stone-400">
                           AI sẽ giữ ngoại hình nhân vật giống nhau.
                         </span>
                       </div>
@@ -781,7 +798,7 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
 
                     {formData.characterConsistency && (
                       <div className="flex items-center gap-4 bg-cute-cream px-6 py-1.5 rounded-xl border border-cute-mint/20 w-full justify-between">
-                        <label className="text-[9px] text-stone-500 uppercase font-bold tracking-wider">
+                        <label className="text-sm font-semibold text-stone-700 normal-case tracking-normal">
                           Số lượng:
                         </label>
                         <input
@@ -791,7 +808,7 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                           onChange={handleInputChange}
                           min={1}
                           max={3}
-                          className="w-10 bg-white border border-stone-200 rounded-lg p-0.5 text-center text-stone-800 font-bold text-base focus:border-stone-400 focus:outline-none transition-all"
+                          className="w-10 bg-white border border-stone-200 rounded-lg p-0.5 text-center text-stone-800 font-semibold text-base focus:border-stone-400 focus:outline-none transition-all"
                         />
                       </div>
                     )}
@@ -799,17 +816,17 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                 </div>
               )}
 
-              <div className="bg-white/90 p-5 rounded-[32px] border-4 border-white shadow-xl backdrop-blur-md relative overflow-hidden">
+              <div className="bg-white/90 p-5 rounded-[32px] border-4 border-white shadow-xl backdrop-blur-md relative overflow-hidden font-sans text-sm font-normal tracking-normal normal-case">
                 <div className="absolute -top-6 -right-6 text-6xl opacity-10 rotate-12 select-none">
                   ❄️
                 </div>
-                <h3 className="text-cute-brown font-black uppercase text-xs mb-6 pb-2 tracking-widest flex items-center gap-2">
-                  Cấu hình Dự Án
+                <h3 className="text-lg font-bold text-stone-800 normal-case mb-6 pb-2 tracking-normal flex items-center gap-2">
+                  Cấu hình dự án
                 </h3>
 
                 <div className="mb-5">
-                  <label className="block text-[12px] font-semibold text-stone-400 uppercase tracking-widest mb-2">
-                    Thời lượng (Max 15 phút)
+                  <label className="text-sm font-semibold text-stone-700 block normal-case tracking-normal mb-2">
+                    Thời lượng (tối đa 15 phút)
                   </label>
 
                   <div className="flex gap-4 mt-5">
@@ -817,7 +834,7 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                     <div className="relative flex-1 group">
                       <button
                         onClick={() => adjustTime("songMinutes", -1)}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-stone-400 hover:bg-rose-100 hover:text-rose-500 transition border border-stone-100 font-bold z-10"
+                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-stone-400 hover:bg-rose-100 hover:text-rose-500 transition border border-stone-100 font-semibold z-10"
                       >
                         -
                       </button>
@@ -829,25 +846,25 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                         onChange={handleInputChange}
                         min="0"
                         max="15"
-                        className="w-full bg-cute-cream border-2 border-cute-mint/30 rounded-2xl py-3 px-12 text-center font-black text-xl text-stone-700 focus:border-cute-pink transition shadow-inner"
+                        className="w-full bg-cute-cream border-2 border-cute-mint/30 rounded-2xl py-3 px-12 text-center font-semibold text-sm text-stone-800 focus:border-cute-pink transition shadow-inner"
                         placeholder="0"
                       />
 
                       <button
                         onClick={() => adjustTime("songMinutes", 1)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-stone-400 hover:bg-emerald-100 hover:text-emerald-500 transition border border-stone-100 font-bold z-10"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-stone-400 hover:bg-emerald-100 hover:text-emerald-500 transition border border-stone-100 font-semibold z-10"
                       >
                         +
                       </button>
 
-                      <span className="absolute -top-4 right-2 text-stone-400 text-[12px] uppercase font-bold bg-white px-1 rounded">
+                      <span className="absolute -top-4 right-2 text-stone-700 text-sm normal-case font-semibold bg-white px-1 rounded">
                         Phút
                       </span>
                     </div>
                     <div className="relative flex-1 group">
                       <button
                         onClick={() => adjustTime("songSeconds", -10)}
-                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-stone-400 hover:bg-rose-100 hover:text-rose-500 transition border border-stone-100 font-bold z-10"
+                        className="absolute left-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-stone-400 hover:bg-rose-100 hover:text-rose-500 transition border border-stone-100 font-semibold z-10"
                       >
                         -
                       </button>
@@ -859,18 +876,18 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                         onChange={handleInputChange}
                         min="0"
                         max="59"
-                        className="w-full bg-cute-cream border-2 border-cute-mint/30 rounded-2xl py-3 px-12 text-center font-black text-xl text-stone-700 focus:border-cute-pink transition shadow-inner"
+                        className="w-full bg-cute-cream border-2 border-cute-mint/30 rounded-2xl py-3 px-12 text-center font-semibold text-sm text-stone-800 focus:border-cute-pink transition shadow-inner"
                         placeholder="00"
                       />
 
                       <button
                         onClick={() => adjustTime("songSeconds", 10)}
-                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-stone-400 hover:bg-emerald-100 hover:text-emerald-500 transition border border-stone-100 font-bold z-10"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 w-8 h-8 flex items-center justify-center bg-white rounded-full shadow-sm text-stone-400 hover:bg-emerald-100 hover:text-emerald-500 transition border border-stone-100 font-semibold z-10"
                       >
                         +
                       </button>
 
-                      <span className="absolute -top-4 right-2 text-stone-400 text-[12px] uppercase font-bold bg-white px-1 rounded">
+                      <span className="absolute -top-4 right-2 text-stone-700 text-sm normal-case font-semibold bg-white px-1 rounded">
                         Giây
                       </span>
                     </div>
@@ -878,50 +895,53 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                 </div>
 
                 <div className="mb-5">
-                  <label className="block text-[12px] font-semibold text-stone-400 uppercase tracking-widest mb-2">
+                  <label htmlFor="topic-ai-model" className="text-sm font-semibold text-stone-700 block normal-case tracking-normal mb-2">
                     Model AI
                   </label>
-                  <div className="relative">
-                    <select
-                      name="model"
-                      value={formData.model}
-                      onChange={handleInputChange}
-                      className="w-full bg-cute-cream border-2 border-cute-mint/30 rounded-2xl p-3 pr-10 text-sm focus:border-cute-pink appearance-none cursor-pointer transition-all"
+                  <Select
+                    name="model"
+                    value={formData.model}
+                    onValueChange={(model) => setFormData((prev) => ({ ...prev, model }))}
+                  >
+                    <SelectTrigger
+                      id="topic-ai-model"
+                      className="h-12 rounded-2xl border border-stone-200 bg-white px-4 text-left text-sm font-normal text-stone-700 shadow-sm transition-all hover:border-stone-300 focus:ring-2 focus:ring-stone-200 focus:ring-offset-2 data-[state=open]:border-stone-400 [&>svg]:shrink-0 [&>svg]:text-stone-400 [&>svg]:transition-transform [&[data-state=open]>svg]:rotate-180"
                     >
-                      <option value="gemini-flash-lite-latest">
-                        Gemini 2.5 Flash Lite (Mặc định)
-                      </option>
-                      <option value="gemini-flash-latest">
-                        Gemini 2.5 Flash (Sáng tạo hơn)
-                      </option>
-                    </select>
-
-                    <div className="absolute right-4 top-1/2 -translate-y-1/2 pointer-events-none text-stone-400">
-                      <svg
-                        xmlns="http://www.w3.org/2000/svg"
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        strokeWidth={2.5}
-                        stroke="currentColor"
-                        className="w-4 h-4"
-                      >
-                        <path
-                          strokeLinecap="round"
-                          strokeLinejoin="round"
-                          d="m19.5 8.25-7.5 7.5-7.5-7.5"
-                        />
-                      </svg>
-                    </div>
-                  </div>
+                      <SelectValue placeholder="Chọn model AI" />
+                    </SelectTrigger>
+                    <SelectContent
+                      position="popper"
+                      side="bottom"
+                      align="start"
+                      avoidCollisions={false}
+                      sideOffset={6}
+                      className="z-[100] max-h-[min(360px,var(--radix-select-content-available-height))] w-[var(--radix-select-trigger-width)] min-w-0 rounded-2xl border-stone-200 bg-white p-1 text-stone-700 shadow-xl shadow-black/10"
+                    >
+                      <SelectGroup>
+                        <SelectLabel className="px-3 py-2 text-xs font-semibold normal-case tracking-normal text-stone-400">
+                          Google Gemini · {aiModelOptions.length} model
+                        </SelectLabel>
+                        {aiModelOptions.map((model) => (
+                          <SelectItem
+                            key={model.value}
+                            value={model.value}
+                            className="my-0.5 cursor-pointer rounded-xl py-3 pl-3 pr-9 transition-colors focus:bg-stone-100 focus:text-stone-900 data-[state=checked]:bg-stone-50 data-[state=checked]:font-semibold data-[state=checked]:text-stone-900"
+                          >
+                            {model.label}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
                 </div>
 
                 <div className="mb-8 bg-stone-50 p-3 rounded-2xl border-2 border-stone-100">
                   <div className="flex justify-between mb-2">
-                    <label className="text-[12px] font-semibold text-stone-400 uppercase tracking-widest">
+                    <label className="text-sm font-semibold text-stone-700 normal-case tracking-normal">
                       Sáng tạo
                     </label>
                     <span
-                      className={`text-[9px] font-bold uppercase tracking-wide px-2 py-0.5 rounded-full ${formData.temperature < 0.5
+                      className={`text-xs font-medium px-2 py-0.5 rounded-full ${formData.temperature < 0.5
                         ? "bg-emerald-100 text-emerald-600"
                         : formData.temperature < 0.8
                           ? "bg-yellow-100 text-yellow-600"
@@ -950,14 +970,14 @@ const CreateTopicT2VContent: React.FC<CreateTopicT2VContentProps> = ({
                 <button
                   onClick={generatePrompts}
                   disabled={isLoading}
-                  className="w-full py-4 bg-stone-200/50 hover:bg-stone-200/80 text-stone-700 font-bold text-sm uppercase tracking-widest rounded-2xl shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:transform-none flex items-center justify-center gap-3 border-4 border-white/60"
+                  className="w-full py-4 bg-stone-200/50 hover:bg-stone-200/80 text-stone-700 font-semibold text-sm normal-case tracking-normal rounded-2xl shadow-sm hover:shadow-md transform hover:-translate-y-0.5 transition-all disabled:opacity-50 disabled:transform-none flex items-center justify-center gap-3 border-4 border-white/60"
                 >
                   {isLoading ? (
                     <>
-                      <LoaderIcon /> PROCESSING...
+                      <LoaderIcon /> Đang tạo kịch bản...
                     </>
                   ) : (
-                    "✨ TẠO KỊCH BẢN"
+                    "Tạo kịch bản"
                   )}
                 </button>
               </div>

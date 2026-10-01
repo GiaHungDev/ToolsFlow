@@ -42,7 +42,10 @@ async function startNextJSServer() {
   const url = `http://127.0.0.1:${port}`;
 
   if (isDev) {
-    // In dev, Next.js is started externally via concurrently
+    // Trong dev mode, Next.js có thể chạy ở port 3001 nếu NestJS backend dùng port 3000
+    const url3001 = 'http://127.0.0.1:3001';
+    const is3001 = await waitForServer(url3001, 3000);
+    if (is3001) return url3001;
     await waitForServer(url);
     return url;
   } else {

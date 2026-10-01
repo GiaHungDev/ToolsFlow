@@ -538,7 +538,7 @@ const TableSection: React.FC<TableSectionProp> = ({
     const filters = [];
     if (appliedFilters?.projectName) {
       filters.push(
-        <Badge key="project" variant="secondary" className="px-4 py-2 text-base font-normal bg-blue-50 text-blue-700 border border-blue-200">
+        <Badge key="project" variant="secondary" className="px-4 py-2 text-sm font-normal bg-blue-50 text-blue-700 border border-blue-200">
           Dự án: <span className="font-semibold ml-1">{appliedFilters.projectName}</span>
         </Badge>
       );
@@ -546,7 +546,7 @@ const TableSection: React.FC<TableSectionProp> = ({
     if (appliedFilters?.status) {
       const statusLabel = videoStatusTable.find((s) => s.status.toLowerCase() === appliedFilters.status.toLowerCase())?.label || appliedFilters.status;
       filters.push(
-        <Badge key="status" variant="secondary" className="px-4 py-2 text-base font-normal bg-emerald-50 text-emerald-700 border border-emerald-200">
+        <Badge key="status" variant="secondary" className="px-4 py-2 text-sm font-normal bg-emerald-50 text-emerald-700 border border-emerald-200">
           Trạng thái: <span className="font-semibold ml-1">{statusLabel}</span>
         </Badge>
       );
@@ -555,7 +555,7 @@ const TableSection: React.FC<TableSectionProp> = ({
       const from = dayjs(appliedFilters.startDate).format("DD/MM/YYYY");
       const to = appliedFilters.endDate ? dayjs(appliedFilters.endDate).format("DD/MM/YYYY") : from;
       filters.push(
-        <Badge key="date" variant="secondary" className="px-4 py-2 text-base font-normal bg-purple-50 text-purple-700 border border-purple-200">
+        <Badge key="date" variant="secondary" className="px-4 py-2 text-sm font-normal bg-purple-50 text-purple-700 border border-purple-200">
           Thời gian: <span className="font-semibold ml-1">{from} - {to}</span>
         </Badge>
       );
@@ -565,7 +565,7 @@ const TableSection: React.FC<TableSectionProp> = ({
 
     return (
       <div className="flex flex-wrap gap-4 mt-5 items-center">
-        <span className="text-lg text-gray-700 font-medium mr-2 flex items-center">
+        <span className="text-sm text-gray-700 font-medium mr-2 flex items-center">
           <Search className="w-6 h-6 mr-2 text-gray-500" />
           Đang lọc theo:
         </span>
@@ -621,7 +621,7 @@ const TableSection: React.FC<TableSectionProp> = ({
               <div className="space-y-4 mt-2">
                 <p>Chọn các video bạn muốn xóa dựa theo trạng thái:</p>
                 <div className="space-y-3 bg-stone-50 p-4 rounded-xl border border-stone-200">
-                  <label className="flex items-center gap-3 cursor-pointer">
+                  <label className="text-sm font-semibold text-stone-700 flex items-center gap-3 cursor-pointer">
                     <Checkbox 
                       checked={selectedDeleteStatuses.success}
                       onCheckedChange={(c) => setSelectedDeleteStatuses(p => ({ ...p, success: !!c }))}
@@ -629,7 +629,7 @@ const TableSection: React.FC<TableSectionProp> = ({
                     <span className="flex-1 text-sm font-medium">Thành công</span>
                     <Badge variant="outline" className="bg-blue-50 text-blue-700">{projectStats.success.length}</Badge>
                   </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
+                  <label className="text-sm font-semibold text-stone-700 flex items-center gap-3 cursor-pointer">
                     <Checkbox 
                       checked={selectedDeleteStatuses.failed}
                       onCheckedChange={(c) => setSelectedDeleteStatuses(p => ({ ...p, failed: !!c }))}
@@ -637,7 +637,7 @@ const TableSection: React.FC<TableSectionProp> = ({
                     <span className="flex-1 text-sm font-medium">Thất bại / Lỗi</span>
                     <Badge variant="outline" className="bg-red-50 text-red-700">{projectStats.failed.length}</Badge>
                   </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
+                  <label className="text-sm font-semibold text-stone-700 flex items-center gap-3 cursor-pointer">
                     <Checkbox 
                       checked={selectedDeleteStatuses.processing}
                       onCheckedChange={(c) => setSelectedDeleteStatuses(p => ({ ...p, processing: !!c }))}
@@ -645,7 +645,7 @@ const TableSection: React.FC<TableSectionProp> = ({
                     <span className="flex-1 text-sm font-medium">Đang xử lý</span>
                     <Badge variant="outline" className="bg-orange-50 text-orange-700">{projectStats.processing.length}</Badge>
                   </label>
-                  <label className="flex items-center gap-3 cursor-pointer">
+                  <label className="text-sm font-semibold text-stone-700 flex items-center gap-3 cursor-pointer">
                     <Checkbox 
                       checked={selectedDeleteStatuses.other}
                       onCheckedChange={(c) => setSelectedDeleteStatuses(p => ({ ...p, other: !!c }))}

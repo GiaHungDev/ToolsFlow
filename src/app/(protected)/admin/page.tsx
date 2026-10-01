@@ -63,6 +63,17 @@ import {
   FileSpreadsheet,
   RefreshCw,
   Bell,
+  Trophy,
+  Medal,
+  Crown,
+  Flame,
+  Award,
+  TrendingUp,
+  CheckCircle,
+  Clock,
+  XCircle,
+  Sparkles,
+  Filter,
 } from "lucide-react";
 
 function getDatesFromWeekString(weekStr: string): { startDate: string; endDate: string } | null {
@@ -252,6 +263,41 @@ export default function AdminPage() {
   const [adminStatsData, setAdminStatsData] = useState<any>(null);
   const [isAdminStatsLoading, setIsAdminStatsLoading] = useState(false);
   const [isExporting, setIsExporting] = useState(false);
+
+  // Ranking and Stats Sub-tab State
+  const [statsSubTab, setStatsSubTab] = useState<"ranking" | "groups" | "overview">("ranking");
+  const [statsTopLimit, setStatsTopLimit] = useState<string | number>(10);
+  const [rankingSearchTerm, setRankingSearchTerm] = useState("");
+  const [timePreset, setTimePreset] = useState<"all" | "today" | "week" | "month" | "year" | "custom">("all");
+
+  const handleTimePresetChange = (preset: "all" | "today" | "week" | "month" | "year" | "custom") => {
+    setTimePreset(preset);
+    const now = new Date();
+    const todayStr = now.toISOString().split("T")[0];
+
+    if (preset === "all") {
+      setStatsStartDate("");
+      setStatsEndDate("");
+    } else if (preset === "today") {
+      setStatsStartDate(todayStr);
+      setStatsEndDate(todayStr);
+    } else if (preset === "week") {
+      const day = now.getDay();
+      const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+      const monday = new Date(now);
+      monday.setDate(diff);
+      setStatsStartDate(monday.toISOString().split("T")[0]);
+      setStatsEndDate(todayStr);
+    } else if (preset === "month") {
+      const firstDay = new Date(now.getFullYear(), now.getMonth(), 1);
+      setStatsStartDate(firstDay.toISOString().split("T")[0]);
+      setStatsEndDate(todayStr);
+    } else if (preset === "year") {
+      const firstDay = new Date(now.getFullYear(), 0, 1);
+      setStatsStartDate(firstDay.toISOString().split("T")[0]);
+      setStatsEndDate(todayStr);
+    }
+  };
 
   const fetchAdminStats = async () => {
     try {
@@ -1347,13 +1393,76 @@ export default function AdminPage() {
       <div className="mb-8">
         {activeTab === "stats" ? (
           <div className="space-y-6">
-            {/* Filter Panel */}
-            <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm grid grid-cols-1 md:grid-cols-4 gap-4 items-end">
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Từ ngày</label>
+            {/* Sub-tab Navigation Bar */}
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-2 rounded-2xl border border-gray-200 shadow-sm">
+              <div className="flex items-center gap-1.5 p-1 bg-gray-100/80 rounded-xl">
+                <button
+                  onClick={() => setStatsSubTab("ranking")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    statsSubTab === "ranking"
+                      ? "bg-white text-emerald-700 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <Trophy className="h-4 w-4 text-amber-500" />
+                  <span>Bảng xếp hạng (Top Video)</span>
+                </button>
+                <button
+                  onClick={() => setStatsSubTab("groups")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    statsSubTab === "groups"
+                      ? "bg-white text-emerald-700 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <Users className="h-4 w-4 text-indigo-500" />
+                  <span>Thống kê theo Nhóm</span>
+                </button>
+                <button
+                  onClick={() => setStatsSubTab("overview")}
+                  className={`flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all ${
+                    statsSubTab === "overview"
+                      ? "bg-white text-emerald-700 shadow-sm"
+                      : "text-gray-600 hover:text-gray-900"
+                  }`}
+                >
+                  <BarChart2 className="h-4 w-4 text-emerald-500" />
+                  <span>Tổng quan hệ thống</span>
+                </button>
+              </div>
+
+              {/* Quick Time Presets */}
+              <div className="flex items-center gap-1 bg-gray-50 p-1 rounded-xl border border-gray-200 text-xs">
+                {[
+                  { key: "all", label: "Tất cả" },
+                  { key: "today", label: "Hôm nay" },
+                  { key: "week", label: "Tuần này" },
+                  { key: "month", label: "Tháng này" },
+                  { key: "year", label: "Năm này" },
+                ].map((item) => (
+                  <button
+                    key={item.key}
+                    onClick={() => handleTimePresetChange(item.key as any)}
+                    className={`px-3 py-1.5 rounded-lg font-medium transition ${
+                      timePreset === item.key
+                        ? "bg-emerald-600 text-white shadow-xs font-semibold"
+                        : "text-gray-600 hover:bg-gray-200/60"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+
+            {/* Filter Toolbar Panel */}
+            <div className="bg-white p-5 rounded-2xl border border-gray-200 shadow-sm flex flex-wrap items-end gap-4">
+              <div className="w-44">
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Từ ngày</label>
                 <DatePicker
                   value={statsStartDate ? new Date(statsStartDate) : null}
                   onChange={(date: Date | null) => {
+                    setTimePreset("custom");
                     if (date) {
                       const offset = date.getTimezoneOffset();
                       const localDate = new Date(date.getTime() - (offset * 60 * 1000));
@@ -1362,15 +1471,16 @@ export default function AdminPage() {
                       setStatsStartDate("");
                     }
                   }}
-                  className="w-full text-gray-700"
+                  className="w-full text-gray-700 text-sm"
                   placeholder="Chọn ngày"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Đến ngày</label>
+              <div className="w-44">
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Đến ngày</label>
                 <DatePicker
                   value={statsEndDate ? new Date(statsEndDate) : null}
                   onChange={(date: Date | null) => {
+                    setTimePreset("custom");
                     if (date) {
                       const offset = date.getTimezoneOffset();
                       const localDate = new Date(date.getTime() - (offset * 60 * 1000));
@@ -1379,14 +1489,14 @@ export default function AdminPage() {
                       setStatsEndDate("");
                     }
                   }}
-                  className="w-full text-gray-700"
+                  className="w-full text-gray-700 text-sm"
                   placeholder="Chọn ngày"
                 />
               </div>
-              <div>
-                <label className="block text-sm font-semibold text-gray-700 mb-1.5">Nhóm</label>
+              <div className="w-48">
+                <label className="block text-xs font-semibold text-gray-700 mb-1">Nhóm</label>
                 <Select value={statsGroupId ? String(statsGroupId) : "all"} onValueChange={(val) => setStatsGroupId(val === "all" ? "" : val)}>
-                  <SelectTrigger className="px-4 py-2.5 h-[42px] w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white text-gray-700 font-medium">
+                  <SelectTrigger className="px-3 py-2 h-[38px] w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white text-gray-700 font-medium">
                     <SelectValue placeholder="Tất cả nhóm" />
                   </SelectTrigger>
                   <SelectContent className="rounded-xl border-gray-200">
@@ -1397,11 +1507,51 @@ export default function AdminPage() {
                   </SelectContent>
                 </Select>
               </div>
-              <div>
+
+              {statsSubTab === "ranking" && (
+                <>
+                  <div className="w-36">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Hiển thị Top</label>
+                    <Select value={String(statsTopLimit)} onValueChange={(val) => setStatsTopLimit(val === "all" ? "all" : Number(val))}>
+                      <SelectTrigger className="px-3 py-2 h-[38px] w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition bg-white text-gray-700 font-medium">
+                        <SelectValue placeholder="Top 10" />
+                      </SelectTrigger>
+                      <SelectContent className="rounded-xl border-gray-200">
+                        <SelectItem value="5">Top 5</SelectItem>
+                        <SelectItem value="10">Top 10</SelectItem>
+                        <SelectItem value="20">Top 20</SelectItem>
+                        <SelectItem value="50">Top 50</SelectItem>
+                        <SelectItem value="all">Tất cả</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="flex-1 min-w-[200px]">
+                    <label className="block text-xs font-semibold text-gray-700 mb-1">Tìm thành viên</label>
+                    <div className="relative">
+                      <Search className="absolute left-3 top-2.5 h-4 w-4 text-gray-400" />
+                      <input
+                        type="text"
+                        value={rankingSearchTerm}
+                        onChange={(e) => setRankingSearchTerm(e.target.value)}
+                        placeholder="Tìm theo username hoặc nhóm..."
+                        className="pl-9 pr-3 py-1.5 h-[38px] w-full border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-emerald-500/20 focus:border-emerald-500 transition"
+                      />
+                      {rankingSearchTerm && (
+                        <button onClick={() => setRankingSearchTerm("")} className="absolute right-2.5 top-2.5 text-gray-400 hover:text-gray-600">
+                          <X className="h-4 w-4" />
+                        </button>
+                      )}
+                    </div>
+                  </div>
+                </>
+              )}
+
+              <div className="ml-auto">
                 <button
                   onClick={handleExportExcel}
                   disabled={isExporting}
-                  className="px-5 py-2.5 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow transition flex items-center justify-center gap-2 disabled:opacity-60 h-10 w-full"
+                  className="px-5 py-2 bg-emerald-600 text-white rounded-xl text-sm font-semibold hover:bg-emerald-700 shadow transition flex items-center justify-center gap-2 disabled:opacity-60 h-[38px]"
                 >
                   {isExporting ? <Loader2 className="h-4 w-4 animate-spin" /> : <FileSpreadsheet className="h-4 w-4" />}
                   <span>Xuất Excel</span>
@@ -1409,78 +1559,327 @@ export default function AdminPage() {
               </div>
             </div>
 
-            {/* Stats Dashboard View */}
+            {/* Content View */}
             {isAdminStatsLoading ? (
-              <div className="py-12 flex flex-col items-center justify-center text-gray-500 bg-white rounded-2xl border border-gray-200">
+              <div className="py-16 flex flex-col items-center justify-center text-gray-500 bg-white rounded-2xl border border-gray-200 shadow-sm">
                 <Loader2 className="h-10 w-10 animate-spin text-emerald-600 mb-4" />
-                <p className="font-medium">Đang phân tích số liệu hệ thống...</p>
+                <p className="font-semibold text-gray-700">Đang phân tích số liệu hệ thống...</p>
+                <p className="text-xs text-gray-400 mt-1">Vui lòng đợi trong giây lát</p>
               </div>
             ) : adminStatsData ? (
               <div className="space-y-6">
-                {/* Summary Cards */}
-                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
-                    <p className="text-sm text-gray-500 font-medium">Tổng số Video</p>
-                    <h3 className="text-3xl font-bold text-gray-900 mt-2">{adminStatsData.summary.total}</h3>
-                  </div>
-                  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between border-l-4 border-l-emerald-500">
-                    <p className="text-sm text-emerald-600 font-medium">Thành công</p>
-                    <h3 className="text-3xl font-bold text-emerald-700 mt-2">{adminStatsData.summary.completed}</h3>
-                  </div>
-                  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between border-l-4 border-l-red-500">
-                    <p className="text-sm text-red-600 font-medium">Thất bại</p>
-                    <h3 className="text-3xl font-bold text-red-700 mt-2">{adminStatsData.summary.failed}</h3>
-                  </div>
-                  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between border-l-4 border-l-amber-500">
-                    <p className="text-sm text-amber-600 font-medium">Đang xử lý</p>
-                    <h3 className="text-3xl font-bold text-amber-700 mt-2">{adminStatsData.summary.processing}</h3>
-                  </div>
-                  <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between bg-gradient-to-tr from-indigo-50 to-blue-50 border-l-4 border-l-indigo-500">
-                    <p className="text-sm text-indigo-600 font-medium">Tỷ lệ thành công</p>
-                    <h3 className="text-3xl font-bold text-indigo-700 mt-2">{adminStatsData.summary.successRate}</h3>
-                  </div>
-                </div>
+                {/* 1. RANKING SUB-TAB */}
+                {statsSubTab === "ranking" && (() => {
+                  const allRankings = (adminStatsData.userRanking || []) as any[];
+                  const filteredRankings = allRankings.filter((u: any) => {
+                    if (!rankingSearchTerm.trim()) return true;
+                    const term = rankingSearchTerm.toLowerCase();
+                    return (
+                      (u.username && u.username.toLowerCase().includes(term)) ||
+                      (u.email && u.email.toLowerCase().includes(term)) ||
+                      (u.groupName && u.groupName.toLowerCase().includes(term))
+                    );
+                  });
 
-                {/* Group stats table */}
-                <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
-                  <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 font-semibold text-gray-900">
-                    Thống kê chi tiết theo Nhóm
+                  const displayedRankings = statsTopLimit === "all" ? filteredRankings : filteredRankings.slice(0, Number(statsTopLimit));
+                  const top1 = allRankings[0];
+                  const top2 = allRankings[1];
+                  const top3 = allRankings[2];
+
+                  return (
+                    <div className="space-y-6">
+                      {/* TOP 3 PODIUM HERO SECTION */}
+                      {allRankings.length > 0 && !rankingSearchTerm && (
+                        <div className="grid grid-cols-1 md:grid-cols-3 gap-5 items-end pt-4 pb-2">
+                          {/* TOP 2 (SILVER) */}
+                          <div className="order-2 md:order-1 bg-gradient-to-b from-slate-100 via-white to-white p-6 rounded-2xl border-2 border-slate-200 shadow-md relative flex flex-col items-center text-center transition hover:-translate-y-1">
+                            <div className="absolute -top-4 px-3 py-1 bg-slate-200 text-slate-700 rounded-full text-xs font-bold uppercase tracking-wider border border-slate-300 shadow-xs flex items-center gap-1">
+                              <Medal className="h-3.5 w-3.5 text-slate-500" />
+                              <span>Á Quân 1</span>
+                            </div>
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-slate-400 to-slate-200 p-1 flex items-center justify-center shadow-inner mt-2 mb-3">
+                              <div className="w-full h-full rounded-full bg-white flex items-center justify-center font-black text-xl text-slate-600">
+                                {top2 ? top2.username.charAt(0).toUpperCase() : "2"}
+                              </div>
+                            </div>
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-slate-100 text-slate-700 mb-1">
+                              <span>Hạng 2</span>
+                            </div>
+                            <h4 className="font-bold text-gray-900 text-lg line-clamp-1">{top2 ? top2.username : "Chưa có"}</h4>
+                            <p className="text-xs text-gray-500 mb-3">{top2 ? top2.groupName : "--"}</p>
+                            <div className="w-full bg-slate-50 py-2.5 px-4 rounded-xl border border-slate-100 flex items-center justify-between text-xs font-medium text-slate-600">
+                              <span>Video hoàn thành:</span>
+                              <span className="text-base font-bold text-slate-900">{top2 ? top2.completed : 0}</span>
+                            </div>
+                          </div>
+
+                          {/* TOP 1 (GOLD) - ELEVATED */}
+                          <div className="order-1 md:order-2 bg-gradient-to-b from-amber-500/15 via-amber-500/5 to-white p-7 rounded-3xl border-2 border-amber-400 shadow-xl shadow-amber-500/10 relative flex flex-col items-center text-center transition hover:-translate-y-1 md:-mt-4">
+                            <div className="absolute -top-5 px-4 py-1.5 bg-gradient-to-r from-amber-400 via-amber-300 to-yellow-400 text-amber-950 rounded-full text-xs font-black uppercase tracking-wider shadow-md flex items-center gap-1.5 border border-amber-300">
+                              <Crown className="h-4 w-4 text-amber-900 fill-amber-900 animate-bounce" />
+                              <span>QUÁN QUÂN 🏆</span>
+                            </div>
+                            <div className="w-20 h-20 rounded-full bg-gradient-to-tr from-amber-500 via-yellow-400 to-amber-200 p-1 flex items-center justify-center shadow-lg shadow-amber-400/30 mt-1 mb-3">
+                              <div className="w-full h-full rounded-full bg-white flex items-center justify-center font-black text-2xl text-amber-600">
+                                {top1 ? top1.username.charAt(0).toUpperCase() : "1"}
+                              </div>
+                            </div>
+                            <div className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-black bg-amber-100 text-amber-800 border border-amber-300/60 mb-1">
+                              <Trophy className="h-3.5 w-3.5 text-amber-600 fill-amber-500" />
+                              <span>TOP 1 LEADERBOARD</span>
+                            </div>
+                            <h4 className="font-black text-gray-900 text-xl line-clamp-1">{top1 ? top1.username : "Chưa có"}</h4>
+                            <p className="text-xs font-semibold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-md mt-0.5 mb-4">{top1 ? top1.groupName : "--"}</p>
+                            <div className="w-full bg-gradient-to-r from-amber-500/10 via-yellow-500/10 to-amber-500/10 py-3 px-4 rounded-2xl border border-amber-200/80 flex items-center justify-between text-sm font-semibold text-amber-900">
+                              <span className="flex items-center gap-1">
+                                <Sparkles className="h-4 w-4 text-amber-500" />
+                                <span>Thành công:</span>
+                              </span>
+                              <span className="text-xl font-black text-amber-700">{top1 ? top1.completed : 0} vid</span>
+                            </div>
+                          </div>
+
+                          {/* TOP 3 (BRONZE) */}
+                          <div className="order-3 bg-gradient-to-b from-orange-50 via-white to-white p-6 rounded-2xl border-2 border-orange-200 shadow-md relative flex flex-col items-center text-center transition hover:-translate-y-1">
+                            <div className="absolute -top-4 px-3 py-1 bg-orange-100 text-orange-800 rounded-full text-xs font-bold uppercase tracking-wider border border-orange-200 shadow-xs flex items-center gap-1">
+                              <Medal className="h-3.5 w-3.5 text-orange-600" />
+                              <span>Á Quân 2</span>
+                            </div>
+                            <div className="w-16 h-16 rounded-full bg-gradient-to-tr from-amber-700 via-orange-400 to-amber-200 p-1 flex items-center justify-center shadow-inner mt-2 mb-3">
+                              <div className="w-full h-full rounded-full bg-white flex items-center justify-center font-black text-xl text-orange-700">
+                                {top3 ? top3.username.charAt(0).toUpperCase() : "3"}
+                              </div>
+                            </div>
+                            <div className="inline-flex items-center gap-1.5 px-2.5 py-0.5 rounded-full text-xs font-bold bg-orange-100 text-orange-800 mb-1">
+                              <span>Hạng 3</span>
+                            </div>
+                            <h4 className="font-bold text-gray-900 text-lg line-clamp-1">{top3 ? top3.username : "Chưa có"}</h4>
+                            <p className="text-xs text-gray-500 mb-3">{top3 ? top3.groupName : "--"}</p>
+                            <div className="w-full bg-orange-50/60 py-2.5 px-4 rounded-xl border border-orange-100 flex items-center justify-between text-xs font-medium text-orange-800">
+                              <span>Video hoàn thành:</span>
+                              <span className="text-base font-bold text-orange-950">{top3 ? top3.completed : 0}</span>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+
+                      {/* DETAILED LEADERBOARD TABLE */}
+                      <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                        <div className="px-6 py-4 bg-gray-50/80 border-b border-gray-200 flex flex-wrap items-center justify-between gap-3">
+                          <div className="flex items-center gap-2 font-bold text-gray-900 text-base">
+                            <Trophy className="h-5 w-5 text-amber-500" />
+                            <span>Bảng Xếp Hạng Chi Tiết ({displayedRankings.length} thành viên)</span>
+                          </div>
+                          {statsTopLimit !== "all" && (
+                            <span className="text-xs text-gray-500 bg-white px-3 py-1 rounded-lg border border-gray-200 font-medium">
+                              Đang lọc hiển thị Top {statsTopLimit}
+                            </span>
+                          )}
+                        </div>
+
+                        <div className="overflow-x-auto">
+                          <table className="w-full text-left text-sm text-gray-600">
+                            <thead className="bg-gray-100/70 text-gray-700 uppercase font-semibold text-xs border-b border-gray-200">
+                              <tr>
+                                <th className="px-6 py-3.5 text-center w-20">Hạng</th>
+                                <th className="px-6 py-3.5">Thành viên</th>
+                                <th className="px-6 py-3.5">Nhóm</th>
+                                <th className="px-6 py-3.5 text-center">Thành công</th>
+                                <th className="px-6 py-3.5 text-center">Đang xử lý</th>
+                                <th className="px-6 py-3.5 text-center">Thất bại</th>
+                                <th className="px-6 py-3.5 text-center">Tổng video</th>
+                                <th className="px-6 py-3.5 text-center">Tỉ lệ hoàn thành</th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-100">
+                              {displayedRankings.length > 0 ? (
+                                displayedRankings.map((user: any) => {
+                                  const rank = user.ranking;
+                                  return (
+                                    <tr
+                                      key={user.id}
+                                      className={`hover:bg-emerald-50/30 transition ${
+                                        rank === 1 ? "bg-amber-50/30 font-medium" :
+                                        rank === 2 ? "bg-slate-50/40" :
+                                        rank === 3 ? "bg-orange-50/20" : ""
+                                      }`}
+                                    >
+                                      {/* Rank Column */}
+                                      <td className="px-6 py-4 text-center">
+                                        {rank === 1 ? (
+                                          <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-amber-400 to-yellow-300 text-amber-950 font-black shadow-sm">
+                                            🥇
+                                          </div>
+                                        ) : rank === 2 ? (
+                                          <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-slate-300 to-slate-200 text-slate-800 font-bold shadow-xs">
+                                            🥈
+                                          </div>
+                                        ) : rank === 3 ? (
+                                          <div className="inline-flex items-center justify-center w-8 h-8 rounded-full bg-gradient-to-r from-amber-600 to-orange-400 text-white font-bold shadow-xs">
+                                            🥉
+                                          </div>
+                                        ) : (
+                                          <span className="inline-flex items-center justify-center w-7 h-7 rounded-full bg-gray-100 text-gray-700 font-bold text-xs">
+                                            {rank}
+                                          </span>
+                                        )}
+                                      </td>
+
+                                      {/* User Info */}
+                                      <td className="px-6 py-4">
+                                        <div className="flex items-center gap-3">
+                                          <div className="w-9 h-9 rounded-full bg-gradient-to-tr from-emerald-600 to-teal-500 text-white font-bold text-sm flex items-center justify-center shadow-xs">
+                                            {user.username.charAt(0).toUpperCase()}
+                                          </div>
+                                          <div>
+                                            <p className="font-bold text-gray-900 leading-tight">{user.username}</p>
+                                            {user.email && <p className="text-xs text-gray-400 mt-0.5">{user.email}</p>}
+                                          </div>
+                                        </div>
+                                      </td>
+
+                                      {/* Group */}
+                                      <td className="px-6 py-4">
+                                        <span className="inline-flex items-center px-2.5 py-1 rounded-md text-xs font-semibold bg-gray-100 text-gray-700">
+                                          {user.groupName || "Chưa vào nhóm"}
+                                        </span>
+                                      </td>
+
+                                      {/* Completed */}
+                                      <td className="px-6 py-4 text-center">
+                                        <span className="inline-flex items-center gap-1 px-3 py-1 rounded-full text-xs font-bold bg-emerald-100 text-emerald-800">
+                                          <CheckCircle className="h-3.5 w-3.5 text-emerald-600" />
+                                          <span>{user.completed}</span>
+                                        </span>
+                                      </td>
+
+                                      {/* Processing */}
+                                      <td className="px-6 py-4 text-center">
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-amber-50 text-amber-700">
+                                          <Clock className="h-3 w-3 text-amber-500" />
+                                          <span>{user.processing}</span>
+                                        </span>
+                                      </td>
+
+                                      {/* Failed */}
+                                      <td className="px-6 py-4 text-center">
+                                        <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-full text-xs font-medium bg-red-50 text-red-700">
+                                          <XCircle className="h-3 w-3 text-red-500" />
+                                          <span>{user.failed}</span>
+                                        </span>
+                                      </td>
+
+                                      {/* Total */}
+                                      <td className="px-6 py-4 text-center font-bold text-gray-900 text-sm">
+                                        {user.total}
+                                      </td>
+
+                                      {/* Success Rate */}
+                                      <td className="px-6 py-4 text-center">
+                                        <div className="flex flex-col items-center gap-1">
+                                          <span className="text-xs font-bold text-emerald-700">{user.successRate}</span>
+                                          <div className="w-16 bg-gray-200 rounded-full h-1.5 overflow-hidden">
+                                            <div
+                                              className="bg-emerald-600 h-1.5 rounded-full"
+                                              style={{ width: user.successRate }}
+                                            />
+                                          </div>
+                                        </div>
+                                      </td>
+                                    </tr>
+                                  );
+                                })
+                              ) : (
+                                <tr>
+                                  <td colSpan={8} className="py-12 text-center text-gray-400">
+                                    Không tìm thấy dữ liệu xếp hạng phù hợp với bộ lọc.
+                                  </td>
+                                </tr>
+                              )}
+                            </tbody>
+                          </table>
+                        </div>
+                      </div>
+                    </div>
+                  );
+                })()}
+
+                {/* 2. GROUP STATS SUB-TAB */}
+                {statsSubTab === "groups" && (
+                  <div className="bg-white rounded-2xl border border-gray-200 shadow-sm overflow-hidden">
+                    <div className="px-6 py-4 bg-gray-50 border-b border-gray-200 font-bold text-gray-900 flex items-center justify-between">
+                      <span className="flex items-center gap-2">
+                        <Users className="h-5 w-5 text-indigo-600" />
+                        <span>Thống kê theo Nhóm làm việc</span>
+                      </span>
+                    </div>
+                    <div className="overflow-x-auto">
+                      <table className="w-full text-left text-sm text-gray-600">
+                        <thead className="bg-gray-100/70 text-gray-700 uppercase font-semibold text-xs border-b border-gray-200">
+                          <tr>
+                            <th className="px-6 py-3.5">Tên Nhóm</th>
+                            <th className="px-6 py-3.5 text-center">Thành công</th>
+                            <th className="px-6 py-3.5 text-center">Đang xử lý</th>
+                            <th className="px-6 py-3.5 text-center">Thất bại</th>
+                            <th className="px-6 py-3.5 text-center">Tổng cộng</th>
+                            <th className="px-6 py-3.5 text-center">Tỉ lệ thành công</th>
+                          </tr>
+                        </thead>
+                        <tbody className="divide-y divide-gray-100">
+                          {adminStatsData.groups.map((g: any, index: number) => {
+                            const resolved = g.completed + g.failed;
+                            const rate = resolved > 0 ? ((g.completed / resolved) * 100).toFixed(2) + '%' : '0%';
+                            return (
+                              <tr key={index} className="hover:bg-gray-50 transition">
+                                <td className="px-6 py-4 font-bold text-gray-900">{g.name}</td>
+                                <td className="px-6 py-4 text-center font-bold text-emerald-600">{g.completed}</td>
+                                <td className="px-6 py-4 text-center text-amber-600 font-medium">{g.processing}</td>
+                                <td className="px-6 py-4 text-center text-red-600 font-medium">{g.failed}</td>
+                                <td className="px-6 py-4 text-center font-bold text-gray-900">{g.total}</td>
+                                <td className="px-6 py-4 text-center font-bold text-indigo-600">{rate}</td>
+                              </tr>
+                            );
+                          })}
+                        </tbody>
+                      </table>
+                    </div>
                   </div>
-                  <div className="overflow-x-auto">
-                    <table className="w-full text-left text-sm text-gray-500">
-                      <thead className="bg-gray-100/50 text-gray-700 uppercase font-semibold text-xs border-b border-gray-200">
-                        <tr>
-                          <th className="px-6 py-3">Tên Nhóm</th>
-                          <th className="px-6 py-3">Thành công</th>
-                          <th className="px-6 py-3">Đang xử lý</th>
-                          <th className="px-6 py-3">Thất bại</th>
-                          <th className="px-6 py-3">Tổng cộng</th>
-                          <th className="px-6 py-3">Tỉ lệ thành công</th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-100">
-                        {adminStatsData.groups.map((g: any, index: number) => {
-                          const resolved = g.completed + g.failed;
-                          const rate = resolved > 0 ? ((g.completed / resolved) * 100).toFixed(2) + '%' : '0%';
-                          return (
-                            <tr key={index} className="hover:bg-gray-50">
-                              <td className="px-6 py-4 font-medium text-gray-900">{g.name}</td>
-                              <td className="px-6 py-4 text-emerald-600 font-semibold">{g.completed}</td>
-                              <td className="px-6 py-4 text-amber-600">{g.processing}</td>
-                              <td className="px-6 py-4 text-red-600">{g.failed}</td>
-                              <td className="px-6 py-4 font-semibold">{g.total}</td>
-                              <td className="px-6 py-4 font-semibold text-indigo-600">{rate}</td>
-                            </tr>
-                          );
-                        })}
-                      </tbody>
-                    </table>
+                )}
+
+                {/* 3. OVERVIEW SUB-TAB */}
+                {statsSubTab === "overview" && (
+                  <div className="space-y-6">
+                    {/* Summary Cards */}
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+                      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between">
+                        <p className="text-xs text-gray-500 font-semibold uppercase tracking-wider">Tổng số Video</p>
+                        <h3 className="text-3xl font-black text-gray-900 mt-2">{adminStatsData.summary.total}</h3>
+                      </div>
+                      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between border-l-4 border-l-emerald-500">
+                        <p className="text-xs text-emerald-600 font-semibold uppercase tracking-wider">Thành công</p>
+                        <h3 className="text-3xl font-black text-emerald-700 mt-2">{adminStatsData.summary.completed}</h3>
+                      </div>
+                      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between border-l-4 border-l-red-500">
+                        <p className="text-xs text-red-600 font-semibold uppercase tracking-wider">Thất bại</p>
+                        <h3 className="text-3xl font-black text-red-700 mt-2">{adminStatsData.summary.failed}</h3>
+                      </div>
+                      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between border-l-4 border-l-amber-500">
+                        <p className="text-xs text-amber-600 font-semibold uppercase tracking-wider">Đang xử lý</p>
+                        <h3 className="text-3xl font-black text-amber-700 mt-2">{adminStatsData.summary.processing}</h3>
+                      </div>
+                      <div className="bg-white p-6 rounded-2xl border border-gray-200 shadow-sm flex flex-col justify-between bg-gradient-to-tr from-indigo-50 to-blue-50 border-l-4 border-l-indigo-500">
+                        <p className="text-xs text-indigo-600 font-semibold uppercase tracking-wider">Tỷ lệ thành công</p>
+                        <h3 className="text-3xl font-black text-indigo-700 mt-2">{adminStatsData.summary.successRate}</h3>
+                      </div>
+                    </div>
                   </div>
-                </div>
+                )}
               </div>
             ) : (
-              <div className="py-12 text-center text-gray-500 bg-white rounded-2xl border border-gray-200">
-                Không có dữ liệu thống kê cho khoảng thời gian này.
+              <div className="py-16 text-center text-gray-500 bg-white rounded-2xl border border-gray-200 shadow-sm">
+                <BarChart2 className="h-10 w-10 text-gray-300 mx-auto mb-2" />
+                <p className="font-semibold text-gray-600">Không có dữ liệu thống kê cho khoảng thời gian này.</p>
+                <p className="text-xs text-gray-400 mt-1">Hãy thử chọn mốc thời gian khác hoặc kiểm tra lại bộ lọc.</p>
               </div>
             )}
           </div>
